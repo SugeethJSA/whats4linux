@@ -122,10 +122,15 @@ func (a *Api) resyncAppState() {
 	// mainEventHandler (FromFullSync=true) and lands in our tables.
 	//
 	// critical_block and critical_unblock_low are NOT full-synced here —
-	// those collections are huge (especially contacts) and fullSync destroys
-	// the version before the network round-trip completes, so a failure wipes
-	// the version entirely. whatsmeow's auto-sync (initial FetchAppState on
-	// connect) handles them incrementally instead.
+	// those collections are huge and fullSync destroys the version before the
+	// network round-trip completes, so a failure wipes the version entirely.
+	// Instead, critical_unblock_low is fetched without fullSync (preserving
+	// any existing mutation MACs); if its version was never stored (0), the
+	// internal fullSync code path still fetches the full snapshot.
+	//
+	// This is necessary because whatsmeow's auto-sync in
+	// handleAppStateSyncKeyShare only fires during initial pairing or key
+	// renewal — NOT on every connect.
 	for _, name := range []appstate.WAPatchName{appstate.WAPatchRegularLow, appstate.WAPatchRegularHigh} {
 		log.Printf("Starting app state full sync for %s", name)
 		if err := a.waClient.FetchAppState(a.ctx, name, true, false); err != nil {
@@ -133,6 +138,12 @@ func (a *Api) resyncAppState() {
 			continue
 		}
 		log.Println("App state fully synced:", name)
+	}
+	// Sync critical_unblock_low (phone contacts — first_name/full_name)
+	// without fullSync to avoid destroying existing mutation MACs.
+	log.Printf("Starting app state sync for %s", appstate.WAPatchCriticalUnblockLow)
+	if err := a.waClient.FetchAppState(a.ctx, appstate.WAPatchCriticalUnblockLow, false, false); err != nil {
+		log.Printf("App state sync failed for %s: %v", appstate.WAPatchCriticalUnblockLow, err)
 	}
 	// Log contact sync status for diagnostics
 	if versions, _, err := a.waClient.Store.AppState.GetAppStateVersion(a.ctx, string(appstate.WAPatchCriticalUnblockLow)); err == nil && versions > 0 {
