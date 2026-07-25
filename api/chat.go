@@ -4,10 +4,24 @@ import (
 	"log"
 	"time"
 
+	"github.com/nyaruka/phonenumbers"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"go.mau.fi/whatsmeow/appstate"
 	"go.mau.fi/whatsmeow/types"
 )
+
+// formatPhone formats a JID user component as an international phone number.
+// Returns empty string if the JID isn't a phone number (e.g. LID, group, etc.)
+func formatPhone(user string) string {
+	if user == "" {
+		return ""
+	}
+	num, err := phonenumbers.Parse("+"+user, "")
+	if err != nil || !phonenumbers.IsValidNumber(num) {
+		return ""
+	}
+	return phonenumbers.Format(num, phonenumbers.INTERNATIONAL)
+}
 
 type ChatElement struct {
 	LatestMessage string `json:"latest_message"`
@@ -104,13 +118,15 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 				FullName: name,
 			}
 		} else {
-			contact, err := a.waClient.Store.Contacts.GetContact(a.ctx, cm.JID)
+			contact, err := a.waClient.Store.Contacts.GetContact(a.ctx, cm.JID.ToNonAD())
+			phone := formatPhone(cm.JID.User)
 			if err != nil {
 				// Same here: degrade to the JID rather than failing everything.
 				log.Println("GetChatList: contact lookup failed, using fallback:", cm.JID.String(), err)
 				fc = Contact{
 					JID:      cm.JID.String(),
 					PushName: cm.JID.User,
+					Phno:     phone,
 				}
 			} else {
 				fc = Contact{
@@ -118,6 +134,7 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 					Short:      contact.FirstName,
 					FullName:   contact.FullName,
 					PushName:   contact.PushName,
+					Phno:       phone,
 					IsBusiness: contact.BusinessName != "",
 				}
 			}
