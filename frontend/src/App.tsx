@@ -98,6 +98,20 @@ function App() {
       if (status === "logged_in" || status === "success") {
         setScreen("chats")
         void initSelf()
+        const nid = (window as any).__reconnectNotifId
+        if (nid !== undefined) {
+          removeNotification(nid)
+          delete (window as any).__reconnectNotifId
+        }
+      } else if (status === "reconnecting") {
+        const nid = addNotification("Reconnecting to WhatsApp...")
+        // The "logged_in" or "disconnected" events will remove this.
+        ;(window as any).__reconnectNotifId = nid
+      } else if (status === "disconnected") {
+        const nid = (window as any).__reconnectNotifId
+        if (nid !== undefined) removeNotification(nid)
+        delete (window as any).__reconnectNotifId
+        addNotification("Disconnected from WhatsApp")
       }
     })
 
@@ -106,6 +120,12 @@ function App() {
       setTimeout(() => {
         removeNotification(notificationId)
       }, 3000)
+    })
+
+    // Surface backend errors to the user as toast notifications.
+    const unsubError = EventsOn("wa:error", (msg: string) => {
+      const nid = addNotification(msg)
+      setTimeout(() => removeNotification(nid), 6000)
     })
 
     // Keep the muted-chats store fresh so chat rows/info panels stay in sync
@@ -129,6 +149,7 @@ function App() {
       unsubQR()
       unsubStatus()
       unsubDownload()
+      unsubError()
       unsubMuteUpdate()
     }
   }, [addNotification, removeNotification])
