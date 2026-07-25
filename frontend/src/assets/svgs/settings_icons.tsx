@@ -67,6 +67,12 @@ export const SearchIcon = ({ className = "w-5 h-5" }) => (
   </svg>
 )
 
+export const LogIcon = ({ className = "w-6 h-6" }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm0 14H4V4h16v12zM6 10h4V8H6v2zm0 4h4v-2H6v2zm8-8v2h4V6h-4zm0 4h4v-2h-4v2zm0 4h4v-2h-4v2z" />
+  </svg>
+)
+
 export const UserIcon = () => (
   <svg viewBox="0 0 48 48" className="w-full h-full text-white" fill="currentColor">
     <path d="M24 23q-1.857 0-3.178-1.322Q19.5 20.357 19.5 18.5t1.322-3.178T24 14t3.178 1.322Q28.5 16.643 28.5 18.5t-1.322 3.178T24 23m-6.75 10q-.928 0-1.59-.66-.66-.662-.66-1.59v-.9q0-.956.492-1.758A3.3 3.3 0 0 1 16.8 26.87a16.7 16.7 0 0 1 3.544-1.308q1.8-.435 3.656-.436 1.856 0 3.656.436T31.2 26.87q.816.422 1.308 1.223T33 29.85v.9q0 .928-.66 1.59-.662.66-1.59.66z" />

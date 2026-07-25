@@ -41,6 +41,12 @@ func (a *Api) GetContact(jid types.JID) (*Contact, error) {
 		return nil, fmt.Errorf("invalid phone number")
 	}
 
+	// If this is an empty stub that survived pruning, return nil so the
+	// caller falls through to push_name or phone-number display.
+	if contact.FirstName == "" && contact.FullName == "" && contact.PushName == "" && contact.BusinessName == "" {
+		return nil, fmt.Errorf("contact is empty stub")
+	}
+
 	return &Contact{
 		Phno:       phonenumbers.Format(num, phonenumbers.INTERNATIONAL),
 		JID:        jid.String(),
@@ -65,6 +71,10 @@ func (a *Api) FetchContacts() ([]Contact, error) {
 		rawNum := "+" + jid.User
 		num, err := phonenumbers.Parse(rawNum, "")
 		if err != nil || !phonenumbers.IsValidNumber(num) {
+			continue
+		}
+		// Skip empty stubs that have no name data at all
+		if c.FirstName == "" && c.FullName == "" && c.PushName == "" && c.BusinessName == "" {
 			continue
 		}
 
