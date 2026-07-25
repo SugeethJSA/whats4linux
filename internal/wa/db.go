@@ -21,7 +21,7 @@ type AppDatabase struct {
 }
 
 func NewAppDatabase(ctx context.Context) (*AppDatabase, error) {
-	db, err := sql.Open("sqlite3", misc.GetSQLiteAddress("app.db"))
+	db, err := sql.Open("sqlite", misc.GetSQLiteAddress("app.db"))
 	if err != nil {
 		return nil, err
 	}

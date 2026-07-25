@@ -7,12 +7,12 @@ import (
 	"testing"
 
 	"github.com/lugvitc/whats4linux/internal/query"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 func TestImageCacheEvictsOldFilesToSizeLimit(t *testing.T) {
 	dir := t.TempDir()
-	db, err := sql.Open("sqlite3", filepath.Join(dir, "index.db"))
+	db, err := sql.Open("sqlite", filepath.Join(dir, "index.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

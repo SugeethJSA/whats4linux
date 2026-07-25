@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/lugvitc/whats4linux/internal/settings"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	waLog "go.mau.fi/whatsmeow/util/log"
