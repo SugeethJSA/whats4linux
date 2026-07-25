@@ -120,13 +120,30 @@ func (a *Api) resyncAppState() {
 	// re-applies the collection from a server snapshot; with
 	// EmitAppStateEventsOnFullSync set, every mutation is dispatched to
 	// mainEventHandler (FromFullSync=true) and lands in our tables.
+	//
+	// critical_block and critical_unblock_low are NOT full-synced here —
+	// those collections are huge (especially contacts) and fullSync destroys
+	// the version before the network round-trip completes, so a failure wipes
+	// the version entirely. whatsmeow's auto-sync (initial FetchAppState on
+	// connect) handles them incrementally instead.
 	for _, name := range []appstate.WAPatchName{appstate.WAPatchRegularLow, appstate.WAPatchRegularHigh} {
+		log.Printf("Starting app state full sync for %s", name)
 		if err := a.waClient.FetchAppState(a.ctx, name, true, false); err != nil {
 			log.Printf("App state full sync failed for %s: %v", name, err)
 			continue
 		}
 		log.Println("App state fully synced:", name)
 	}
+	// Log contact sync status for diagnostics
+	if versions, _, err := a.waClient.Store.AppState.GetAppStateVersion(a.ctx, string(appstate.WAPatchCriticalUnblockLow)); err == nil && versions > 0 {
+		contacts, _ := a.waClient.Store.Contacts.GetAllContacts(a.ctx)
+		log.Printf("Contacts synced: %d entries (version %d)", len(contacts), versions)
+	} else if err != nil {
+		log.Printf("Contact sync version check failed: %v", err)
+	} else {
+		log.Printf("Contact sync has never completed (version 0)")
+	}
+	log.Println("Resync complete, emitting chat_list_refresh")
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 }
 
@@ -534,6 +551,10 @@ func (a *Api) mainEventHandler(evt any) {
 			"chatId": v.Chat.String(),
 			"status": v.Type.GoString(),
 		})
+	case *events.Contact:
+		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	case *events.PushName, *events.BusinessName:
+		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 	default:
 		// Ignore other events for now
 	}

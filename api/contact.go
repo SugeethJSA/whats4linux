@@ -58,10 +58,13 @@ func (a *Api) FetchContacts() ([]Contact, error) {
 	}
 	contacts := make([]Contact, 0, len(rawContacts))
 	for jid, c := range rawContacts {
+		// Only return contacts that have valid phone numbers (skip LID-only entries)
+		if jid.Server != types.DefaultUserServer {
+			continue
+		}
 		rawNum := "+" + jid.User
-		// Parse phone number to use as International Format
 		num, err := phonenumbers.Parse(rawNum, "")
-		if err != nil && !phonenumbers.IsValidNumber(num) {
+		if err != nil || !phonenumbers.IsValidNumber(num) {
 			continue
 		}
 
