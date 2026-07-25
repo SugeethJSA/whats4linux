@@ -8,7 +8,7 @@ import (
 	"github.com/lugvitc/whats4linux/internal/misc"
 	"github.com/lugvitc/whats4linux/internal/query"
 	"github.com/lugvitc/whats4linux/internal/wa"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 	"go.mau.fi/whatsmeow"
 )
 
@@ -17,7 +17,7 @@ func TestGetCommunityListReturnsPopulatedCache(t *testing.T) {
 	misc.ConfigDir = t.TempDir()
 	t.Cleanup(func() { misc.ConfigDir = originalConfigDir })
 
-	db, err := sql.Open("sqlite3", misc.GetSQLiteAddress("app.db"))
+	db, err := sql.Open("sqlite", misc.GetSQLiteAddress("app.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
