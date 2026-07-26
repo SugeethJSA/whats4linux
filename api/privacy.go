@@ -138,6 +138,38 @@ func (a *Api) SetDisappearingTimer(chatJID string, timerSeconds int64) error {
 	return nil
 }
 
+func (a *Api) GetDisappearingTimer(chatJID string) (int64, error) {
+	if a.waClient.Store.ID == nil {
+		return 0, fmt.Errorf("not logged in")
+	}
+	chat, err := types.ParseJID(chatJID)
+	if err != nil {
+		return 0, err
+	}
+	if chat.Server == types.GroupServer {
+		info, err := a.waClient.GetGroupInfo(a.ctx, chat)
+		if err != nil {
+			return 0, err
+		}
+		if info != nil {
+			return int64(info.DisappearingTimer), nil
+		}
+	}
+	return 0, nil
+}
+
+func (a *Api) SetStatusPrivacy(value string) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("not logged in")
+	}
+	_, err := a.waClient.SetPrivacySetting(a.ctx, types.PrivacySettingTypeStatus, types.PrivacySetting(value))
+	if err != nil {
+		return err
+	}
+	a.logcatLog(logcat.LevelInfo, "privacy", "Set status privacy → %s", value)
+	return nil
+}
+
 // handleBlocklistEvent processes a blocklist mutation from app state sync.
 func (a *Api) handleBlocklistEvent(evt *events.Blocklist) {
 	log.Printf("Blocklist changed: %+v", evt)

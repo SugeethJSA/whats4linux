@@ -152,6 +152,34 @@ func DescribeSpecialMessage(msg *waE2E.Message) (string, bool) {
 			return esc(t.GetHydratedContentText()), true
 		}
 		return "", false
+
+	case msg.GetOrderMessage() != nil:
+		order := msg.GetOrderMessage()
+		out := "🛒 Order"
+		if order.GetOrderTitle() != "" {
+			out += ": " + esc(order.GetOrderTitle())
+		}
+		if order.GetThumbnail() != nil {
+			// just show the order
+		}
+		return `<div class="msg-card">` + out + `</div>`, true
+
+	case msg.GetDeclinePaymentRequestMessage() != nil:
+		return `<div class="msg-card">💳 Payment request declined</div>`, true
+
+	case msg.GetRequestPaymentMessage() != nil:
+		pay := msg.GetRequestPaymentMessage()
+		out := "💳 Payment request"
+		if note := pay.GetNoteMessage(); note != nil {
+			out += "<br>" + esc(note.GetConversation())
+		}
+		if pay.GetAmount() != nil && pay.GetAmount().GetValue() > 0 {
+			out += fmt.Sprintf("<br>Amount: %d %s", pay.GetAmount().GetValue(), esc(pay.GetAmount().GetCurrencyCode()))
+		}
+		return `<div class="msg-card">` + out + `</div>`, true
+
+	case msg.GetSendPaymentMessage() != nil:
+		return `<div class="msg-card">💳 Payment sent</div>`, true
 	}
 
 	return "", false
@@ -184,6 +212,12 @@ func SpecialPreview(msg *waE2E.Message) (string, bool) {
 		return "📅 " + esc(msg.GetEventMessage().GetName()), true
 	case msg.GetPtvMessage() != nil:
 		return "🎥 Video note", true
+	case msg.GetOrderMessage() != nil:
+		return "🛒 Order", true
+	case msg.GetRequestPaymentMessage() != nil:
+		return "💳 Payment request", true
+	case msg.GetSendPaymentMessage() != nil:
+		return "💳 Payment", true
 	}
 	return "", false
 }

@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
-/* Tailwind v4 preflight sets `button { cursor: default }` (unlike v3).
-   Restore the hand cursor for interactive elements; disabled buttons are
-   excluded so utilities like `cursor-not-allowed` keep working. */
+/* ─── Inter Variable Font (bundled locally, offline-safe) ─────────────────── */
+@font-face {
+  font-family: "Inter";
+  src: url("./assets/fonts/inter-variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ─── Cursor overrides (Tailwind v4 preflight sets button { cursor: default }) */
 button:not(:disabled),
 [role="button"]:not([aria-disabled="true"]),
 a,
@@ -12,287 +19,215 @@ label[for] {
   cursor: pointer;
 }
 
-/* Special message cards (polls, locations, contacts, invites, events). */
-.msg-card {
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.06);
-  padding: 6px 8px;
-  margin: 2px 0;
-  min-width: 180px;
-}
-.dark .msg-card {
-  background: rgba(0, 0, 0, 0.25);
-}
-.msg-card + .msg-card {
-  margin-top: 4px;
-}
-.poll-opt {
-  margin-top: 6px;
-  padding: 4px 6px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.05);
-}
-.dark .poll-opt {
-  background: rgba(255, 255, 255, 0.06);
-}
-.msg-card-note {
-  display: block;
-  margin-top: 5px;
-  font-size: 11px;
-  opacity: 0.6;
-}
-
-/* Chat wallpaper: WhatsApp Web's doodle tile, bundled by Vite. */
-.chat-wallpaper {
-  background-color: #efeae2;
-}
-
-/* The doodle tile ships as a transparent PNG with dark strokes; painting it
-   on a pseudo-element lets each theme tune opacity (and invert for dark)
-   without a second asset. */
-.chat-wallpaper::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: url("./assets/images/bg-chat-tile.png");
-  background-size: 550px 999px;
-  background-repeat: repeat;
-  opacity: 0.075;
-  /* Own compositor layer: keeps the tiled pattern out of the scroll repaint
-     path on WebKitGTK. */
-  transform: translateZ(0);
-}
-
-/* Promote the message scroller to its own layer — WebKitGTK otherwise
-   repaints the full stack (wallpaper included) while scrolling. */
-.virtuoso-scroller {
-  transform: translateZ(0);
-}
-
-.dark .chat-wallpaper {
-  background-color: #0a0a0a;
-}
-
-.dark .chat-wallpaper::after {
-  /* Pre-inverted tile asset instead of filter: invert(1) — CSS filters on a
-     full-viewport repeating layer hit a slow compositing path in WebKitGTK
-     and tax every scroll frame. */
-  background-image: url("./assets/images/bg-chat-tile-dark.png");
-  opacity: 0.09;
-}
-
+/* ─── Design Tokens ────────────────────────────────────────────────────────── */
 @theme {
-  --color-dark-bg: #0c0c0c;
-  --color-dark-secondary: #111111;
-  --color-dark-tertiary: #2e2f2f;
+  /* Typography */
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Brand */
+  --color-green: #21c063;
+  --color-green-dark: #1b9a58;
+  --color-green-glow: rgba(33, 192, 99, 0.35);
+  --color-green-muted: rgba(33, 192, 99, 0.12);
+
+  /* Dark surfaces */
+  --color-dark-bg: #111b21;
+  --color-dark-secondary: #202c33;
+  --color-dark-tertiary: #2a3942;
+  --color-dark-elevated: #1f2c34;
+  --color-dark-border: rgba(255, 255, 255, 0.06);
   --color-dark-text: #e9edef;
   --color-dark-muted: #8696a0;
+
+  /* Light surfaces */
   --color-light-bg: #ffffff;
-  --color-light-text: #000000;
-  --color-light-primary: #00a884;
   --color-light-secondary: #f0f2f5;
-  --color-green: #1b9a58;
-  --color-hover-icons: #2d2e2e;
+  --color-light-tertiary: #e9edef;
+  --color-light-primary: #00a884;
+  --color-light-text: #111b21;
+  --color-light-muted: #667781;
 
-  /* Chat Bubble */
+  /* Chat bubbles */
   --color-sent-bubble-bg: #d9fdd3;
-  --color-sent-bubble-dark-bg: #144d37;
+  --color-sent-bubble-dark-bg: #005c4b;
   --color-received-bubble-bg: #ffffff;
-  --color-received-bubble-dark-bg: #242626;
-  --color-sent-bubble-text: #101828;
-  --color-sent-bubble-dark-text: #ffffff;
-  --color-received-bubble-text: #101828;
-  --color-received-bubble-dark-text: #ffffff;
+  --color-received-bubble-dark-bg: #202c33;
+  --color-sent-bubble-text: #111b21;
+  --color-sent-bubble-dark-text: #e9edef;
+  --color-received-bubble-text: #111b21;
+  --color-received-bubble-dark-text: #e9edef;
 
-  /* Toggle Button */
+  /* Toggle */
   --color-toggle-bg: #21c063;
   --color-toggle-dark-bg: #21c063;
-
   --color-toggle-closed: #4a5565;
   --color-toggle-dark-closed: #4a5565;
-
   --color-toggle-circle: #ffffff;
   --color-toggle-dark-circle: #ffffff;
 
   /* Dropdown */
-  --color-dropdown-text: #000000;
-  --color-dropdown-dark-text: #ffffff;
-
+  --color-dropdown-text: #111b21;
+  --color-dropdown-dark-text: #e9edef;
   --color-dropdown-bg: #ffffff;
-  --color-dropdown-dark-bg: #0d0d0d;
-  --color-dropdown-hover-bg: #f5f5f5;
-  --color-dropdown-dark-hover-bg: #3a3a3a;
-
-  --color-dropdown-element-text: #000000;
-  --color-dropdown-element-dark-text: #ffffff;
-
+  --color-dropdown-dark-bg: #233138;
+  --color-dropdown-hover-bg: #f5f6f6;
+  --color-dropdown-dark-hover-bg: #2a3942;
+  --color-dropdown-element-text: #111b21;
+  --color-dropdown-element-dark-text: #e9edef;
   --color-dropdown-element-bg: #ffffff;
-  --color-dropdown-element-dark-bg: #0d0d0d;
-  --color-dropdown-element-hover-bg: #f5f5f5;
-  --color-dropdown-element-dark-hover-bg: #3a3a3a;
-
-  --color-dropdown-border: #dcdcdc50;
-  --color-dropdown-dark-border: #dcdcdc50;
+  --color-dropdown-element-dark-bg: #233138;
+  --color-dropdown-element-hover-bg: #f5f6f6;
+  --color-dropdown-element-dark-hover-bg: #2a3942;
+  --color-dropdown-border: rgba(220, 220, 220, 0.35);
+  --color-dropdown-dark-border: rgba(220, 220, 220, 0.12);
 
   /* Keyboard Shortcuts */
-  --color-shortcut-bg: #ffffff;
-  --color-shortcut-dark-bg: #323232;
-  --color-shortcut-border: #585a5c;
-  --color-shortcut-text: #000000;
-  --color-shortcut-dark-text: #ffffff;
+  --color-shortcut-bg: #f0f2f5;
+  --color-shortcut-dark-bg: #2a3942;
+  --color-shortcut-border: #8696a0;
+  --color-shortcut-text: #111b21;
+  --color-shortcut-dark-text: #e9edef;
+
+  /* Hover icons */
+  --color-hover-icons: #2a3942;
 }
 
 @variant dark (&:where(.dark, .dark *));
 
+/* ─── Base Reset ─────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 body {
   background-color: #f0f2f5;
-  color: #000000;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont;
+  color: #111b21;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .dark body {
-  background-color: #000000;
-  color: #ffffff;
+  background-color: #111b21;
+  color: #e9edef;
 }
 
-.wa-root {
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+/* ─── Glassmorphism Utility ──────────────────────────────────────────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.wa-card {
-  width: 900px;
-  height: 520px;
-  background: white;
-  display: flex;
-  border-radius: 8px;
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+.glass-light {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
-/* LEFT */
-.wa-left {
-  flex: 1;
-  padding: 48px;
+/* ─── Keyframe Animations ────────────────────────────────────────────────── */
+
+/* Bubble pop-in for new messages */
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.88) translateY(6px);
+  }
+  60% {
+    transform: scale(1.02) translateY(-1px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
-.wa-logo {
-  width: 40px;
-  margin-bottom: 24px;
+/* Toast slide-up */
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-.wa-left h1 {
-  font-size: 26px;
-  font-weight: 500;
-  margin-bottom: 24px;
+/* Panel slide-in from right */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
-.wa-left ol {
-  padding-left: 18px;
-  color: #3b4a54;
-  line-height: 1.8;
+/* Panel slide-in from left */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
-.wa-login-btn {
-  margin-top: 32px;
-  background: #25d366;
-  color: white;
-  border: none;
-  padding: 10px 18px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
 }
 
-/* RIGHT */
-.wa-right {
-  width: 360px;
-  background: #f7f8fa;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+/* Presence dot pulse */
+@keyframes presencePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(33, 192, 99, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(33, 192, 99, 0);
+  }
 }
 
-.qr-box {
-  background: white;
-  padding: 16px;
-  border-radius: 6px;
+/* Unread badge glow pulse */
+@keyframes badgeGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(33, 192, 99, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 8px 2px rgba(33, 192, 99, 0.2);
+  }
 }
 
-.qr-text {
-  margin-top: 16px;
-  color: #667781;
-  font-size: 14px;
+/* Ambient orb float */
+@keyframes floatOrb {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-30px) scale(1.04);
+  }
 }
 
-.qr-status {
-  margin-top: 8px;
-  font-size: 13px;
-  color: #25d366;
-}
-
-.inline-code {
-  background-color: #103e2c;
-  opacity: 70%;
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-family: "Courier New", Courier, monospace;
-  font-size: 90%;
-}
-
-blockquote {
-  border-left: 4px solid #a1b8af;
-  margin-left: 0px;
-  margin-right: 0;
-  padding-left: 10px;
-  opacity: 70%;
-}
-
-.mention {
-  color: #21c063;
-  font-weight: 700;
-}
-
-ul {
-  list-style-type: disc;
-  padding-left: 1.5rem;
-  margin: 0.5rem 0;
-}
-
-ol {
-  list-style-type: decimal;
-  padding-left: 1.5rem;
-  margin: 0.5rem 0;
-}
-
-li {
-  margin: 0.25rem 0;
-}
-
-a {
-  color: #21c063;
-  text-decoration: underline;
-}
-
-.no-formatting b,
-.no-formatting i,
-.no-formatting s,
-.no-formatting .inline-code,
-.no-formatting ul,
-.no-formatting li,
-.no-formatting .mention {
-  color: inherit;
-  font-weight: inherit;
-  font-style: inherit;
-  text-decoration: inherit;
-  display: contents;
-}
-
+/* Dropdown open */
 @keyframes menuFadeIn {
   from {
     opacity: 0;
@@ -315,16 +250,195 @@ a {
   }
 }
 
-.virtuoso-scroller {
-  will-change: transform;
+/* Status story progress bar fill */
+@keyframes storyFill {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
+/* ─── Utility Classes ────────────────────────────────────────────────────── */
+
+.animate-pop-in {
+  animation: popIn 0.18s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-slide-up {
+  animation: slideUpFade 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.06) 0px,
+    rgba(0, 0, 0, 0.1) 80px,
+    rgba(0, 0, 0, 0.06) 160px
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0px,
+    rgba(255, 255, 255, 0.08) 80px,
+    rgba(255, 255, 255, 0.03) 160px
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.presence-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #21c063;
+  border: 2px solid #fff;
+  animation: presencePulse 2.5s ease-in-out infinite;
+}
+
+.dark .presence-dot {
+  border-color: #111b21;
+}
+
+.unread-badge {
+  animation: badgeGlow 2.5s ease-in-out infinite;
+}
+
+.story-active-bar {
+  animation-name: storyFill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+/* ─── Message Special Cards ─────────────────────────────────────────────── */
+.msg-card {
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 8px 10px;
+  margin: 3px 0;
+  min-width: 180px;
+}
+.dark .msg-card {
+  background: rgba(0, 0, 0, 0.2);
+}
+.msg-card + .msg-card {
+  margin-top: 4px;
+}
+.poll-opt {
+  margin-top: 6px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.04);
+  transition: background 0.15s;
+}
+.dark .poll-opt {
+  background: rgba(255, 255, 255, 0.05);
+}
+.msg-card-note {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+/* ─── Chat Wallpaper ─────────────────────────────────────────────────────── */
+.chat-wallpaper {
+  background-color: #efeae2;
+}
+
+.chat-wallpaper::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("./assets/images/bg-chat-tile.png");
+  background-size: 550px 999px;
+  background-repeat: repeat;
+  opacity: 0.065;
   transform: translateZ(0);
+}
+
+.dark .chat-wallpaper {
+  background-color: #0b141a;
+}
+
+.dark .chat-wallpaper::after {
+  background-image: url("./assets/images/bg-chat-tile-dark.png");
+  opacity: 0.07;
+}
+
+/* ─── Virtuoso Scroll Optimization ──────────────────────────────────────── */
+.virtuoso-scroller {
+  transform: translateZ(0);
+  will-change: transform;
   backface-visibility: hidden;
   perspective: 1000;
   -webkit-font-smoothing: subpixel-antialiased;
-  image-rendering: auto;
 }
 
-/* Clickable links inside message text (opened in system browser via App.tsx). */
+/* ─── Text Formatting ────────────────────────────────────────────────────── */
+.inline-code {
+  background-color: rgba(16, 62, 44, 0.7);
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", Courier, monospace;
+  font-size: 88%;
+}
+
+blockquote {
+  border-left: 4px solid #21c063;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 10px;
+  opacity: 0.75;
+}
+
+.mention {
+  color: #21c063;
+  font-weight: 600;
+}
+
+ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+li {
+  margin: 0.25rem 0;
+}
+a {
+  color: #21c063;
+  text-decoration: underline;
+}
+
+.no-formatting b,
+.no-formatting i,
+.no-formatting s,
+.no-formatting .inline-code,
+.no-formatting ul,
+.no-formatting li,
+.no-formatting .mention {
+  color: inherit;
+  font-weight: inherit;
+  font-style: inherit;
+  text-decoration: inherit;
+  display: contents;
+}
+
+/* ─── Links in messages ──────────────────────────────────────────────────── */
 .msg-link {
   color: #53bdeb;
   text-decoration: underline;
@@ -332,24 +446,100 @@ a {
   word-break: break-all;
 }
 
-/* WebKitGTK's native <video> fullscreen button opens a broken black view, and
-   controlsList="nofullscreen" isn't honored — hide it via the WebKit pseudo-
-   element. The app's lightbox already provides a full-viewport view. */
+/* ─── Video Fullscreen Button (WebKitGTK has broken fullscreen) ──────────── */
 video::-webkit-media-controls-fullscreen-button {
   display: none !important;
 }
 
-/* Status story progress bar fill. */
-@keyframes storyFill {
-  from {
-    width: 0%;
-  }
-  to {
-    width: 100%;
-  }
+/* ─── Login Screen Ambient Orbs ──────────────────────────────────────────── */
+.login-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  animation: floatOrb 8s ease-in-out infinite;
 }
-.story-active-bar {
-  animation-name: storyFill;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
+.login-orb-1 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(33,192,99,0.18) 0%, transparent 70%);
+  top: -120px;
+  left: -100px;
+  animation-delay: 0s;
 }
+.login-orb-2 {
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(33,192,99,0.10) 0%, transparent 70%);
+  bottom: -80px;
+  right: -60px;
+  animation-delay: -4s;
+}
+.login-orb-3 {
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(27,154,88,0.12) 0%, transparent 70%);
+  top: 50%;
+  right: 20%;
+  animation-delay: -2s;
+}
+
+/* ─── Login Screen QR Shimmer ────────────────────────────────────────────── */
+.qr-placeholder {
+  width: 264px;
+  height: 264px;
+  border-radius: 16px;
+}
+
+/* ─── Sidebar Tab Active Indicator ──────────────────────────────────────── */
+.sidebar-tab-active {
+  position: relative;
+}
+.sidebar-tab-active::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+  border-radius: 1px;
+  background: #21c063;
+}
+
+/* ─── Selected Chat Row ──────────────────────────────────────────────────── */
+.chat-row-selected {
+  border-left: 3px solid #21c063;
+  padding-left: calc(1rem - 3px);
+}
+
+/* ─── Settings Icon Accent Bg ────────────────────────────────────────────── */
+.settings-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+/* ─── Toast types ────────────────────────────────────────────────────────── */
+.toast-base {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 220px;
+  max-width: 360px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  animation: slideUpFade 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  border-left: 3px solid transparent;
+}
+.toast-info    { background: #1f2c34; color: #e9edef; border-left-color: #8696a0; }
+.toast-success { background: #0d2118; color: #d9fdd3; border-left-color: #21c063; }
+.toast-error   { background: #2c1010; color: #fdd3d3; border-left-color: #e74c3c; }
+.toast-warning { background: #2c2110; color: #fdecd3; border-left-color: #f0a500; }

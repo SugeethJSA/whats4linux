@@ -8,12 +8,13 @@ import {
   DisappearingMessagesIcon,
   ReportIcon,
 } from "../../assets/svgs/chat_info_icons"
-import { GetProfile, GetGroupInfo, IsChatMuted, ToggleChatMute, BlockContact, UnblockContact, LeaveGroup, GetBlockList, SetDisappearingTimer, SetGroupName, GetGroupInviteLink, AddGroupParticipants, ClearChat } from "../../../wailsjs/go/api/Api"
+import { GetProfile, GetGroupInfo, IsChatMuted, ToggleChatMute, BlockContact, UnblockContact, LeaveGroup, GetBlockList, SetDisappearingTimer, SetGroupName, GetGroupInviteLink, AddGroupParticipants, ClearChat, GetBusinessProfile, SetGroupPhoto } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { EventsOn } from "../../../wailsjs/runtime/runtime"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
 import ToggleButton from "../settings/ToggleButton"
 import { useMuteStore } from "../../store/useMuteStore"
+import { InviteLinkDialog } from "./InviteLinkDialog"
 
 interface ChatInfoProps {
   chatId: string
@@ -34,6 +35,7 @@ export function ChatInfo({
 }: ChatInfoProps) {
   const [contactInfo, setContactInfo] = useState<api.Contact | null>(null)
   const [groupInfo, setGroupInfo] = useState<api.Group | null>(null)
+  const [businessInfo, setBusinessInfo] = useState<Record<string, any> | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAllParticipants, setShowAllParticipants] = useState(false)
   const [muted, setMutedState] = useState(false)
@@ -46,6 +48,7 @@ export function ChatInfo({
   const [subjectDraft, setSubjectDraft] = useState("")
   const [inviteLink, setInviteLink] = useState("")
   const [inviteBusy, setInviteBusy] = useState(false)
+  const [showJoinDialog, setShowJoinDialog] = useState(false)
   const MAX_VISIBLE = 10
 
   const DISAPPEAR_OPTIONS = [
@@ -180,6 +183,12 @@ export function ChatInfo({
       } else {
         const info = await GetProfile(chatId)
         setContactInfo(info)
+        try {
+          const biz = await GetBusinessProfile(chatId)
+          if (biz && Object.keys(biz).length > 0) setBusinessInfo(biz)
+        } catch {
+          /* not a business */
+        }
       }
     } catch (err) {
       console.error("Failed to load chat info:", err)
@@ -233,11 +242,49 @@ export function ChatInfo({
           <>
             {/* Profile Section */}
             <div className="bg-light-secondary dark:bg-dark-secondary p-6 flex flex-col items-center">
-              <div className="w-32 h-32 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-white font-bold text-4xl overflow-hidden mb-4">
+              <div className="relative w-32 h-32 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-white font-bold text-4xl overflow-hidden mb-4 group">
                 {chatAvatar ? (
                   <img src={chatAvatar} alt={chatName} className="w-full h-full object-cover" />
                 ) : (
                   <UserAvatar />
+                )}
+                {chatType === "group" && (
+                  <>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="group-photo-upload"
+                      onChange={async e => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        const reader = new FileReader()
+                        reader.onload = async () => {
+                          const base64 = reader.result as string
+                          try {
+                            await SetGroupPhoto(chatId, base64)
+                            window.location.reload()
+                          } catch (err) {
+                            console.error("Failed to set group photo:", err)
+                          }
+                        }
+                        reader.readAsDataURL(file)
+                      }}
+                    />
+                    <label
+                      htmlFor="group-photo-upload"
+                      className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/30 cursor-pointer transition-colors rounded-full"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="28"
+                        height="28"
+                        className="fill-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z" />
+                      </svg>
+                    </label>
+                  </>
                 )}
               </div>
               <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-1">
@@ -293,6 +340,30 @@ export function ChatInfo({
                 <div className="p-4">
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Phone</p>
                   <p className="text-gray-900 dark:text-gray-100">{contactInfo.phno}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Business Section */}
+            {chatType === "contact" && businessInfo && (
+              <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
+                <div className="p-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Business</p>
+                  {businessInfo.description && (
+                    <p className="text-sm text-gray-900 dark:text-gray-100 mb-1">{businessInfo.description}</p>
+                  )}
+                  {businessInfo.website && (
+                    <p className="text-sm text-blue-500 mb-1">{businessInfo.website}</p>
+                  )}
+                  {businessInfo.email && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{businessInfo.email}</p>
+                  )}
+                  {businessInfo.category && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{businessInfo.category}</p>
+                  )}
+                  {businessInfo.address && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{businessInfo.address}</p>
+                  )}
                 </div>
               </div>
             )}
@@ -546,9 +617,20 @@ export function ChatInfo({
                 </button>
               </div>
             )}
+
+            {/* Join Group by Link (always available) */}
+            <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
+              <button
+                onClick={() => setShowJoinDialog(true)}
+                className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors"
+              >
+                <span className="text-gray-900 dark:text-gray-100">Join Group by Link</span>
+              </button>
+            </div>
           </>
         )}
       </div>
+      {showJoinDialog && <InviteLinkDialog onClose={() => setShowJoinDialog(false)} />}
     </div>
   )
 }

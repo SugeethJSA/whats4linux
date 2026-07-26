@@ -330,6 +330,7 @@ export function MediaContent({
       }
       return <audio src={mediaSrc} controls className="w-75 h-14" />
     }
+  }
 
   // Video placeholder: show the embedded thumbnail (if any) with a play button
   // so it's clearly a video, and only download the full file on click.

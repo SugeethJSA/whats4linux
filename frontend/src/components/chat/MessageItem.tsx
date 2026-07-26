@@ -8,6 +8,7 @@ import {
   DeleteForMe,
   SendReaction,
   SetMessagePinned,
+  AcceptGroupInviteLink,
 } from "../../../wailsjs/go/api/Api"
 import { MediaContent } from "./MediaContent"
 import { QuotedMessage } from "./QuotedMessage"
@@ -195,6 +196,29 @@ export function MessageItem({
   const [forwardTarget, setForwardTarget] = useState<string | null>(null)
   const handleForward = () => setForwardTarget(message.Info.ID)
 
+  const INVITE_LINK_RE = /chat\.whatsapp\.com\/([A-Za-z0-9_-]+)/
+  const [joinBusy, setJoinBusy] = useState(false)
+  const [joinError, setJoinError] = useState("")
+  const [joinSuccess, setJoinSuccess] = useState("")
+  const textContent = content?.conversation || content?.extendedTextMessage?.text || ""
+  const inviteMatch = textContent.match(INVITE_LINK_RE)
+  const hasInviteLink = !!inviteMatch
+
+  const handleAcceptInvite = async () => {
+    if (!inviteMatch) return
+    setJoinBusy(true)
+    setJoinError("")
+    setJoinSuccess("")
+    try {
+      const jid = await AcceptGroupInviteLink(inviteMatch[1])
+      setJoinSuccess("Joined group!")
+    } catch (e: any) {
+      setJoinError(e?.message || "Failed to join")
+    } finally {
+      setJoinBusy(false)
+    }
+  }
+
   // Fetch group member name + color from the cached store (one RPC per sender,
   // then synchronous) so scrolling a group chat doesn't fire an RPC per row.
   useEffect(() => {
@@ -239,13 +263,17 @@ export function MessageItem({
   const timeMeta = (floated: boolean) => (
     <span
       className={clsx(
-        "inline-flex items-center gap-1 text-[11px] leading-none opacity-60 select-none whitespace-nowrap",
+        "inline-flex items-center gap-1 text-[11px] leading-none opacity-55 select-none whitespace-nowrap",
         floated && "float-right ml-2 mt-2",
       )}
     >
-      {message.edited && <span>Edited</span>}
+      {message.edited && <span className="italic">Edited</span>}
       <span>{timeStr}</span>
-      {isFromMe && (isPending ? <ClockPendingIcon /> : <BlueTickIcon />)}
+      {isFromMe && (
+        <span className="transition-colors duration-300">
+          {isPending ? <ClockPendingIcon /> : <BlueTickIcon />}
+        </span>
+      )}
     </span>
   )
 
@@ -287,6 +315,20 @@ export function MessageItem({
             <span dangerouslySetInnerHTML={{ __html: htmlContent }} />
             {timeMeta(true)}
           </div>
+          )}
+          {hasInviteLink && (
+            <div className="mt-2 flex flex-col gap-1">
+              <button
+                onClick={handleAcceptInvite}
+                disabled={joinBusy || !!joinSuccess}
+                className="w-full rounded-lg bg-[#21c063] px-3 py-1.5 text-sm font-medium text-[#0a1014] hover:bg-[#1ea952] disabled:opacity-50 transition-colors"
+              >
+                {joinBusy ? "Joining..." : joinSuccess ? "Joined ✓" : "Accept Invite"}
+              </button>
+              {joinError && (
+                <span className="text-xs text-red-500">{joinError}</span>
+              )}
+            </div>
           )}
           {htmlContent.includes('class="msg-link"') && (
             <LinkPreview messageId={message.Info.ID} preview={message.link_preview ?? null} />
@@ -404,15 +446,13 @@ export function MessageItem({
           ))}
         <div
           className={clsx(
-            "max-w-[85%] lg:max-w-[65%] rounded-xl px-2 pt-1 pb-1.5 relative min-w-0",
+            "max-w-[85%] lg:max-w-[65%] rounded-2xl px-3 pt-1.5 pb-2 relative min-w-0 shadow-sm",
             !isFromMe && isGroup ? "ml-2 mr-5" : "mx-5",
             {
               "w-min": hasMedia,
               "bg-transparent shadow-none": isSticker,
-              // WhatsApp sharpens the corner facing the sender on the first
-              // bubble of a run.
-              "rounded-tl-[4px]": firstInGroup && !isFromMe && !isSticker,
-              "rounded-tr-[4px]": firstInGroup && isFromMe && !isSticker,
+              "rounded-tl-md": firstInGroup && !isFromMe && !isSticker,
+              "rounded-tr-md": firstInGroup && isFromMe && !isSticker,
 
               // SENT
               "bg-sent-bubble-bg dark:bg-sent-bubble-dark-bg text-(--color-sent-bubble-text) dark:text-(--color-sent-bubble-dark-text)":
@@ -448,8 +488,8 @@ export function MessageItem({
                   key={emoji}
                   onClick={() => sendReaction(emoji)}
                   className={clsx(
-                    "rounded-full px-1 text-lg leading-none transition-transform hover:scale-125",
-                    myReaction === emoji && "bg-blue-500/40",
+                    "rounded-full px-1 text-xl leading-none transition-all duration-150 hover:scale-125 hover:-translate-y-1",
+                    myReaction === emoji && "bg-[#21c063]/30 scale-110",
                   )}
                 >
                   {emoji}
@@ -539,7 +579,7 @@ export function MessageItem({
             <div
               onClick={() => setShowReactionPicker(v => !v)}
               className={clsx(
-                "absolute -bottom-3 z-9999 cursor-pointer",
+                "absolute -bottom-3 z-9999 cursor-pointer transition-transform duration-150 hover:-translate-y-0.5",
                 isFromMe ? "right-2" : "left-2",
               )}
             >

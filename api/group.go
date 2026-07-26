@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log"
 	"strings"
@@ -170,7 +171,20 @@ func (a *Api) SetGroupName(groupJID, name string) error {
 }
 
 func (a *Api) SetGroupPhoto(groupJID, base64Data string) error {
-	return fmt.Errorf("not implemented")
+	jid, err := types.ParseJID(groupJID)
+	if err != nil {
+		return err
+	}
+	data, err := base64.StdEncoding.DecodeString(base64Data)
+	if err != nil {
+		return fmt.Errorf("decode base64: %w", err)
+	}
+	_, err = a.waClient.SetGroupPhoto(a.ctx, jid, data)
+	if err != nil {
+		return err
+	}
+	a.logcatLog(logcat.LevelInfo, "groups", "Set group photo for %s", groupJID)
+	return nil
 }
 
 func (a *Api) LeaveGroup(groupJID string) error {
@@ -184,6 +198,19 @@ func (a *Api) LeaveGroup(groupJID string) error {
 	}
 	a.logcatLog(logcat.LevelInfo, "groups", "Left group %s", groupJID)
 	return nil
+}
+
+func (a *Api) AcceptGroupInviteLink(inviteCode string) (string, error) {
+	info, err := a.waClient.GetGroupInfoFromLink(a.ctx, inviteCode)
+	if err != nil {
+		return "", fmt.Errorf("get group info from link: %w", err)
+	}
+	jid, err := a.waClient.JoinGroupWithLink(a.ctx, inviteCode)
+	if err != nil {
+		return "", fmt.Errorf("join group with link: %w", err)
+	}
+	a.logcatLog(logcat.LevelInfo, "groups", "Joined group %s (%s)", info.GroupName.Name, jid)
+	return jid.String(), nil
 }
 
 func (a *Api) GetGroupInviteLink(groupJID string) (string, error) {
@@ -212,4 +239,55 @@ func (a *Api) SetGroupLocked(groupJID string, locked bool) error {
 		return err
 	}
 	return a.waClient.SetGroupLocked(a.ctx, jid, locked)
+}
+
+func (a *Api) CreateCommunity(name, description string) (string, error) {
+	if a.waClient.Store.ID == nil {
+		return "", fmt.Errorf("not logged in")
+	}
+	groupInfo, err := a.waClient.CreateGroup(a.ctx, whatsmeow.ReqCreateGroup{
+		Name:       name,
+		GroupParent: types.GroupParent{IsParent: true},
+	})
+	if err != nil {
+		return "", err
+	}
+	if description != "" {
+		jid, parseErr := types.ParseJID(groupInfo.JID.String())
+		if parseErr == nil {
+			if descErr := a.waClient.SetGroupDescription(a.ctx, jid, description); descErr != nil {
+				a.logcatLog(logcat.LevelWarn, "communities", "Failed to set community description: %v", descErr)
+			}
+		}
+	}
+	a.logcatLog(logcat.LevelInfo, "communities", "Created community %s (%s)", name, groupInfo.JID)
+	return groupInfo.JID.String(), nil
+}
+
+func (a *Api) CreateCommunitySubGroup(parentJID, name string, participantJIDs []string) (string, error) {
+	if a.waClient.Store.ID == nil {
+		return "", fmt.Errorf("not logged in")
+	}
+	parent, err := types.ParseJID(parentJID)
+	if err != nil {
+		return "", fmt.Errorf("invalid parent JID: %w", err)
+	}
+	participants := make([]types.JID, len(participantJIDs))
+	for i, jidStr := range participantJIDs {
+		jid, err := types.ParseJID(jidStr)
+		if err != nil {
+			return "", fmt.Errorf("invalid participant JID %s: %w", jidStr, err)
+		}
+		participants[i] = jid.ToNonAD()
+	}
+	groupInfo, err := a.waClient.CreateGroup(a.ctx, whatsmeow.ReqCreateGroup{
+		Name:              name,
+		Participants:      participants,
+		GroupLinkedParent: types.GroupLinkedParent{LinkedParentJID: parent},
+	})
+	if err != nil {
+		return "", err
+	}
+	a.logcatLog(logcat.LevelInfo, "communities", "Created subgroup %s (%s) in %s", name, groupInfo.JID, parentJID)
+	return groupInfo.JID.String(), nil
 }

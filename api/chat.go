@@ -1,11 +1,13 @@
 package api
 
 import (
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/nyaruka/phonenumbers"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/lugvitc/whats4linux/internal/logcat"
 	"go.mau.fi/whatsmeow/appstate"
 	"go.mau.fi/whatsmeow/types"
 )
@@ -205,4 +207,59 @@ func (a *Api) ClearChat(jidStr string) error {
 	}
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 	return nil
+}
+
+func (a *Api) SubscribeNewsletter(newsletterJID string) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("not logged in")
+	}
+	jid, err := types.ParseJID(newsletterJID)
+	if err != nil {
+		return fmt.Errorf("invalid newsletter JID: %w", err)
+	}
+	err = a.waClient.FollowNewsletter(a.ctx, jid)
+	if err != nil {
+		return err
+	}
+	a.logcatLog(logcat.LevelInfo, "channels", "Subscribed to newsletter %s", newsletterJID)
+	return nil
+}
+
+func (a *Api) UnsubscribeNewsletter(newsletterJID string) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("not logged in")
+	}
+	jid, err := types.ParseJID(newsletterJID)
+	if err != nil {
+		return fmt.Errorf("invalid newsletter JID: %w", err)
+	}
+	err = a.waClient.UnfollowNewsletter(a.ctx, jid)
+	if err != nil {
+		return err
+	}
+	a.logcatLog(logcat.LevelInfo, "channels", "Unsubscribed from newsletter %s", newsletterJID)
+	return nil
+}
+
+func (a *Api) SearchNewsletters(query string) ([]ChatElement, error) {
+	if a.waClient.Store.ID == nil {
+		return nil, fmt.Errorf("not logged in")
+	}
+	var out []ChatElement
+	info, err := a.waClient.GetNewsletterInfoWithInvite(a.ctx, query)
+	if err == nil {
+		out = append(out, ChatElement{
+			Contact: Contact{JID: info.ID.String(), FullName: info.ThreadMeta.Name.Text},
+		})
+		return out, nil
+	}
+	if jid, parseErr := types.ParseJID(query); parseErr == nil {
+		info, err = a.waClient.GetNewsletterInfo(a.ctx, jid)
+		if err == nil {
+			out = append(out, ChatElement{
+				Contact: Contact{JID: info.ID.String(), FullName: info.ThreadMeta.Name.Text},
+			})
+		}
+	}
+	return out, nil
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import clsx from "clsx"
-import { GetCommunityList, GetCommunityDetails, GetCachedAvatar } from "../../../wailsjs/go/api/Api"
+import { createPortal } from "react-dom"
+import { GetCommunityList, GetCommunityDetails, GetCachedAvatar, CreateCommunity } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
 import { getAvatarColor, AVATAR_ICON_COLOR } from "../../lib/utils"
@@ -442,21 +443,82 @@ export function CommunityHome({
   )
 }
 
+function CreateCommunityDialog({ onClose }: { onClose: () => void }) {
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  const handleCreate = async () => {
+    if (!name.trim()) return
+    setLoading(true)
+    setError("")
+    try {
+      await CreateCommunity(name.trim(), description.trim())
+      onClose()
+    } catch (e: any) {
+      setError(e?.message || "Failed to create community")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="bg-white dark:bg-dark-secondary rounded-2xl w-96 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Create Community</h2>
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Community name"
+          className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3"
+        />
+        <textarea
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          placeholder="Description (optional)"
+          rows={3}
+          className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3 resize-none"
+        />
+        {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg">Cancel</button>
+          <button onClick={handleCreate} disabled={loading || !name.trim()} className="px-4 py-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50">
+            {loading ? "Creating..." : "Create"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 /** Welcome panel when Communities tab is active but nothing is selected. */
 export function CommunitiesWelcome() {
+  const [showCreate, setShowCreate] = useState(false)
+
   return (
-    <div className="flex-1 flex flex-col items-center justify-center z-10 text-center px-10 border-b-[6px] border-[#43d187]">
-      <div className="mb-6">
-        <CommunitiesEmptyIcon />
+    <>
+      <div className="flex-1 flex flex-col items-center justify-center z-10 text-center px-10 border-b-[6px] border-[#43d187]">
+        <div className="mb-6">
+          <CommunitiesEmptyIcon />
+        </div>
+        <h1 className="text-3xl font-light text-gray-600 dark:text-gray-300 mb-4">Communities</h1>
+        <p className="text-gray-500 dark:text-gray-400 max-w-md">
+          Communities bring members together in topic-based groups and let admins send announcements
+          to everyone.
+        </p>
+        <p className="mt-4 text-sm text-gray-400 dark:text-[#8696a0] max-w-sm">
+          Select a community from the list to view its announcement channel and groups.
+        </p>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="mt-6 px-6 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium transition-colors"
+        >
+          Create Community
+        </button>
       </div>
-      <h1 className="text-3xl font-light text-gray-600 dark:text-gray-300 mb-4">Communities</h1>
-      <p className="text-gray-500 dark:text-gray-400 max-w-md">
-        Communities bring members together in topic-based groups and let admins send announcements
-        to everyone.
-      </p>
-      <p className="mt-4 text-sm text-gray-400 dark:text-[#8696a0] max-w-sm">
-        Select a community from the list to view its announcement channel and groups.
-      </p>
-    </div>
+      {showCreate && <CreateCommunityDialog onClose={() => setShowCreate(false)} />}
+    </>
   )
 }

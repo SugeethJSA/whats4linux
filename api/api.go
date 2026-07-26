@@ -144,6 +144,11 @@ func (a *Api) resyncAppState() {
 		}
 		a.logcatLog(logcat.LevelInfo, "appstate", "App state fully synced: %s", name)
 	}
+	// Sync critical_block (blocked contacts)
+	a.logcatLog(logcat.LevelInfo, "appstate", "Starting app state sync for %s", appstate.WAPatchCriticalBlock)
+	if err := a.waClient.FetchAppState(a.ctx, appstate.WAPatchCriticalBlock, false, false); err != nil {
+		a.logcatLog(logcat.LevelError, "appstate", "Block list sync failed: %v", err)
+	}
 	// Sync critical_unblock_low (phone contacts — first_name/full_name)
 	// without fullSync to avoid destroying existing mutation MACs.
 	a.logcatLog(logcat.LevelInfo, "appstate", "Starting app state sync for %s", appstate.WAPatchCriticalUnblockLow)
@@ -670,6 +675,12 @@ func (a *Api) mainEventHandler(evt any) {
 			"status": v.Type.GoString(),
 		})
 	case *events.Contact:
+		action := v.Action
+		fullName := ""
+		if action != nil {
+			fullName = action.GetFullName()
+		}
+		a.logcatLog(logcat.LevelInfo, "contacts", "Contact event for %s: fullName=%q", v.JID, fullName)
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 	case *events.PushName, *events.BusinessName:
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
@@ -679,6 +690,8 @@ func (a *Api) mainEventHandler(evt any) {
 			"state":  string(v.State),
 			"media":  string(v.Media),
 		})
+	case *events.IdentityChange:
+		a.logcatLog(logcat.LevelInfo, "security", "Identity change for %s", v.JID)
 	case *events.Presence:
 		runtime.EventsEmit(a.ctx, "wa:presence", map[string]any{
 			"jid":         v.From.String(),
@@ -703,6 +716,14 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 		return
 	}
 	stored := 0
+	totalConvs := len(conversations)
+	runtime.EventsEmit(a.ctx, "wa:history_progress", map[string]any{
+		"type":                  v.Data.GetSyncType().String(),
+		"totalConversations":    totalConvs,
+		"processedConversations": 0,
+		"totalMessages":         0,
+		"processedMessages":     0,
+	})
 	for _, conv := range conversations {
 		chatJID, err := types.ParseJID(conv.GetID())
 		if err != nil {
@@ -729,6 +750,14 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 			}
 		}
 	}
+	runtime.EventsEmit(a.ctx, "wa:history_progress", map[string]any{
+		"type":                  v.Data.GetSyncType().String(),
+		"totalConversations":    totalConvs,
+		"processedConversations": totalConvs,
+		"totalMessages":         0,
+		"processedMessages":     stored,
+		"done":                  true,
+	})
 	a.logcatLog(logcat.LevelInfo, "history", "Stored %d messages from %d conversations", stored, len(conversations))
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 }
