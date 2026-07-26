@@ -7,6 +7,7 @@ import {
   GetGroupInfo,
   GetProfile,
   MarkRead,
+  SubscribeContactPresence,
 } from "../../wailsjs/go/api/Api"
 import { store } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
@@ -52,7 +53,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     addPendingMessage,
     updatePendingMessageToSent,
   } = useMessageStore()
-  const { setTypingIndicator, showEmojiPicker, setShowEmojiPicker, chatInfoOpen, setChatInfoOpen } =
+  const { setTypingIndicator, showEmojiPicker, setShowEmojiPicker, chatInfoOpen, setChatInfoOpen, typingIndicators } =
     useUIStore()
   const { chatsById } = useChatStore()
 
@@ -635,6 +636,31 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     return () => unsub()
   }, [chatId, updateMessage, updatePendingMessageToSent])
 
+  // Subscribe to contact presence + listen for typing indicators
+  useEffect(() => {
+    if (!chatId || chatType !== "contact") return
+
+    SubscribeContactPresence(chatId).catch(() => {})
+
+    const unsubPresence = EventsOn("wa:chat_presence", (data: { chatId: string; state: string }) => {
+      if (data?.chatId === chatId) {
+        useUIStore.getState().setTypingIndicator(chatId, data.state === "composing")
+      }
+    })
+
+    const unsubOnline = EventsOn("wa:presence", (data: { jid: string; unavailable: boolean }) => {
+      if (data?.jid === chatId || data?.jid.split("@")[0] === chatId.split("@")[0]) {
+        useUIStore.getState().setOnlineStatus(data.jid, !data.unavailable)
+      }
+    })
+
+    return () => {
+      unsubPresence()
+      unsubOnline()
+      useUIStore.getState().setTypingIndicator(chatId, false)
+    }
+  }, [chatId, chatType])
+
   useGSAP(() => {
     if (!scrollButtonRef.current) return
 
@@ -662,6 +688,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
           chatAvatar={chatAvatar}
           onBack={onBack}
           onInfoClick={() => setChatInfoOpen(!chatInfoOpen)}
+          isTyping={typingIndicators[chatId] ?? false}
         />
 
         {/* Pinned-messages banner: shows the latest pin, click cycles through

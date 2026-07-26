@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/nyaruka/phonenumbers"
 	"go.mau.fi/whatsmeow"
@@ -55,6 +56,26 @@ func (a *Api) GetContact(jid types.JID) (*Contact, error) {
 		PushName:   contact.PushName,
 		IsBusiness: contact.BusinessName != "",
 	}, nil
+}
+
+// SearchContacts searches contacts by name or phone number (case-insensitive).
+func (a *Api) SearchContacts(query string) ([]Contact, error) {
+	all, err := a.FetchContacts()
+	if err != nil {
+		return nil, err
+	}
+	q := strings.ToLower(query)
+	var out []Contact
+	for _, c := range all {
+		if strings.Contains(strings.ToLower(c.FullName), q) ||
+			strings.Contains(strings.ToLower(c.Short), q) ||
+			strings.Contains(strings.ToLower(c.PushName), q) ||
+			strings.Contains(c.Phno, q) ||
+			strings.Contains(c.JID, q) {
+			out = append(out, c)
+		}
+	}
+	return out, nil
 }
 
 func (a *Api) FetchContacts() ([]Contact, error) {

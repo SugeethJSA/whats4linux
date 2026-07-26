@@ -97,6 +97,9 @@ type MediaMessageContent struct {
 	GifPlayback bool         `json:"gifPlayback,omitempty"`
 	Width       int          `json:"width,omitempty"`
 	Height      int          `json:"height,omitempty"`
+	PTT         bool         `json:"ptt,omitempty"`
+	Seconds     uint32       `json:"seconds,omitempty"`
+	Waveform    []byte       `json:"waveform,omitempty"`
 	ContextInfo *ContextInfo `json:"contextInfo,omitempty"`
 }
 
@@ -120,12 +123,20 @@ type writeRequest struct {
 	done chan error
 }
 
+type pttCacheEntry struct {
+	ptt      bool
+	seconds  uint32
+	waveform []byte
+}
+
 type MessageStore struct {
 	db *sql.DB
 
 	// [chatJID.User] = ChatMessage
 	chatListMap   misc.VMap[string, ChatMessage]
 	reactionCache misc.NMap[string, string, []string]
+	pttCache      map[string]pttCacheEntry
+	pttCacheMu    sync.RWMutex
 
 	stmtInsertMessage *sql.Stmt
 	stmtInsertMedia   *sql.Stmt
@@ -148,6 +159,7 @@ func NewMessageStore() (*MessageStore, error) {
 		db:            db,
 		chatListMap:   misc.NewVMap[string, ChatMessage](),
 		reactionCache: misc.NewNMap[string, string, []string](),
+		pttCache:      make(map[string]pttCacheEntry),
 		writeCh:       make(chan writeRequest, 100),
 		writerDone:    make(chan struct{}),
 	}
@@ -169,6 +181,9 @@ func NewMessageStore() (*MessageStore, error) {
 			return aerr
 		}
 		if _, aerr := tx.Exec(query.AddThumbnailColumn); aerr != nil && !strings.Contains(aerr.Error(), "duplicate column") {
+			return aerr
+		}
+		if _, aerr := tx.Exec(query.AddPTAColumns); aerr != nil && !strings.Contains(aerr.Error(), "duplicate column") {
 			return aerr
 		}
 		_, err = tx.Exec(query.CreatePinnedMessagesTable)
@@ -652,6 +667,11 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 	// nil-safe and returns false for non-video messages.
 	gifPlayback := msg.GetVideoMessage().GetGifPlayback()
 
+	// PTA (Push-to-Audio / voice note) fields
+	ptt := msg.GetAudioMessage().GetPTT()
+	seconds := msg.GetAudioMessage().GetSeconds()
+	waveform := msg.GetAudioMessage().GetWaveform()
+
 	// Embedded preview thumbnail (WhatsApp ships a small JPEG in the message) so
 	// videos show a preview + play button in the list without downloading them.
 	var thumbnail []byte
@@ -732,8 +752,16 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 			fileName,
 			gifPlayback,
 			thumbnail,
+			ptt,
+			seconds,
+			waveform,
 		)
-		return err
+		if err != nil {
+			return err
+		}
+		// Also cache PTT data in-memory for immediate use by the frontend.
+		ms.CachePTT(info.ID, ptt, seconds, waveform)
+		return nil
 	})
 }
 
@@ -1408,6 +1436,7 @@ func (ms *MessageStore) GetDecodedMessagesPaged(chatJID string, beforeTimestamp 
 			item.gif,
 			contextInfo,
 		)
+		ms.applyPTT(item.message.Info.ID, item.message.Content)
 		messages = append(messages, item.message)
 	}
 
@@ -1560,6 +1589,29 @@ func buildDecodedContentValues(
 	}
 
 	return content
+}
+
+// CachePTT stores PTA (voice note) metadata for a message so the frontend
+// can render voice notes with duration and waveform data.
+func (ms *MessageStore) CachePTT(messageID string, ptt bool, seconds uint32, waveform []byte) {
+	ms.pttCacheMu.Lock()
+	defer ms.pttCacheMu.Unlock()
+	ms.pttCache[messageID] = pttCacheEntry{ptt: ptt, seconds: seconds, waveform: waveform}
+}
+
+// applyPTT patches PTT metadata onto a DecodedMessageContent if available.
+func (ms *MessageStore) applyPTT(messageID string, content *DecodedMessageContent) {
+	ms.pttCacheMu.RLock()
+	entry, ok := ms.pttCache[messageID]
+	ms.pttCacheMu.RUnlock()
+	if !ok {
+		return
+	}
+	if content.AudioMessage != nil {
+		content.AudioMessage.PTT = entry.ptt
+		content.AudioMessage.Seconds = entry.seconds
+		content.AudioMessage.Waveform = entry.waveform
+	}
 }
 
 // mediaDimensions returns the stored intrinsic width/height for a media
@@ -1743,6 +1795,7 @@ func (ms *MessageStore) GetDecodedMessage(chatJID string, messageID string) (*De
 		gif.Bool,
 		contextInfo,
 	)
+	ms.applyPTT(messageID, msg.Content)
 
 	return &msg, nil
 }
@@ -1911,6 +1964,16 @@ func (ms *MessageStore) GetArchivedChats() map[string]int64 {
 		}
 	}
 	return archived
+}
+
+// DeleteChatMessages removes all messages for a chat JID from the database.
+func (ms *MessageStore) DeleteChatMessages(chatJID string) error {
+	_, err := ms.db.Exec(`DELETE FROM messages WHERE chat_jid = ?`, chatJID)
+	if err != nil {
+		return err
+	}
+	_, err = ms.db.Exec(`DELETE FROM chat_list WHERE jid = ?`, chatJID)
+	return err
 }
 
 // MarkMessageDeleted replaces a revoked message's content with a deleted

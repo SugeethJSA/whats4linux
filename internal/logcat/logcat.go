@@ -2,6 +2,8 @@ package logcat
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -39,16 +41,72 @@ type Entry struct {
 }
 
 type Buffer struct {
-	mu      sync.Mutex
-	entries []Entry
-	max     int
-	nextID  int64
+	mu       sync.Mutex
+	entries  []Entry
+	max      int
+	nextID   int64
+	logDir   string
+	logFile  *os.File
 }
 
 var global *Buffer
 
+var logDir string
+
+func SetLogDir(dir string) {
+	logDir = dir
+}
+
 func Init(maxEntries int) {
 	global = New(maxEntries)
+	global.logDir = logDir
+	global.openLogFile()
+}
+
+func (b *Buffer) openLogFile() {
+	if b.logDir == "" {
+		return
+	}
+	if err := os.MkdirAll(b.logDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "logcat: mkdir %s: %v\n", b.logDir, err)
+		return
+	}
+	path := filepath.Join(b.logDir, time.Now().Format("2006-01-02")+".log")
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "logcat: open %s: %v\n", path, err)
+		return
+	}
+	b.logFile = f
+}
+
+func (b *Buffer) rotateLogFile() {
+	if b.logFile != nil {
+		b.logFile.Close()
+	}
+	b.openLogFile()
+}
+
+// RotateLog checks whether the log file needs rotating (new day) and does so.
+// Call it periodically or after midnight.
+func (b *Buffer) RotateLog() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	path := filepath.Join(b.logDir, time.Now().Format("2006-01-02")+".log")
+	if b.logFile != nil {
+		currentName := filepath.Base(b.logFile.Name())
+		if currentName == time.Now().Format("2006-01-02")+".log" {
+			return
+		}
+		b.logFile.Close()
+		b.logFile = nil
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "logcat: open %s: %v\n", path, err)
+		return
+	}
+	b.logFile = f
 }
 
 func Get() *Buffer {
@@ -67,12 +125,12 @@ func (b *Buffer) Write(level Level, source, format string, args ...any) {
 	if len(args) > 0 {
 		msg = fmt.Sprintf(format, args...)
 	}
+	now := time.Now()
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	b.nextID++
 	e := Entry{
 		ID:        b.nextID,
-		Timestamp: time.Now().UnixMilli(),
+		Timestamp: now.UnixMilli(),
 		Level:     level.String(),
 		Source:    source,
 		Message:   msg,
@@ -82,6 +140,16 @@ func (b *Buffer) Write(level Level, source, format string, args ...any) {
 		b.entries[len(b.entries)-1] = e
 	} else {
 		b.entries = append(b.entries, e)
+	}
+	// Write to log file outside the lock
+	f := b.logFile
+	b.mu.Unlock()
+
+	if f != nil {
+		line := fmt.Sprintf("[%s] [%s] [%s] %s\n",
+			now.Format("2006-01-02 15:04:05.000"),
+			level.String(), source, msg)
+		f.WriteString(line)
 	}
 }
 

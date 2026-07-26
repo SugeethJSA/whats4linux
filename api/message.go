@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lugvitc/whats4linux/internal/logcat"
 	"github.com/lugvitc/whats4linux/internal/markdown"
 	"github.com/lugvitc/whats4linux/internal/store"
 	mtypes "github.com/lugvitc/whats4linux/internal/types"
@@ -28,6 +29,7 @@ type MessageContent struct {
 	QuotedMessageID string   `json:"quotedMessageId,omitempty"`
 	Mentions        []string `json:"mentions,omitempty"`
 	ClientTempID    string   `json:"clientTempId,omitempty"`
+	Forwarded       bool     `json:"forwarded,omitempty"`
 }
 
 func (a *Api) processMessageText(msg *waE2E.Message) string {
@@ -226,6 +228,12 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 	if err != nil {
 		log.Println("Failed to build quoted context:", err)
 		return "", err
+	}
+	if content.Forwarded {
+		if contextInfo == nil {
+			contextInfo = &waE2E.ContextInfo{}
+		}
+		contextInfo.IsForwarded = proto.Bool(true)
 	}
 
 	switch content.Type {
@@ -537,6 +545,131 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 
 	return resp.ID, nil
 }
+// ForwardMessage retrieves the original message from sourceJID/messageID and
+// forwards it to targetJID with the forwarded flag set.
+func (a *Api) ForwardMessage(sourceJID, messageID, targetJID string) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("client not logged in")
+	}
+
+	source, err := types.ParseJID(sourceJID)
+	if err != nil {
+		return fmt.Errorf("invalid source JID: %v", err)
+	}
+	target, err := types.ParseJID(targetJID)
+	if err != nil {
+		return fmt.Errorf("invalid target JID: %v", err)
+	}
+
+	msg, err := a.messageStore.GetMessageWithMedia(source.String(), messageID)
+	if err != nil {
+		return fmt.Errorf("original message not found: %v", err)
+	}
+
+	var msgContent *waE2E.Message
+	forwarded := proto.Bool(true)
+
+	// Determine the message type from the media type
+	if msg.Media != nil {
+		// Media message – download original, re-upload, send with forwarded flag
+		data, err := a.waClient.Download(a.ctx, msg.Media)
+		if err != nil {
+			return fmt.Errorf("failed to download media: %v", err)
+		}
+
+		mediaType := msg.Media.GetMediaType()
+		uploaded, err := a.waClient.Upload(a.ctx, data, mediaType)
+		if err != nil {
+			return fmt.Errorf("failed to upload media: %v", err)
+		}
+
+		caption := msg.Text
+		contextInfo := &waE2E.ContextInfo{IsForwarded: forwarded}
+
+		switch msg.Media.GetMediaGeneralType() {
+		case mtypes.MediaTypeImage:
+			img := &waE2E.ImageMessage{
+				Caption:     &caption,
+				Mimetype:    proto.String(msg.Media.GetMimetype()),
+				URL:         &uploaded.URL,
+				DirectPath:  &uploaded.DirectPath,
+				MediaKey:    uploaded.MediaKey,
+				FileEncSHA256: uploaded.FileEncSHA256,
+				FileSHA256:  uploaded.FileSHA256,
+				FileLength:  &uploaded.FileLength,
+				ContextInfo: contextInfo,
+			}
+			msgContent = &waE2E.Message{ImageMessage: img}
+		case mtypes.MediaTypeVideo:
+			vid := &waE2E.VideoMessage{
+				Caption:     &caption,
+				Mimetype:    proto.String(msg.Media.GetMimetype()),
+				URL:         &uploaded.URL,
+				DirectPath:  &uploaded.DirectPath,
+				MediaKey:    uploaded.MediaKey,
+				FileEncSHA256: uploaded.FileEncSHA256,
+				FileSHA256:  uploaded.FileSHA256,
+				FileLength:  &uploaded.FileLength,
+				ContextInfo: contextInfo,
+			}
+			msgContent = &waE2E.Message{VideoMessage: vid}
+		case mtypes.MediaTypeAudio:
+			aud := &waE2E.AudioMessage{
+				Mimetype:    proto.String(msg.Media.GetMimetype()),
+				URL:         &uploaded.URL,
+				DirectPath:  &uploaded.DirectPath,
+				MediaKey:    uploaded.MediaKey,
+				FileEncSHA256: uploaded.FileEncSHA256,
+				FileSHA256:  uploaded.FileSHA256,
+				FileLength:  &uploaded.FileLength,
+				ContextInfo: contextInfo,
+			}
+			msgContent = &waE2E.Message{AudioMessage: aud}
+		case mtypes.MediaTypeDocument:
+			doc := &waE2E.DocumentMessage{
+				Caption:     &caption,
+				Mimetype:    proto.String(msg.Media.GetMimetype()),
+				URL:         &uploaded.URL,
+				DirectPath:  &uploaded.DirectPath,
+				MediaKey:    uploaded.MediaKey,
+				FileEncSHA256: uploaded.FileEncSHA256,
+				FileSHA256:  uploaded.FileSHA256,
+				FileLength:  &uploaded.FileLength,
+				ContextInfo: contextInfo,
+			}
+			msgContent = &waE2E.Message{DocumentMessage: doc}
+		case mtypes.MediaTypeSticker:
+			sticker := &waE2E.StickerMessage{
+				Mimetype:    proto.String(msg.Media.GetMimetype()),
+				URL:         &uploaded.URL,
+				DirectPath:  &uploaded.DirectPath,
+				MediaKey:    uploaded.MediaKey,
+				FileEncSHA256: uploaded.FileEncSHA256,
+				FileSHA256:  uploaded.FileSHA256,
+				FileLength:  &uploaded.FileLength,
+			}
+			msgContent = &waE2E.Message{StickerMessage: sticker}
+		default:
+			return fmt.Errorf("unsupported media type for forwarding")
+		}
+	} else {
+		// Text-only message
+		contextInfo := &waE2E.ContextInfo{IsForwarded: forwarded}
+		msgContent = &waE2E.Message{
+			ExtendedTextMessage: &waE2E.ExtendedTextMessage{
+				Text:        &msg.Text,
+				ContextInfo: contextInfo,
+			},
+		}
+	}
+
+	_, err = a.waClient.SendMessage(a.ctx, target, msgContent)
+	if err != nil {
+		return fmt.Errorf("failed to send forwarded message: %v", err)
+	}
+	return nil
+}
+
 func (a *Api) MarkRead(chatJID string, messageIDs []string, Type string) error {
 	parsedChatJID, err := types.ParseJID(chatJID)
 	if err != nil {
@@ -706,4 +839,91 @@ func (a *Api) SendShareContact(chatJID, displayName, phone string) (string, erro
 		},
 	}
 	return a.sendAndStoreLocal(chat, msg, "👤 "+displayName)
+}
+
+// EditMessage replaces the text of a previously-sent message. Only text
+// edits are supported; media message captions can't be edited via this API.
+func (a *Api) EditMessage(chatJID, messageID, newText string) (string, error) {
+	if a.waClient.Store.ID == nil {
+		return "", fmt.Errorf("not logged in")
+	}
+	chat, err := types.ParseJID(chatJID)
+	if err != nil {
+		return "", err
+	}
+	msg := a.waClient.BuildEdit(chat, messageID, &waE2E.Message{
+		Conversation: &newText,
+	})
+	resp, err := a.waClient.SendMessage(a.ctx, chat, msg)
+	if err != nil {
+		return "", err
+	}
+	err = a.messageStore.UpdateMessageContent(messageID, &waE2E.Message{Conversation: &newText}, "")
+	if err != nil {
+		log.Println("EditMessage: failed to persist edit locally:", err)
+	}
+	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	return resp.ID, nil
+}
+
+// RevokeMessage deletes a message for everyone in the chat (delete for
+// everyone). For groups, the sender must be the original author; admins
+// can revoke any message.
+func (a *Api) RevokeMessage(chatJID, messageID string) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("not logged in")
+	}
+	chat, err := types.ParseJID(chatJID)
+	if err != nil {
+		return err
+	}
+	_, err = a.waClient.RevokeMessage(a.ctx, chat, messageID)
+	if err != nil {
+		return err
+	}
+	err = a.messageStore.MarkMessageDeleted(messageID)
+	if err != nil {
+		log.Println("RevokeMessage: failed to mark deleted locally:", err)
+	}
+	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	return nil
+}
+
+// SendLocation sends a location message (latitude, longitude, optional name).
+func (a *Api) SendLocation(chatJID string, latitude, longitude float64, name string) (string, error) {
+	if a.waClient.Store.ID == nil {
+		return "", fmt.Errorf("not logged in")
+	}
+	chat, err := types.ParseJID(chatJID)
+	if err != nil {
+		return "", err
+	}
+	locMsg := &waE2E.Message{
+		LocationMessage: &waE2E.LocationMessage{
+			DegreesLatitude:  &latitude,
+			DegreesLongitude: &longitude,
+			Name:             &name,
+		},
+	}
+	resp, err := a.waClient.SendMessage(a.ctx, chat, locMsg)
+	if err != nil {
+		return "", err
+	}
+	msgID := resp.ID
+	a.logcatLog(logcat.LevelInfo, "messages", "Sent location to %s (%.4f, %.4f) id=%s", chatJID, latitude, longitude, msgID)
+	return msgID, nil
+}
+
+// DeleteForMe removes a message from the local database only. The message
+// remains visible to other chat participants.
+func (a *Api) DeleteForMe(chatJID, messageID string) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("not logged in")
+	}
+	err := a.messageStore.MarkMessageDeleted(messageID)
+	if err != nil {
+		return err
+	}
+	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	return nil
 }

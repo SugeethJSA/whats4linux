@@ -8,7 +8,7 @@ import {
   UserAvatar,
 } from "../../assets/svgs/chat_icons"
 import { store } from "../../../wailsjs/go/models"
-import { GetCachedAvatar } from "../../../wailsjs/go/api/Api"
+import { GetCachedAvatar, SendLocation } from "../../../wailsjs/go/api/Api"
 import { useContactStore } from "../../store/useContactStore"
 import { PollDialog } from "./PollDialog"
 import { ContactShareDialog } from "./ContactShareDialog"
@@ -140,6 +140,10 @@ export function ChatInput({
   const [attachMenuOpen, setAttachMenuOpen] = useState(false)
   const [pollOpen, setPollOpen] = useState(false)
   const [contactOpen, setContactOpen] = useState(false)
+  const [locationOpen, setLocationOpen] = useState(false)
+  const [latInput, setLatInput] = useState("")
+  const [lngInput, setLngInput] = useState("")
+  const [placeName, setPlaceName] = useState("")
   const [fileAccept, setFileAccept] = useState("image/*,video/*,audio/*,.pdf,.doc,.docx")
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [mentionAvatars, setMentionAvatars] = useState<Record<string, string>>({})
@@ -508,6 +512,7 @@ export function ChatInput({
                       },
                       { label: "📊 Poll", act: () => setPollOpen(true) },
                       { label: "👤 Contact", act: () => setContactOpen(true) },
+                      { label: "📍 Location", act: () => setLocationOpen(true) },
                     ] as const
                   ).map(item => (
                     <button
@@ -551,6 +556,66 @@ export function ChatInput({
 
       {pollOpen && <PollDialog chatId={chatId} onClose={() => setPollOpen(false)} />}
       {contactOpen && <ContactShareDialog chatId={chatId} onClose={() => setContactOpen(false)} />}
+      {locationOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setLocationOpen(false)}
+        >
+          <div
+            className="w-[360px] rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">Send location</h2>
+            <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
+              Share your current location or enter coordinates.
+            </p>
+            <input
+              autoFocus
+              className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500 mb-2"
+              placeholder="Latitude (e.g. 37.7749)"
+              value={latInput}
+              onChange={e => setLatInput(e.target.value)}
+            />
+            <input
+              className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500 mb-2"
+              placeholder="Longitude (e.g. -122.4194)"
+              value={lngInput}
+              onChange={e => setLngInput(e.target.value)}
+            />
+            <input
+              className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500 mb-3"
+              placeholder="Place name (optional)"
+              value={placeName}
+              onChange={e => setPlaceName(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setLocationOpen(false)}
+                className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const lat = parseFloat(latInput)
+                  const lng = parseFloat(lngInput)
+                  if (isNaN(lat) || isNaN(lng)) return
+                  try {
+                    await SendLocation(chatId, lat, lng, placeName.trim())
+                    setLocationOpen(false)
+                  } catch (e) {
+                    console.error("Send location failed:", e)
+                  }
+                }}
+                disabled={isNaN(parseFloat(latInput)) || isNaN(parseFloat(lngInput))}
+                className="rounded-lg bg-[#21c063] px-4 py-2 text-sm font-medium text-[#0a1014] disabled:opacity-50"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

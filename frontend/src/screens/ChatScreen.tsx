@@ -16,6 +16,7 @@ import { useSelfAvatarStore } from "../store/useSelfAvatarStore"
 import { useChatMuted } from "../store/useMuteStore"
 import type { ChatItem } from "../store/types"
 import { StatusList, StoryViewer, type StatusGroup } from "../components/chat/Status"
+import { CreateGroupDialog } from "../components/chat/CreateGroupDialog"
 import { CommunityList, CommunityHome, CommunitiesWelcome } from "../components/chat/Communities"
 import { getAvatarColor, AVATAR_ICON_COLOR, AVATAR_ICON_ON_DARK } from "../lib/utils"
 import { useAppSettingsStore } from "../store/useAppSettingsStore"
@@ -37,15 +38,17 @@ import { useContactStore } from "@/store/useContactStore"
 
 interface HeaderProps {
   onOpenSettings: () => void
+  onNewChat?: () => void
   avatar?: string
 }
 
-const Header = ({ onOpenSettings, avatar }: HeaderProps) => (
+const Header = ({ onOpenSettings, onNewChat, avatar }: HeaderProps) => (
   <div className="h-16 bg-light-secondary dark:bg-dark-bg flex items-center justify-between px-4 border-b border-gray-200 dark:border-white/5">
     <h1 className="text-xl font-bold text-light-text dark:text-white">WhatsApp</h1>
     <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
       <button
         title="New Chat"
+        onClick={onNewChat}
         className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full"
       >
         <NewChatIcon />
@@ -410,6 +413,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   const getContactName = useContactStore(state => state.getContactName)
 
   const [showArchived, setShowArchived] = useState(false)
+  const [showCreateGroup, setShowCreateGroup] = useState(false)
   // Get filtered chat IDs - only re-renders when IDs or search changes, not on message/timestamp updates
   const filteredChatIds = useFilteredChatIds(showArchived)
   const archivedCount = useArchivedCount()
@@ -798,7 +802,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
             selectedChatId || selectedCommunity ? "hidden md:flex" : "flex",
           )}
         >
-          <Header onOpenSettings={onOpenSettings} avatar={selfAvatar} />
+          <Header onOpenSettings={onOpenSettings} onNewChat={() => setShowCreateGroup(true)} avatar={selfAvatar} />
           <div className="flex gap-2 px-3 pb-2 pt-1 overflow-x-auto">
             {(["chats", "communities", "channels", "status"] as const).map(v => (
               <button
@@ -927,6 +931,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           )}
         </ResizablePanel>
       </ResizablePanelGroup>
+      {showCreateGroup && <CreateGroupDialog onClose={() => setShowCreateGroup(false)} />}
     </div>
   )
 }

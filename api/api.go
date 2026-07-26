@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -385,6 +386,9 @@ func (a *Api) failStartup(err error) {
 func (a *Api) Startup(ctx context.Context) {
 	// Initialise the centralised log buffer (logcat) so every subsystem
 	// that writes during startup appears in the log viewer.
+	if cdr, err := os.UserConfigDir(); err == nil {
+		logcat.SetLogDir(cdr + "/whats4linux/logs")
+	}
 	logcat.Init(500)
 
 	// The window is focused when the app launches; the frontend keeps this in
@@ -669,6 +673,18 @@ func (a *Api) mainEventHandler(evt any) {
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 	case *events.PushName, *events.BusinessName:
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	case *events.ChatPresence:
+		runtime.EventsEmit(a.ctx, "wa:chat_presence", map[string]any{
+			"chatId": v.Chat.String(),
+			"state":  string(v.State),
+			"media":  string(v.Media),
+		})
+	case *events.Presence:
+		runtime.EventsEmit(a.ctx, "wa:presence", map[string]any{
+			"jid":         v.From.String(),
+			"unavailable": v.Unavailable,
+			"lastSeen":    v.LastSeen.UnixMilli(),
+		})
 	default:
 		// Ignore other events for now
 	}
