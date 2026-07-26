@@ -72,7 +72,7 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
   }
 
   const inputCls =
-    "w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm outline-none " +
+    "w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none " +
     "focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] " +
     "text-light-text dark:text-dark-text placeholder-gray-500"
 
@@ -105,7 +105,7 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
             onChange={e => setSearch(e.target.value)}
           />
           <svg
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-light-muted dark:text-dark-muted"
             width="16"
             height="16"
             viewBox="0 0 24 24"
@@ -153,10 +153,10 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        <div className="mt-4 flex justify-end gap-2 border-t border-gray-200 pt-3 dark:border-white/10">
+        <div className="mt-4 flex justify-end gap-2 border-t border-gray-200 dark:border-dark-border pt-3 dark:border-white/10">
           <button
             onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
+            className="rounded-lg px-4 py-2 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
           >
             Cancel
           </button>

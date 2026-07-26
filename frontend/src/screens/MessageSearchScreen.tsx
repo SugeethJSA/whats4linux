@@ -113,7 +113,7 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
         >
           <GoBackIcon />
         </button>
-        <div className="flex-1 bg-light-tertiary dark:bg-[#242626] rounded-full flex items-center px-4 py-2">
+        <div className="flex-1 bg-light-tertiary dark:bg-dark-secondary rounded-full flex items-center px-4 py-2">
           <input
             ref={inputRef}
             type="text"
@@ -134,7 +134,7 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
               "rounded-full px-3 py-1 text-sm whitespace-nowrap transition-colors shrink-0",
               mediaFilter === f.value
                 ? "bg-[#21c063] text-[#0a1014] font-medium"
-                : "bg-gray-100 dark:bg-[#242626] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#2a2c2c]",
+                : "bg-gray-100 dark:bg-dark-secondary text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-200 dark:hover:bg-[#2a2c2c]",
             )}
           >
             {f.label}
@@ -146,7 +146,7 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
         <input
           type="text"
           placeholder="Filter by sender..."
-          className="w-full px-3 py-1.5 rounded-lg bg-light-tertiary dark:bg-[#242626] text-sm text-light-text dark:text-dark-text placeholder-gray-500 outline-none"
+          className="w-full px-3 py-1.5 rounded-lg bg-light-tertiary dark:bg-dark-secondary text-sm text-light-text dark:text-dark-text placeholder-gray-500 outline-none"
           value={senderFilter}
           onChange={e => setSenderFilter(e.target.value)}
         />
@@ -157,12 +157,12 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
           <div className="p-4 text-center text-red-500 text-sm">{error}</div>
         )}
         {!loading && !error && query && results.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 p-8">
+          <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-light-muted dark:text-dark-muted p-8">
             <p className="text-sm">No messages found</p>
           </div>
         )}
         {!query && (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 p-8">
+          <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-light-muted dark:text-dark-muted p-8">
             <p className="text-sm">Type to search messages</p>
           </div>
         )}
@@ -176,7 +176,7 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
               <span className="text-sm font-medium text-light-text dark:text-dark-text truncate flex-1">
                 {r.chat_name || r.chat_jid.split("@")[0]}
               </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
+              <span className="text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted shrink-0">
                 {new Date(r.timestamp * 1000).toLocaleDateString(undefined, {
                   month: "short",
                   day: "numeric",
@@ -184,15 +184,15 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
               </span>
             </div>
             <div className="flex items-center gap-2 w-full mt-0.5">
-              <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
+              <span className="text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted shrink-0">
                 {r.is_from_me ? "You" : r.sender_jid.split("@")[0]}
               </span>
-              <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
+              <span className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted truncate">
                 {r.text || (r.media_type === 1 ? "🖼 Image" : r.media_type === 2 ? "🎵 Audio" : "[Media]")}
               </span>
             </div>
             {r.edited && (
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 italic mt-0.5">edited</span>
+              <span className="text-[10px] text-gray-400 dark:text-light-muted dark:text-dark-muted italic mt-0.5">edited</span>
             )}
           </button>
         ))}

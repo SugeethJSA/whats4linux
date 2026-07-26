@@ -6,6 +6,11 @@ import {
   SendIcon,
   CloseIcon,
   UserAvatar,
+  PhotosIcon,
+  DocumentIcon,
+  PollIcon,
+  ContactIcon,
+  LocationIcon,
 } from "../../assets/svgs/chat_icons"
 import { store } from "../../../wailsjs/go/models"
 import { GetCachedAvatar, SendLocation } from "../../../wailsjs/go/api/Api"
@@ -16,6 +21,7 @@ import { ContactShareDialog } from "./ContactShareDialog"
 const EmojiPicker = lazy(() => import("./EmojiPickerLazy"))
 interface ChatInputProps {
   chatId: string
+  disabled?: boolean
   inputText: string
   pastedImage: string | null
   selectedFile: File | null
@@ -81,7 +87,7 @@ const FilePreview = ({ file, fileType, onRemove }: FilePreviewProps) => (
         {FILE_TYPE_ICONS[fileType as keyof typeof FILE_TYPE_ICONS]}
         <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{file.name}</span>
       </div>
-      <span className="text-xs text-gray-500">{(file.size / 1024).toFixed(2)} KB</span>
+      <span className="text-xs text-light-muted dark:text-dark-muted">{(file.size / 1024).toFixed(2)} KB</span>
     </div>
     <button onClick={onRemove} className="text-red-500 hover:text-red-600 p-1" title="Remove file">
       ×
@@ -113,6 +119,7 @@ const ImagePreview = ({ imageSrc, onRemove }: ImagePreviewProps) => (
 
 export function ChatInput({
   chatId,
+  disabled = false,
   inputText,
   pastedImage,
   selectedFile,
@@ -375,11 +382,21 @@ export function ChatInput({
         </div>
         <button
           onClick={onCancelReply}
-          className="ml-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200"
+          className="ml-2 text-light-muted dark:text-dark-muted hover:text-gray-700 dark:hover:text-gray-200"
           title="Cancel reply"
         >
           <CloseIcon />
         </button>
+      </div>
+    )
+  }
+
+  if (disabled) {
+    return (
+      <div className="mx-3 mb-3 mt-1.5 flex items-center justify-center rounded-2xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-100/50 dark:bg-gray-800/30 px-4 py-3">
+        <span className="text-sm text-light-muted dark:text-dark-muted">
+          Only admins can send messages
+        </span>
       </div>
     )
   }
@@ -402,7 +419,7 @@ export function ChatInput({
       {/* Previews (pasted image / attached file / reply) sit in a card above
           the composer pill, like WhatsApp. */}
       {(pastedImage || selectedFile || replyingTo) && (
-        <div className="mb-2 rounded-xl border border-gray-200 bg-light-bg p-2 dark:border-transparent dark:bg-[#242626]">
+        <div className="mb-2 rounded-xl border border-gray-200 dark:border-dark-border bg-light-bg p-2 dark:border-transparent dark:bg-dark-secondary">
           {pastedImage && <ImagePreview imageSrc={pastedImage} onRemove={onRemoveFile} />}
           {selectedFile && (
             <FilePreview file={selectedFile} fileType={selectedFileType} onRemove={onRemoveFile} />
@@ -413,7 +430,7 @@ export function ChatInput({
       {/* Main input row: rounded pill (emoji left, attach right) with the
           send button as a separate circle outside, WhatsApp-style. */}
       <div className="flex items-end gap-2">
-        <div className="flex flex-1 items-center rounded-3xl border border-gray-200 bg-white/70 px-2 py-0.5 shadow-sm backdrop-blur-md transition-all focus-within:border-[#21c063]/50 focus-within:bg-white focus-within:shadow-md dark:border-white/5 dark:bg-dark-secondary/60 dark:focus-within:border-[#21c063]/30 dark:focus-within:bg-dark-elevated">
+        <div className="flex flex-1 items-center rounded-3xl border border-gray-200 dark:border-dark-border bg-white/70 px-2 py-0.5 shadow-sm backdrop-blur-md transition-all focus-within:border-[#21c063]/50 focus-within:bg-white focus-within:shadow-md dark:border-white/5 dark:bg-dark-secondary/60 dark:focus-within:border-[#21c063]/30 dark:focus-within:bg-dark-elevated">
           {/* Emoji Button */}
           <IconButton ref={emojiButtonRef} onClick={onToggleEmojiPicker} title="Emoji">
             <EmojiIcon />
@@ -443,7 +460,7 @@ export function ChatInput({
               className={clsx(
                 "relative z-10 w-full p-2 bg-transparent resize-none outline-none max-h-32",
                 "text-transparent caret-green",
-                "placeholder:text-gray-500",
+                "placeholder:text-light-muted dark:text-dark-muted",
               )}
               rows={1}
             />
@@ -493,26 +510,30 @@ export function ChatInput({
             {attachMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setAttachMenuOpen(false)} />
-                <div className="absolute bottom-12 right-0 z-50 w-48 rounded-xl bg-white py-2 shadow-lg dark:bg-dark-secondary">
+                <div className="absolute bottom-12 right-0 z-50 w-56 rounded-2xl bg-white py-3 shadow-xl dark:bg-dark-elevated border border-gray-100 dark:border-dark-border">
                   {(
                     [
                       {
-                        label: "📷 Photos & videos",
+                        label: "Photos & videos",
+                        icon: <PhotosIcon />,
+                        color: "text-blue-500",
                         act: () => {
                           setFileAccept("image/*,video/*")
                           setTimeout(() => fileInputRef.current?.click(), 0)
                         },
                       },
                       {
-                        label: "📄 Document",
+                        label: "Document",
+                        icon: <DocumentIcon />,
+                        color: "text-[#21c063]",
                         act: () => {
                           setFileAccept("*/*")
                           setTimeout(() => fileInputRef.current?.click(), 0)
                         },
                       },
-                      { label: "📊 Poll", act: () => setPollOpen(true) },
-                      { label: "👤 Contact", act: () => setContactOpen(true) },
-                      { label: "📍 Location", act: () => setLocationOpen(true) },
+                      { label: "Poll", icon: <PollIcon />, color: "text-purple-500", act: () => setPollOpen(true) },
+                      { label: "Contact", icon: <ContactIcon />, color: "text-yellow-500", act: () => setContactOpen(true) },
+                      { label: "Location", icon: <LocationIcon />, color: "text-red-500", act: () => setLocationOpen(true) },
                     ] as const
                   ).map(item => (
                     <button
@@ -521,9 +542,14 @@ export function ChatInput({
                         setAttachMenuOpen(false)
                         item.act()
                       }}
-                      className="block w-full px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-white/5"
+                      className="w-full px-5 py-2.5 flex items-center gap-4 text-left hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
                     >
-                      {item.label}
+                      <span className={clsx("flex items-center justify-center", item.color)}>
+                        {item.icon}
+                      </span>
+                      <span className="text-sm font-medium text-light-text dark:text-dark-text">
+                        {item.label}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -568,24 +594,24 @@ export function ChatInput({
             onClick={e => e.stopPropagation()}
           >
             <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">Send location</h2>
-            <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
+            <p className="mb-3 text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted">
               Share your current location or enter coordinates.
             </p>
             <input
               autoFocus
-              className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500 mb-2"
+              className="w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500 mb-2"
               placeholder="Latitude (e.g. 37.7749)"
               value={latInput}
               onChange={e => setLatInput(e.target.value)}
             />
             <input
-              className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500 mb-2"
+              className="w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500 mb-2"
               placeholder="Longitude (e.g. -122.4194)"
               value={lngInput}
               onChange={e => setLngInput(e.target.value)}
             />
             <input
-              className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500 mb-3"
+              className="w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500 mb-3"
               placeholder="Place name (optional)"
               value={placeName}
               onChange={e => setPlaceName(e.target.value)}
@@ -593,7 +619,7 @@ export function ChatInput({
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setLocationOpen(false)}
-                className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
+                className="rounded-lg px-4 py-2 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
               >
                 Cancel
               </button>

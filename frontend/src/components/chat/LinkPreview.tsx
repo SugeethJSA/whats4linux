@@ -84,7 +84,7 @@ export function LinkPreview({
   return (
     <div
       onClick={() => preview.url && BrowserOpenURL(preview.url)}
-      className="mt-1 max-w-72 overflow-hidden rounded-lg bg-black/10 dark:bg-black/25 cursor-pointer"
+      className="mt-1 max-w-72 overflow-hidden rounded-lg bg-black/10 dark:bg-dark-bg/25 cursor-pointer"
     >
       {/* Fixed height: an unconstrained image resizes the card (and the row)
           when it decodes, which shakes the virtualized list. */}

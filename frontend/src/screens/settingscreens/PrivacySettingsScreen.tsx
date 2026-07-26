@@ -89,7 +89,7 @@ const SETTINGS: Setting[] = [
 ]
 
 const selectCls =
-  "rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none " +
+  "rounded-lg border border-gray-300 dark:border-dark-border bg-white px-3 py-2 text-sm outline-none " +
   "focus:border-[#21c063] dark:border-white/10 dark:bg-dark-secondary " +
   "text-light-text dark:text-dark-text"
 
@@ -139,7 +139,7 @@ const PrivacySettingsScreen = () => {
   return (
     <div className="flex flex-col gap-6 p-6 max-w-2xl mx-auto">
       <h2 className="text-xl font-bold text-light-text dark:text-dark-text">Privacy</h2>
-      <p className="-mt-4 text-sm text-gray-500 dark:text-gray-400">
+      <p className="-mt-4 text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted">
         Control who can see your personal information.
       </p>
 
@@ -159,7 +159,7 @@ const PrivacySettingsScreen = () => {
         <div key={s.key} className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 bg-white p-4 dark:border-white/5 dark:bg-dark-secondary">
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-light-text dark:text-dark-text">{s.label}</div>
-            <div className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{s.description}</div>
+            <div className="mt-0.5 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">{s.description}</div>
           </div>
           <select
             value={values[s.key] || ""}

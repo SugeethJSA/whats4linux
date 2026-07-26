@@ -171,11 +171,11 @@ function App() {
   }, [addNotification, removeNotification])
 
   return (
-    <div className="min-h-screen bg-light-secondary text-light-text dark:bg-black dark:text-white relative">
+    <div className="min-h-screen bg-light-secondary text-light-text dark:bg-dark-bg dark:text-white relative">
       {historyProgress !== null && (
         <div className="fixed top-0 left-0 right-0 z-[100] h-1 bg-gray-200 dark:bg-gray-800">
           <div
-            className="h-full bg-green-500 transition-all duration-300 ease-out"
+            className="h-full bg-[#21c063] transition-all duration-300 ease-out"
             style={{ width: `${historyProgress}%` }}
           />
         </div>

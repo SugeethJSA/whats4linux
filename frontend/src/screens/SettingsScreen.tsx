@@ -171,7 +171,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         <div className="w-full max-w-2xl px-8 py-6 overflow-y-auto h-full">
           <button
             onClick={() => setNestedScreen(null)}
-            className="flex items-center gap-2 mb-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+            className="flex items-center gap-2 mb-4 text-gray-500 dark:text-light-muted dark:text-dark-muted hover:text-gray-700 dark:hover:text-gray-200"
           >
             <BackIcon />
             <span>Back</span>
@@ -202,7 +202,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
   )
 
   return (
-    <div className="flex h-screen bg-light-secondary dark:bg-black overflow-hidden">
+    <div className="flex h-screen bg-light-secondary dark:bg-dark-bg overflow-hidden">
       <Sidebar
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
@@ -213,7 +213,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         onSelectCategory={setSelectedCategory}
         onBack={onBack}
       />
-      <div className="flex-1 bg-light-secondary dark:bg-dark-secondary flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+      <div className="flex-1 bg-light-secondary dark:bg-dark-secondary flex flex-col items-center justify-center text-gray-500 dark:text-light-muted dark:text-dark-muted">
         {renderContent()}
       </div>
     </div>
@@ -236,7 +236,7 @@ function Sidebar({
         <div className="flex items-center mb-4">
           <button
             onClick={onBack}
-            className="mr-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+            className="mr-4 text-gray-500 dark:text-light-muted dark:text-dark-muted hover:text-gray-700 dark:hover:text-gray-200"
           >
             <BackIcon />
           </button>
@@ -264,7 +264,7 @@ function Sidebar({
 function SearchBar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="bg-light-secondary dark:bg-dark-tertiary rounded-lg flex items-center px-3 py-1.5">
-      <SearchIcon className="text-gray-500 dark:text-gray-400 mr-2 w-4 h-4" />
+      <SearchIcon className="text-gray-500 dark:text-light-muted dark:text-dark-muted mr-2 w-4 h-4" />
       <input
         type="text"
         placeholder="Search settings"

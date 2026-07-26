@@ -21,7 +21,7 @@ const LogOut = () => {
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <h2 className="text-xl font-bold text-light-text dark:text-dark-text mb-4">Log Out</h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+      <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-6">
         Logging out will disconnect your session and require scanning a QR code
         or entering a pairing code to reconnect.
       </p>

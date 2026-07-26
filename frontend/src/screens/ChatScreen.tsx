@@ -48,7 +48,7 @@ interface HeaderProps {
 const Header = ({ onOpenSettings, onNewChat, onSearch, avatar }: HeaderProps) => (
   <div className="h-16 bg-light-secondary dark:bg-dark-bg flex items-center justify-between px-4 border-b border-gray-200 dark:border-white/5">
     <h1 className="text-xl font-bold text-light-text dark:text-white">WhatsApp</h1>
-    <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+    <div className="flex items-center gap-1 text-gray-500 dark:text-light-muted dark:text-dark-muted">
       <button
         title="Search Messages"
         onClick={onSearch}
@@ -89,8 +89,8 @@ const SearchBar = ({
   placeholder = "Search or start new chat",
 }: SearchBarProps) => (
   <div className="px-3 py-2 bg-light-bg dark:bg-dark-bg">
-    <div className="bg-light-tertiary dark:bg-[#242626] rounded-full flex items-center px-4 py-2">
-      <div className="text-gray-500 dark:text-gray-400 mr-4">
+    <div className="bg-light-tertiary dark:bg-dark-secondary rounded-full flex items-center px-4 py-2">
+      <div className="text-gray-500 dark:text-light-muted dark:text-dark-muted mr-4">
         <SearchIcon />
       </div>
       <input
@@ -371,7 +371,7 @@ interface EmptyStateProps {
 }
 
 const EmptyState = ({ hasChats, isLoading, onRefresh }: EmptyStateProps) => (
-  <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 p-8">
+  <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-light-muted dark:text-dark-muted p-8">
     <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
       style={{ background: "rgba(33,192,99,0.08)", color: "#21c063" }}>
       <SearchIcon />
@@ -420,7 +420,7 @@ function SubscribeChannelDialog({ onClose }: { onClose: () => void }) {
     >
       <div className="bg-white dark:bg-dark-secondary rounded-2xl w-96 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Subscribe to Channel</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
           Enter the newsletter JID or invite code to subscribe.
         </p>
         <input
@@ -436,7 +436,7 @@ function SubscribeChannelDialog({ onClose }: { onClose: () => void }) {
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg"
+            className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg"
           >
             Cancel
           </button>
@@ -461,11 +461,9 @@ const WelcomeScreen = () => (
       style={{ background: "radial-gradient(circle at center, rgba(33,192,99,0.15) 0%, transparent 60%)" }} />
 
     <div className="mb-8 relative z-10">
-      <div className="w-24 h-24 rounded-3xl flex items-center justify-center shadow-2xl"
+      <div className="w-24 h-24 rounded-3xl flex items-center justify-center shadow-2xl glass-light dark:glass"
         style={{
-          background: "rgba(255,255,255,0.9)",
-          backdropFilter: "blur(12px)",
-          border: "1px solid rgba(0,0,0,0.05)"
+          border: "1px solid rgba(255,255,255,0.1)"
         }}>
         <EmptyStateIcon />
       </div>
@@ -864,10 +862,10 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   }, [fetchChats, getChat, loadSelfAvatar, updateChatLastMessage, updateSingleChat])
 
   return (
-    <div className="flex h-screen bg-light-secondary dark:bg-black overflow-hidden">
+    <div className="flex h-screen bg-light-secondary dark:bg-dark-bg overflow-hidden">
       {chatMenu && (
         <div
-          className="fixed z-50 min-w-36 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#242626]"
+          className="fixed z-50 min-w-36 rounded-lg border border-gray-200 dark:border-dark-border bg-white py-1 shadow-lg dark:border-white/10 dark:bg-dark-secondary"
           style={{ top: chatMenu.y, left: chatMenu.x }}
         >
           <button
@@ -911,7 +909,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
                   "rounded-full border px-3 py-1 text-sm capitalize transition-colors shrink-0",
                   view === v
                     ? "border-transparent bg-[#d9fdd3] font-medium text-[#0a1014] dark:bg-[#e9edef] dark:text-[#0b141a]"
-                    : "border-gray-300 text-gray-500 hover:bg-gray-100 dark:border-white/10 dark:text-[#8696a0] dark:hover:bg-white/5",
+                    : "border-gray-300 dark:border-dark-border text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:border-white/10 dark:text-[#8696a0] dark:hover:bg-white/5",
                 )}
               >
                 {v}
@@ -959,10 +957,10 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
             </button>
           )}
           {showArchived && (
-            <div className="flex items-center gap-4 border-b border-gray-200 px-4 py-3 dark:border-white/5">
+            <div className="flex items-center gap-4 border-b border-gray-200 dark:border-dark-border px-4 py-3 dark:border-white/5">
               <button
                 onClick={() => setShowArchived(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="text-light-muted dark:text-dark-muted hover:text-gray-700 dark:text-light-muted dark:text-dark-muted dark:hover:text-gray-200"
                 aria-label="Back to chats"
               >
                 <GoBackIcon />
@@ -1013,7 +1011,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
             "flex-col h-full",
             selectedCommunity
               ? "bg-light-secondary dark:bg-dark-bg"
-              : "bg-[#efeae2] dark:bg-[#0a0a0a]",
+              : "bg-[#efeae2] dark:bg-dark-bg",
             "relative",
             selectedChatId || selectedCommunity ? "flex" : "hidden md:flex",
           )}

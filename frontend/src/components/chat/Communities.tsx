@@ -13,7 +13,7 @@ const CommunitiesEmptyIcon = () => (
     viewBox="0 0 24 24"
     width="96"
     height="96"
-    className="fill-current text-gray-300 dark:text-gray-600"
+    className="fill-current text-gray-300 dark:text-light-muted dark:text-dark-muted"
   >
     <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
   </svg>
@@ -129,16 +129,16 @@ export function CommunityList({ searchTerm, selectedJid, onSelect }: CommunityLi
     : communities
 
   if (loading) {
-    return <div className="p-6 text-center text-sm text-gray-500">Loading communities…</div>
+    return <div className="p-6 text-center text-sm text-light-muted dark:text-dark-muted">Loading communities…</div>
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-gray-500 dark:text-gray-400">
+      <div className="flex flex-col items-center justify-center p-8 text-gray-500 dark:text-light-muted dark:text-dark-muted">
         <p className="text-center text-sm">{error}</p>
         <button
           onClick={load}
-          className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
+          className="mt-4 px-4 py-2 bg-[#21c063] text-white rounded-lg hover:bg-[#1b9a58] text-sm"
         >
           Retry
         </button>
@@ -148,7 +148,7 @@ export function CommunityList({ searchTerm, selectedJid, onSelect }: CommunityLi
 
   if (filtered.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-gray-500 dark:text-gray-400">
+      <div className="flex flex-col items-center justify-center p-8 text-gray-500 dark:text-light-muted dark:text-dark-muted">
         <CommunitiesEmptyIcon />
         <p className="mt-4 text-center text-sm">
           {searchTerm ? "No communities match your search." : "You're not in any communities yet."}
@@ -159,7 +159,7 @@ export function CommunityList({ searchTerm, selectedJid, onSelect }: CommunityLi
         {!searchTerm && (
           <button
             onClick={load}
-            className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
+            className="mt-4 px-4 py-2 bg-[#21c063] text-white rounded-lg hover:bg-[#1b9a58] text-sm"
           >
             Refresh
           </button>
@@ -178,7 +178,7 @@ export function CommunityList({ searchTerm, selectedJid, onSelect }: CommunityLi
           className={clsx(
             "flex w-full items-center px-4 py-3 text-left cursor-pointer",
             "hover:bg-gray-100 dark:hover:bg-[#202121]",
-            selectedJid === c.jid && "bg-gray-200 dark:bg-[#2e2f2f]",
+            selectedJid === c.jid && "bg-gray-200 dark:bg-dark-tertiary",
           )}
         >
           <CommunityAvatar avatar={c.avatar_url} name={c.name} jid={c.jid} />
@@ -325,7 +325,7 @@ export function CommunityHome({
           )}
         </div>
 
-        {loading && <div className="p-6 text-center text-sm text-gray-500">Loading groups…</div>}
+        {loading && <div className="p-6 text-center text-sm text-light-muted dark:text-dark-muted">Loading groups…</div>}
 
         {error && (
           <div className="p-6 text-center text-sm text-red-500 dark:text-red-400">{error}</div>
@@ -482,8 +482,8 @@ function CreateCommunityDialog({ onClose }: { onClose: () => void }) {
         />
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
         <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg">Cancel</button>
-          <button onClick={handleCreate} disabled={loading || !name.trim()} className="px-4 py-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg">Cancel</button>
+          <button onClick={handleCreate} disabled={loading || !name.trim()} className="px-4 py-2 text-sm bg-[#21c063] text-white rounded-lg hover:bg-[#1b9a58] disabled:opacity-50">
             {loading ? "Creating..." : "Create"}
           </button>
         </div>
@@ -504,7 +504,7 @@ export function CommunitiesWelcome() {
           <CommunitiesEmptyIcon />
         </div>
         <h1 className="text-3xl font-light text-gray-600 dark:text-gray-300 mb-4">Communities</h1>
-        <p className="text-gray-500 dark:text-gray-400 max-w-md">
+        <p className="text-gray-500 dark:text-light-muted dark:text-dark-muted max-w-md">
           Communities bring members together in topic-based groups and let admins send announcements
           to everyone.
         </p>
@@ -513,7 +513,7 @@ export function CommunitiesWelcome() {
         </p>
         <button
           onClick={() => setShowCreate(true)}
-          className="mt-6 px-6 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium transition-colors"
+          className="mt-6 px-6 py-2.5 bg-[#21c063] text-white rounded-lg hover:bg-[#1b9a58] text-sm font-medium transition-colors"
         >
           Create Community
         </button>

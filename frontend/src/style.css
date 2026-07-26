@@ -31,12 +31,12 @@ label[for] {
   --color-green-muted: rgba(33, 192, 99, 0.12);
 
   /* Dark surfaces */
-  --color-dark-bg: #111b21;
-  --color-dark-secondary: #202c33;
-  --color-dark-tertiary: #2a3942;
-  --color-dark-elevated: #1f2c34;
-  --color-dark-border: rgba(255, 255, 255, 0.06);
-  --color-dark-text: #e9edef;
+  --color-dark-bg: #000000;
+  --color-dark-secondary: #121212;
+  --color-dark-tertiary: #1a1a1a;
+  --color-dark-elevated: #242424;
+  --color-dark-border: rgba(255, 255, 255, 0.08);
+  --color-dark-text: #f0f2f5;
   --color-dark-muted: #8696a0;
 
   /* Light surfaces */
@@ -49,13 +49,13 @@ label[for] {
 
   /* Chat bubbles */
   --color-sent-bubble-bg: #d9fdd3;
-  --color-sent-bubble-dark-bg: #005c4b;
+  --color-sent-bubble-dark-bg: #0b3d2b;
   --color-received-bubble-bg: #ffffff;
-  --color-received-bubble-dark-bg: #202c33;
+  --color-received-bubble-dark-bg: #121212;
   --color-sent-bubble-text: #111b21;
-  --color-sent-bubble-dark-text: #e9edef;
+  --color-sent-bubble-dark-text: #f0f2f5;
   --color-received-bubble-text: #111b21;
-  --color-received-bubble-dark-text: #e9edef;
+  --color-received-bubble-dark-text: #f0f2f5;
 
   /* Toggle */
   --color-toggle-bg: #21c063;
@@ -115,8 +115,30 @@ body {
 }
 
 .dark body {
-  background-color: #111b21;
-  color: #e9edef;
+  background-color: #000000;
+  color: #f0f2f5;
+}
+
+/* ─── Custom Scrollbar ───────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 /* ─── Glassmorphism Utility ──────────────────────────────────────────────── */
@@ -367,7 +389,7 @@ body {
 }
 
 .dark .chat-wallpaper {
-  background-color: #0b141a;
+  background-color: #000000;
 }
 
 .dark .chat-wallpaper::after {

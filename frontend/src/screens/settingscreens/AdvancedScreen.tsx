@@ -108,7 +108,7 @@ function CodeEditor({ title, value, onChange, onSave, placeholder }: any) {
       />
       <button
         onClick={onSave}
-        className="mt-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+        className="mt-2 px-4 py-2 bg-[#21c063] text-white rounded hover:bg-[#1b9a58] transition-colors"
       >
         Save {title}
       </button>
@@ -137,7 +137,7 @@ function Section({
   return (
     <div className="mb-8 border-t border-gray-200 dark:border-gray-700 pt-6">
       <h3 className="text-lg font-medium mb-2 text-light-text dark:text-dark-text">{title}</h3>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{description}</p>
+      <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">{description}</p>
       <button
         onClick={onClick}
         className={`px-4 py-2 rounded transition-colors ${colors[buttonColor]}`}

@@ -79,7 +79,7 @@ export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClos
 
         <input
           autoFocus
-          className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500"
+          className="w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500"
           placeholder="Search contacts"
           value={search}
           onChange={e => setSearch(e.target.value)}

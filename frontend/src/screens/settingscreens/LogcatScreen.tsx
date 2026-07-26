@@ -13,7 +13,7 @@ const LEVEL_COLORS: Record<string, string> = {
   ERROR: "text-red-400 bg-red-900/20",
   WARN: "text-yellow-400 bg-yellow-900/20",
   INFO: "text-blue-400 bg-blue-900/20",
-  DEBUG: "text-gray-500 bg-gray-800/20",
+  DEBUG: "text-light-muted dark:text-dark-muted bg-gray-800/20",
 }
 
 const POLL_INTERVAL = 2000

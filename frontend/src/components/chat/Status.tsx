@@ -59,9 +59,9 @@ export function StatusList({ onOpen }: { onOpen: (g: StatusGroup) => void }) {
     }
   }, [getContactName])
 
-  if (loading) return <div className="p-6 text-center text-sm text-gray-500">Loading status…</div>
+  if (loading) return <div className="p-6 text-center text-sm text-light-muted dark:text-dark-muted">Loading status…</div>
   if (groups.length === 0)
-    return <div className="p-6 text-center text-sm text-gray-500">No recent status updates</div>
+    return <div className="p-6 text-center text-sm text-light-muted dark:text-dark-muted">No recent status updates</div>
 
   return (
     <div>
@@ -76,7 +76,7 @@ export function StatusList({ onOpen }: { onOpen: (g: StatusGroup) => void }) {
           </div>
           <div className="min-w-0 flex-1">
             <div className="truncate font-medium">{g.name}</div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-light-muted dark:text-dark-muted">
               {g.items.length} update{g.items.length > 1 ? "s" : ""}
             </div>
           </div>
