@@ -76,3 +76,36 @@ func (a *Api) FetchContacts() ([]Contact, error) {
 	}
 	return contacts, nil
 }
+
+func (a *Api) GetBusinessProfile(jidStr string) (map[string]any, error) {
+	if a.waClient.Store.ID == nil {
+		return nil, fmt.Errorf("not logged in")
+	}
+	jid, err := types.ParseJID(jidStr)
+	if err != nil {
+		return nil, err
+	}
+	profile, err := a.waClient.GetBusinessProfile(a.ctx, jid)
+	if err != nil {
+		return nil, err
+	}
+	result := map[string]any{
+		"jid": jidStr,
+	}
+	if profile != nil {
+		if profile.Address != "" {
+			result["address"] = profile.Address
+		}
+		if profile.Email != "" {
+			result["email"] = profile.Email
+		}
+		if len(profile.Categories) > 0 {
+			cats := make([]string, len(profile.Categories))
+			for i, c := range profile.Categories {
+				cats[i] = c.Name
+			}
+			result["categories"] = cats
+		}
+	}
+	return result, nil
+}

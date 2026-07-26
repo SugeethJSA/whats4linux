@@ -409,7 +409,7 @@ export function ChatInput({
       {/* Main input row: rounded pill (emoji left, attach right) with the
           send button as a separate circle outside, WhatsApp-style. */}
       <div className="flex items-end gap-2">
-        <div className="flex flex-1 items-center rounded-full border border-gray-200 bg-light-bg px-1.5 dark:border-transparent dark:bg-[#242626]">
+        <div className="flex flex-1 items-center rounded-3xl border border-gray-200 bg-white/70 px-2 py-0.5 shadow-sm backdrop-blur-md transition-all focus-within:border-[#21c063]/50 focus-within:bg-white focus-within:shadow-md dark:border-white/5 dark:bg-dark-secondary/60 dark:focus-within:border-[#21c063]/30 dark:focus-within:bg-dark-elevated">
           {/* Emoji Button */}
           <IconButton ref={emojiButtonRef} onClick={onToggleEmojiPicker} title="Emoji">
             <EmojiIcon />
@@ -541,8 +541,10 @@ export function ChatInput({
           onClick={onSendMessage}
           disabled={!hasContent}
           className={clsx(
-            "mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition-colors",
-            hasContent ? "bg-green hover:bg-green/80" : "bg-green/50 cursor-not-allowed",
+            "mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white shadow-sm transition-all duration-200",
+            hasContent
+              ? "bg-[#21c063] hover:scale-105 hover:bg-[#1b9a58] hover:shadow-md active:scale-95"
+              : "cursor-not-allowed bg-[#21c063]/40 scale-95 opacity-60",
           )}
         >
           <SendIcon />

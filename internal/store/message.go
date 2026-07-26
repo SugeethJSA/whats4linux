@@ -917,6 +917,7 @@ func (ms *MessageStore) GetMessageWithMediaByID(messageID string) (*ExtendedMess
 			url           sql.NullString
 			mimetype      sql.NullString
 			directPath    sql.NullString
+			fileName      sql.NullString
 			mediaKey      []byte
 			fileSHA256    []byte
 			fileEncSHA256 []byte
@@ -932,6 +933,7 @@ func (ms *MessageStore) GetMessageWithMediaByID(messageID string) (*ExtendedMess
 			&fileEncSHA256,
 			&width,
 			&height,
+			&fileName,
 		)
 		if err != nil {
 			return nil, err
@@ -1920,4 +1922,102 @@ func (ms *MessageStore) MarkMessageDeleted(messageID string) error {
 		`UPDATE messages SET text = ?, has_media = 0 WHERE message_id = ?`,
 		`<i>🚫 This message was deleted</i>`, messageID)
 	return err
+}
+
+// MessageSearchResult holds a raw row from the search query.
+type MessageSearchResult struct {
+	ChatJID   string
+	MessageID string
+	SenderJID string
+	Timestamp int64
+	Text      string
+	IsFromMe  bool
+	HasMedia  bool
+	MediaType int
+	Edited    bool
+	Forwarded bool
+}
+
+// SearchMessages searches the messages table with optional filters.
+func (ms *MessageStore) SearchMessages(textQuery string, mediaTypeFilter string, senderFilter string, limit, offset int) ([]MessageSearchResult, error) {
+	q := query.SearchMessagesSelect
+	args := []any{textQuery}
+
+	if senderFilter != "" {
+		q += " AND m.sender_jid = ?"
+		args = append(args, senderFilter)
+	}
+
+	if mediaTypeFilter != "" {
+		switch mediaTypeFilter {
+		case "text":
+			q += " AND m.has_media = 0"
+		case "image":
+			q += " AND m.has_media = 1 AND mm.type = ?"
+			args = append(args, mtypes.MediaTypeImage)
+		case "video":
+			q += " AND m.has_media = 1 AND mm.type = ?"
+			args = append(args, mtypes.MediaTypeVideo)
+		case "audio":
+			q += " AND m.has_media = 1 AND mm.type = ?"
+			args = append(args, mtypes.MediaTypeAudio)
+		case "document":
+			q += " AND m.has_media = 1 AND mm.type = ?"
+			args = append(args, mtypes.MediaTypeDocument)
+		case "sticker":
+			q += " AND m.has_media = 1 AND mm.type = ?"
+			args = append(args, mtypes.MediaTypeSticker)
+		}
+	}
+
+	q += " ORDER BY m.timestamp DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := ms.db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []MessageSearchResult
+	for rows.Next() {
+		var (
+			r    MessageSearchResult
+			text sql.NullString
+		)
+		if err := rows.Scan(
+			&r.ChatJID, &r.MessageID, &r.SenderJID, &r.Timestamp,
+			&text, &r.IsFromMe, &r.HasMedia, &r.MediaType, &r.Edited, &r.Forwarded,
+		); err != nil {
+			return nil, err
+		}
+		r.Text = text.String
+		results = append(results, r)
+	}
+	return results, rows.Err()
+}
+
+// SearchSuggestions returns distinct chat JIDs whose messages match the query,
+// ordered by most recent message first.
+func (ms *MessageStore) SearchSuggestions(query string, limit int) ([]string, error) {
+	rows, err := ms.db.Query(`
+		SELECT chat_jid FROM messages
+		WHERE COALESCE(text, '') LIKE '%' || ? || '%'
+		GROUP BY chat_jid
+		ORDER BY MAX(timestamp) DESC
+		LIMIT ?`, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []string
+	for rows.Next() {
+		var jid string
+		if err := rows.Scan(&jid); err != nil {
+			return nil, err
+		}
+		out = append(out, jid)
+	}
+	return out, rows.Err()
 }

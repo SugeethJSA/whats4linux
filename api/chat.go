@@ -1,13 +1,29 @@
 package api
 
 import (
+	"fmt"
 	"log"
 	"time"
 
+	"github.com/nyaruka/phonenumbers"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/lugvitc/whats4linux/internal/logcat"
 	"go.mau.fi/whatsmeow/appstate"
 	"go.mau.fi/whatsmeow/types"
 )
+
+// formatPhone formats a JID user component as an international phone number.
+// Returns empty string if the JID isn't a phone number (e.g. LID, group, etc.)
+func formatPhone(user string) string {
+	if user == "" {
+		return ""
+	}
+	num, err := phonenumbers.Parse("+"+user, "")
+	if err != nil || !phonenumbers.IsValidNumber(num) {
+		return ""
+	}
+	return phonenumbers.Format(num, phonenumbers.INTERNATIONAL)
+}
 
 type ChatElement struct {
 	LatestMessage string `json:"latest_message"`
@@ -104,13 +120,15 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 				FullName: name,
 			}
 		} else {
-			contact, err := a.waClient.Store.Contacts.GetContact(a.ctx, cm.JID)
+			contact, err := a.waClient.Store.Contacts.GetContact(a.ctx, cm.JID.ToNonAD())
+			phone := formatPhone(cm.JID.User)
 			if err != nil {
 				// Same here: degrade to the JID rather than failing everything.
 				log.Println("GetChatList: contact lookup failed, using fallback:", cm.JID.String(), err)
 				fc = Contact{
 					JID:      cm.JID.String(),
 					PushName: cm.JID.User,
+					Phno:     phone,
 				}
 			} else {
 				fc = Contact{
@@ -118,6 +136,7 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 					Short:      contact.FirstName,
 					FullName:   contact.FullName,
 					PushName:   contact.PushName,
+					Phno:       phone,
 					IsBusiness: contact.BusinessName != "",
 				}
 			}
@@ -168,4 +187,79 @@ func (a *Api) SendChatPresence(jid string, cp types.ChatPresence, cpm types.Chat
 		return err
 	}
 	return a.waClient.SendChatPresence(a.ctx, parsedJid, cp, cpm)
+}
+
+// SubscribeContactPresence subscribes to presence updates for a specific user.
+// After subscribing, the app will receive wa:presence and wa:chat_presence
+// events for that user.
+func (a *Api) SubscribeContactPresence(jidStr string) error {
+	jid, err := types.ParseJID(jidStr)
+	if err != nil {
+		return err
+	}
+	return a.waClient.SubscribePresence(a.ctx, jid.ToNonAD())
+}
+
+// ClearChat deletes all messages for a given chat and refreshes the UI.
+func (a *Api) ClearChat(jidStr string) error {
+	if err := a.messageStore.DeleteChatMessages(jidStr); err != nil {
+		return err
+	}
+	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	return nil
+}
+
+func (a *Api) SubscribeNewsletter(newsletterJID string) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("not logged in")
+	}
+	jid, err := types.ParseJID(newsletterJID)
+	if err != nil {
+		return fmt.Errorf("invalid newsletter JID: %w", err)
+	}
+	err = a.waClient.FollowNewsletter(a.ctx, jid)
+	if err != nil {
+		return err
+	}
+	a.logcatLog(logcat.LevelInfo, "channels", "Subscribed to newsletter %s", newsletterJID)
+	return nil
+}
+
+func (a *Api) UnsubscribeNewsletter(newsletterJID string) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("not logged in")
+	}
+	jid, err := types.ParseJID(newsletterJID)
+	if err != nil {
+		return fmt.Errorf("invalid newsletter JID: %w", err)
+	}
+	err = a.waClient.UnfollowNewsletter(a.ctx, jid)
+	if err != nil {
+		return err
+	}
+	a.logcatLog(logcat.LevelInfo, "channels", "Unsubscribed from newsletter %s", newsletterJID)
+	return nil
+}
+
+func (a *Api) SearchNewsletters(query string) ([]ChatElement, error) {
+	if a.waClient.Store.ID == nil {
+		return nil, fmt.Errorf("not logged in")
+	}
+	var out []ChatElement
+	info, err := a.waClient.GetNewsletterInfoWithInvite(a.ctx, query)
+	if err == nil {
+		out = append(out, ChatElement{
+			Contact: Contact{JID: info.ID.String(), FullName: info.ThreadMeta.Name.Text},
+		})
+		return out, nil
+	}
+	if jid, parseErr := types.ParseJID(query); parseErr == nil {
+		info, err = a.waClient.GetNewsletterInfo(a.ctx, jid)
+		if err == nil {
+			out = append(out, ChatElement{
+				Contact: Contact{JID: info.ID.String(), FullName: info.ThreadMeta.Name.Text},
+			})
+		}
+	}
+	return out, nil
 }

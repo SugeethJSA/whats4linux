@@ -20,6 +20,7 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const loginStartedRef = useRef(false)
   const [status, setStatus] = useState<string>("waiting")
+  const [historyProgress, setHistoryProgress] = useState<number | null>(null)
 
   const { theme, loaded } = useAppSettingsStore()
   const { notifications, addNotification, removeNotification } = useUIStore()
@@ -125,23 +126,55 @@ function App() {
       void Login().catch(err => setStatus(`error: ${String(err)}`))
     }
 
+    const unsubHistory = EventsOn(
+      "wa:history_progress",
+      (data: { done?: boolean; download?: number; upload?: number; total?: number }) => {
+        if (data?.done) {
+          setHistoryProgress(null)
+        } else if (data?.total) {
+          const downloaded = data.download ?? 0
+          const uploaded = data.upload ?? 0
+          const total = data.total
+          setHistoryProgress(Math.round(((downloaded + uploaded) / (total * 2)) * 100))
+        }
+      },
+    )
+
     return () => {
       unsubQR()
       unsubStatus()
       unsubDownload()
       unsubMuteUpdate()
+      unsubHistory()
     }
   }, [addNotification, removeNotification])
 
   return (
     <div className="min-h-screen bg-light-secondary text-light-text dark:bg-black dark:text-white relative">
+      {historyProgress !== null && (
+        <div className="fixed top-0 left-0 right-0 z-[100] h-1 bg-gray-200 dark:bg-gray-800">
+          <div
+            className="h-full bg-green-500 transition-all duration-300 ease-out"
+            style={{ width: `${historyProgress}%` }}
+          />
+        </div>
+      )}
       <Lightbox />
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-        {notifications.map(n => (
-          <div key={n.id} className="bg-zinc-800 text-white px-4 py-2 rounded shadow-lg">
-            {n.message}
-          </div>
-        ))}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+        {notifications.map(n => {
+          const msg = n.message.toLowerCase()
+          const isSuccess = msg.includes("downloaded") || msg.includes("logged_in") || msg.includes("success")
+          const isError = msg.includes("error") || msg.includes("failed") || msg.includes("disconnect")
+          const isWarning = msg.includes("reconnect")
+          const cls = isSuccess ? "toast-success" : isError ? "toast-error" : isWarning ? "toast-warning" : "toast-info"
+          const icon = isSuccess ? "✓" : isError ? "✕" : isWarning ? "⚠" : "ℹ"
+          return (
+            <div key={n.id} className={`toast-base ${cls}`}>
+              <span style={{ fontSize: 14 }}>{icon}</span>
+              <span>{n.message}</span>
+            </div>
+          )
+        })}
       </div>
 
       {screen === "login" && <LoginScreen canvasRef={canvasRef} status={status} />}

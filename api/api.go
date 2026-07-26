@@ -6,14 +6,17 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/gen2brain/beeep"
 
 	"github.com/lugvitc/whats4linux/internal/cache"
+	"github.com/lugvitc/whats4linux/internal/logcat"
 	"github.com/lugvitc/whats4linux/internal/misc"
 	"github.com/lugvitc/whats4linux/internal/settings"
 	"github.com/lugvitc/whats4linux/internal/store"
@@ -39,6 +42,7 @@ type Api struct {
 	imageCache          *cache.ImageCache
 	us                  *socket.UnixSocket
 	waContainer         *sqlstore.Container
+	sessionDB           *sql.DB
 	eventHandlerID      uint32
 	eventHandlerSet     bool
 	startupErr          error
@@ -120,14 +124,131 @@ func (a *Api) resyncAppState() {
 	// re-applies the collection from a server snapshot; with
 	// EmitAppStateEventsOnFullSync set, every mutation is dispatched to
 	// mainEventHandler (FromFullSync=true) and lands in our tables.
+	//
+	// critical_block and critical_unblock_low are NOT full-synced here —
+	// those collections are huge and fullSync destroys the version before the
+	// network round-trip completes, so a failure wipes the version entirely.
+	// Instead, critical_unblock_low is fetched without fullSync (preserving
+	// any existing mutation MACs); if its version was never stored (0), the
+	// internal fullSync code path still fetches the full snapshot.
+	//
+	// This is necessary because whatsmeow's auto-sync in
+	// handleAppStateSyncKeyShare only fires during initial pairing or key
+	// renewal — NOT on every connect.
 	for _, name := range []appstate.WAPatchName{appstate.WAPatchRegularLow, appstate.WAPatchRegularHigh} {
+		a.logcatLog(logcat.LevelInfo, "appstate", "Starting app state full sync for %s", name)
 		if err := a.waClient.FetchAppState(a.ctx, name, true, false); err != nil {
-			log.Printf("App state full sync failed for %s: %v", name, err)
+			a.logcatLog(logcat.LevelError, "appstate", "App state full sync failed for %s: %v", name, err)
+			a.emitError(fmt.Sprintf("App state sync failed: %s — %v", name, err))
 			continue
 		}
-		log.Println("App state fully synced:", name)
+		a.logcatLog(logcat.LevelInfo, "appstate", "App state fully synced: %s", name)
 	}
+	// Sync critical_block (blocked contacts)
+	a.logcatLog(logcat.LevelInfo, "appstate", "Starting app state sync for %s", appstate.WAPatchCriticalBlock)
+	if err := a.waClient.FetchAppState(a.ctx, appstate.WAPatchCriticalBlock, false, false); err != nil {
+		a.logcatLog(logcat.LevelError, "appstate", "Block list sync failed: %v", err)
+	}
+	// Sync critical_unblock_low (phone contacts — first_name/full_name)
+	// without fullSync to avoid destroying existing mutation MACs.
+	a.logcatLog(logcat.LevelInfo, "appstate", "Starting app state sync for %s", appstate.WAPatchCriticalUnblockLow)
+	if err := a.waClient.FetchAppState(a.ctx, appstate.WAPatchCriticalUnblockLow, false, false); err != nil {
+		a.logcatLog(logcat.LevelError, "appstate", "Contact sync failed: %v", err)
+		a.emitError(fmt.Sprintf("Contact sync failed: %v", err))
+	}
+	// Log contact sync status for diagnostics
+	if versions, _, err := a.waClient.Store.AppState.GetAppStateVersion(a.ctx, string(appstate.WAPatchCriticalUnblockLow)); err == nil && versions > 0 {
+		contacts, _ := a.waClient.Store.Contacts.GetAllContacts(a.ctx)
+		a.logcatLog(logcat.LevelInfo, "contacts", "Synced %d entries (version %d)", len(contacts), versions)
+	} else if err != nil {
+		a.logcatLog(logcat.LevelError, "contacts", "Version check failed: %v", err)
+	} else {
+		a.logcatLog(logcat.LevelWarn, "contacts", "Sync has never completed (version 0)")
+	}
+	a.logcatLog(logcat.LevelInfo, "appstate", "Resync complete")
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	// Purge empty contact stubs that have no data at all (no push_name,
+	// no first_name, no full_name, no business_name). These accumulate
+	// when app state sync runs but receives ContactAction mutations with
+	// empty name fields.
+	if a.sessionDB != nil {
+		res, err := a.sessionDB.ExecContext(a.ctx,
+			`DELETE FROM whatsmeow_contacts
+			 WHERE (first_name IS NULL OR first_name = '')
+			   AND (full_name IS NULL OR full_name = '')
+			   AND (push_name IS NULL OR push_name = '')
+			   AND (business_name IS NULL OR business_name = '')
+			   AND (nick_name IS NULL OR nick_name = '')`)
+		if err != nil {
+			a.logcatLog(logcat.LevelError, "contacts", "Failed to purge empty stubs: %v", err)
+		} else if n, _ := res.RowsAffected(); n > 0 {
+			a.logcatLog(logcat.LevelInfo, "contacts", "Purged %d empty stubs", n)
+		}
+	}
+}
+
+// reconnectLoop is started as a background goroutine after an unexpected
+// disconnect. It waits a few seconds, then tries to reconnect with
+// exponential backoff. Successful reconnect triggers the Connected event,
+// which re-runs group init, app-state resync, LID migration, etc.
+// Stops when the app shuts down (isShuttingDown returns true) or after
+// maxAttempts failed tries.
+func (a *Api) reconnectLoop() {
+	runtime.EventsEmit(a.ctx, "wa:status", "reconnecting")
+	backoff := 2 * time.Second
+	maxBackoff := 30 * time.Second
+	for i := 0; i < 8; i++ {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-time.After(backoff):
+		}
+		if a.isShuttingDown() {
+			return
+		}
+		a.logcatLog(logcat.LevelInfo, "reconnect", "Attempt %d/8...", i+1)
+		if err := a.waClient.Connect(); err != nil {
+			a.logcatLog(logcat.LevelWarn, "reconnect", "Attempt %d failed: %v", i+1, err)
+			if backoff < maxBackoff {
+				backoff = time.Duration(float64(backoff) * 1.5)
+			}
+			continue
+		}
+		a.logcatLog(logcat.LevelInfo, "reconnect", "Reconnect successful")
+		return
+	}
+	a.logcatLog(logcat.LevelError, "reconnect", "All attempts exhausted — staying disconnected")
+	runtime.EventsEmit(a.ctx, "wa:status", "disconnected")
+	runtime.EventsEmit(a.ctx, "wa:error", "Could not reconnect to WhatsApp after 8 attempts.")
+}
+
+// emitError sends an error toast to the frontend, writes to the in-memory
+// logcat buffer, and prints to stderr.
+func (a *Api) emitError(msg string) {
+	log.Println("ERROR:", msg)
+	logcat.Get().Write(logcat.LevelError, "app", "%s", msg)
+	runtime.EventsEmit(a.ctx, "wa:error", msg)
+}
+
+// logcatLog writes a structured log entry to both the in-memory logcat buffer
+// and the standard log. The frontend's Log Viewer screen reads these entries
+// via GetLogEntries.
+func (a *Api) logcatLog(level logcat.Level, source, format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	log.Printf("[%s] %s: %s", level, source, msg)
+	logcat.Get().Write(level, source, format, args...)
+}
+
+// GetLogEntries returns log entries from the in-memory ring buffer.
+//
+//   - limit:  max entries to return (0 = all available)
+//   - afterID: only entries with ID > afterID (used for polling; pass 0 for
+//     the initial fetch)
+//
+// The frontend Log Viewer polls this method periodically to display live log
+// output from every subsystem.
+func (a *Api) GetLogEntries(limit int, afterID int64) []logcat.Entry {
+	return logcat.Get().Read(limit, afterID)
 }
 
 // htmlTagRE strips HTML tags from message previews so desktop notifications
@@ -248,6 +369,10 @@ func (a *Api) closeResources() error {
 		closeErr = errors.Join(closeErr, a.waContainer.Close())
 		a.waContainer = nil
 	}
+	if a.sessionDB != nil {
+		closeErr = errors.Join(closeErr, a.sessionDB.Close())
+		a.sessionDB = nil
+	}
 	return closeErr
 }
 
@@ -264,6 +389,13 @@ func (a *Api) failStartup(err error) {
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
 func (a *Api) Startup(ctx context.Context) {
+	// Initialise the centralised log buffer (logcat) so every subsystem
+	// that writes during startup appears in the log viewer.
+	if cdr, err := os.UserConfigDir(); err == nil {
+		logcat.SetLogDir(cdr + "/whats4linux/logs")
+	}
+	logcat.Init(500)
+
 	// The window is focused when the app launches; the frontend keeps this in
 	// sync via SetWindowFocused so we don't notify while the user is looking.
 	a.windowFocused.Store(true)
@@ -296,12 +428,13 @@ func (a *Api) Startup(ctx context.Context) {
 		a.failStartup(fmt.Errorf("open application database: %w", err))
 		return
 	}
-	db, err := sql.Open("sqlite3", misc.GetSQLiteAddress("session.wa"))
+	db, err := sql.Open("sqlite", misc.GetSQLiteAddress("session.wa"))
 	if err != nil {
 		a.failStartup(fmt.Errorf("open WhatsApp session database: %w", err))
 		return
 	}
-	container := sqlstore.NewWithDB(db, "sqlite3", dbLog)
+	a.sessionDB = db
+	container := sqlstore.NewWithDB(db, "sqlite", dbLog)
 	a.waContainer = container
 	err = container.Upgrade(ctx)
 	if err != nil {
@@ -493,7 +626,8 @@ func (a *Api) mainEventHandler(evt any) {
 		// groups in the app until a manual reinitialize is done). To avoid that,
 		// wait here until logged in.
 		if err := a.cw.Initialise(a.waClient); err != nil {
-			log.Println("group database initialization failed:", err)
+			a.logcatLog(logcat.LevelError, "groups", "Database init failed: %v", err)
+			a.emitError(fmt.Sprintf("Group init failed: %v", err))
 		}
 		// Heal group rows with missing/empty names in the background now
 		// that the client can reach the server.
@@ -501,20 +635,22 @@ func (a *Api) mainEventHandler(evt any) {
 		// Recover archive/pin/mute sync if the local app state is corrupted.
 		a.startBackground(a.resyncAppState)
 		if err := a.waClient.SendPresence(a.ctx, types.PresenceAvailable); err != nil {
-			log.Println("failed to send available presence:", err)
+			a.logcatLog(logcat.LevelWarn, "presence", "Failed to send available: %v", err)
 		}
 		// Run migration for messages.db
 		err := a.messageStore.MigrateLIDToPN(a.ctx, a.waClient.Store.LIDs)
 		if err != nil {
-			log.Println("Messages DB migration failed:", err)
+			a.logcatLog(logcat.LevelError, "migration", "LID migration failed: %v", err)
+			a.emitError(fmt.Sprintf("LID migration failed: %v", err))
 		} else {
-			log.Println("Messages DB migration completed successfully")
+			a.logcatLog(logcat.LevelInfo, "migration", "LID migration completed")
 			runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 		}
 	case *events.HistorySync:
-		// whatsmeow delivers past conversations here after linking. Reuse the
-		// same storage path as live messages so chats/history populate the UI.
-		a.processHistorySync(v)
+		// whatsmeow delivers past conversations here after linking. Process
+		// in a background goroutine so thousands of messages don't block the
+		// event loop (which would delay live messages, QR rendering, etc.).
+		a.startBackground(func() { a.processHistorySync(v) })
 	case *events.Archive:
 		// Chat archived/unarchived from another device (or app state sync).
 		if err := a.messageStore.SetChatArchived(v.JID.String(), v.Action.GetArchived(), v.Timestamp.Unix()); err != nil {
@@ -529,10 +665,38 @@ func (a *Api) mainEventHandler(evt any) {
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 	case *events.Disconnected:
 		a.waClient.SendPresence(a.ctx, types.PresenceUnavailable)
+		if !a.isShuttingDown() {
+			a.emitError("Disconnected from WhatsApp — reconnecting...")
+			a.startBackground(a.reconnectLoop)
+		}
 	case *events.Receipt:
 		runtime.EventsEmit(a.ctx, "wa:message_receipt", map[string]any{
 			"chatId": v.Chat.String(),
 			"status": v.Type.GoString(),
+		})
+	case *events.Contact:
+		action := v.Action
+		fullName := ""
+		if action != nil {
+			fullName = action.GetFullName()
+		}
+		a.logcatLog(logcat.LevelInfo, "contacts", "Contact event for %s: fullName=%q", v.JID, fullName)
+		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	case *events.PushName, *events.BusinessName:
+		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	case *events.ChatPresence:
+		runtime.EventsEmit(a.ctx, "wa:chat_presence", map[string]any{
+			"chatId": v.Chat.String(),
+			"state":  string(v.State),
+			"media":  string(v.Media),
+		})
+	case *events.IdentityChange:
+		a.logcatLog(logcat.LevelInfo, "security", "Identity change for %s", v.JID)
+	case *events.Presence:
+		runtime.EventsEmit(a.ctx, "wa:presence", map[string]any{
+			"jid":         v.From.String(),
+			"unavailable": v.Unavailable,
+			"lastSeen":    v.LastSeen.UnixMilli(),
 		})
 	default:
 		// Ignore other events for now
@@ -552,6 +716,14 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 		return
 	}
 	stored := 0
+	totalConvs := len(conversations)
+	runtime.EventsEmit(a.ctx, "wa:history_progress", map[string]any{
+		"type":                  v.Data.GetSyncType().String(),
+		"totalConversations":    totalConvs,
+		"processedConversations": 0,
+		"totalMessages":         0,
+		"processedMessages":     0,
+	})
 	for _, conv := range conversations {
 		chatJID, err := types.ParseJID(conv.GetID())
 		if err != nil {
@@ -578,6 +750,14 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 			}
 		}
 	}
-	log.Printf("History sync: stored %d messages from %d conversations", stored, len(conversations))
+	runtime.EventsEmit(a.ctx, "wa:history_progress", map[string]any{
+		"type":                  v.Data.GetSyncType().String(),
+		"totalConversations":    totalConvs,
+		"processedConversations": totalConvs,
+		"totalMessages":         0,
+		"processedMessages":     stored,
+		"done":                  true,
+	})
+	a.logcatLog(logcat.LevelInfo, "history", "Stored %d messages from %d conversations", stored, len(conversations))
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 }
