@@ -2,7 +2,10 @@ import React, { useState, useEffect, useMemo, lazy, Suspense } from "react"
 import { store } from "../../../wailsjs/go/models"
 import {
   DownloadImageToFile,
+  EditMessage,
   GetCachedAvatar,
+  RevokeMessage,
+  DeleteForMe,
   SendReaction,
   SetMessagePinned,
 } from "../../../wailsjs/go/api/Api"
@@ -12,6 +15,7 @@ import { ReactionBubble } from "./Reactions"
 import { LinkPreview } from "./LinkPreview"
 import clsx from "clsx"
 import { MessageMenu } from "./MessageMenu"
+import { ForwardDialog } from "./ForwardDialog"
 import {
   ClockPendingIcon,
   BlueTickIcon,
@@ -162,6 +166,35 @@ export function MessageItem({
     )
   }
 
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState("")
+
+  const handleEdit = () => {
+    const text = content?.conversation || content?.extendedTextMessage?.text || ""
+    setEditText(text)
+    setEditing(true)
+  }
+
+  const handleEditSubmit = async () => {
+    if (!editText.trim()) return
+    try {
+      await EditMessage(chatId, message.Info.ID, editText)
+      setEditing(false)
+    } catch (e) {
+      console.error("EditMessage failed:", e)
+    }
+  }
+
+  const handleDelete = () => {
+    const method = isFromMe ? RevokeMessage : DeleteForMe
+    method(chatId, message.Info.ID).catch((e: any) =>
+      console.error("Delete message failed:", e),
+    )
+  }
+
+  const [forwardTarget, setForwardTarget] = useState<string | null>(null)
+  const handleForward = () => setForwardTarget(message.Info.ID)
+
   // Fetch group member name + color from the cached store (one RPC per sender,
   // then synchronous) so scrolling a group chat doesn't fire an RPC per row.
   useEffect(() => {
@@ -227,10 +260,34 @@ export function MessageItem({
       const emojiOnly = stripped.length > 0 && stripped.length <= 16 && EMOJI_ONLY_RE.test(stripped)
       return (
         <>
+          {editing ? (
+            <div className="flex gap-2">
+              <input
+                value={editText}
+                onChange={e => setEditText(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleEditSubmit()}
+                className="flex-1 bg-transparent border border-gray-400 dark:border-gray-600 rounded px-2 py-1 text-sm outline-none"
+                autoFocus
+              />
+              <button
+                onClick={handleEditSubmit}
+                className="text-xs text-blue-600 dark:text-green font-medium"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setEditing(false)}
+                className="text-xs text-gray-500"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
           <div className={clsx("[display:flow-root]", emojiOnly && "text-[32px] leading-10")}>
             <span dangerouslySetInnerHTML={{ __html: htmlContent }} />
             {timeMeta(true)}
           </div>
+          )}
           {htmlContent.includes('class="msg-link"') && (
             <LinkPreview messageId={message.Info.ID} preview={message.link_preview ?? null} />
           )}
@@ -439,7 +496,17 @@ export function MessageItem({
             onReply={handleReply}
             onCopy={handleCopy}
             onReact={handleReact}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onForward={handleForward}
           />
+          {forwardTarget === message.Info.ID && (
+            <ForwardDialog
+              sourceJID={chatId}
+              messageID={message.Info.ID}
+              onClose={() => setForwardTarget(null)}
+            />
+          )}
 
           {!isFromMe && chatId.endsWith("@g.us") && firstInGroup && (
             <div className="flex items-baseline justify-between gap-4 mb-0.5 pt-0.5">

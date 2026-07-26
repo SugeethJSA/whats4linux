@@ -6,7 +6,15 @@ interface ChatHeaderProps {
   chatAvatar?: string
   onBack?: () => void
   onInfoClick?: () => void
+  isTyping?: boolean
 }
+
+const typingDot = (delay: string) => (
+  <span
+    className="inline-block h-1.5 w-1.5 rounded-full bg-[#8696a0] animate-bounce"
+    style={{ animationDelay: delay }}
+  />
+)
 
 export function ChatHeader({
   chatName,
@@ -14,6 +22,7 @@ export function ChatHeader({
   chatAvatar,
   onBack,
   onInfoClick,
+  isTyping,
 }: ChatHeaderProps) {
   return (
     <div className="flex items-center justify-between p-3 bg-light-secondary dark:bg-dark-bg border-b border-gray-300 dark:border-white/5">
@@ -35,11 +44,18 @@ export function ChatHeader({
             <h2 className="text-[16px] font-medium text-gray-800 dark:text-gray-100 truncate">
               {chatName}
             </h2>
-            {chatSubtitle && (
+            {isTyping ? (
+              <div className="flex items-center gap-1 text-xs text-[#21c063]">
+                <span>typing</span>
+                {typingDot("0ms")}
+                {typingDot("150ms")}
+                {typingDot("300ms")}
+              </div>
+            ) : chatSubtitle ? (
               <div className="text-xs text-gray-500 dark:text-[#8696a0] truncate">
                 {chatSubtitle}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

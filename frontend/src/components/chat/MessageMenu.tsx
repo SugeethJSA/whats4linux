@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect } from "react"
 import { createPortal } from "react-dom"
-import { ReplyIcon, CopyIcon, ReactIcon, MenuArrowIcon } from "../../assets/svgs/message_menu_icons"
+import { ReplyIcon, CopyIcon, ReactIcon, EditIcon, DeleteIcon, MenuArrowIcon, ForwardIcon } from "../../assets/svgs/message_menu_icons"
 
 interface MessageMenuProps {
   messageId: string
@@ -10,6 +10,9 @@ interface MessageMenuProps {
   onCopy?: () => void
   onReact?: () => void
   onPin?: () => void
+  onEdit?: () => void
+  onDelete?: () => void
+  onForward?: () => void
 }
 
 // Same pin glyph as the chat list, sized for menu rows.
@@ -27,6 +30,9 @@ export function MessageMenu({
   onCopy,
   onReact,
   onPin,
+  onEdit,
+  onDelete,
+  onForward,
 }: MessageMenuProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
@@ -167,6 +173,33 @@ export function MessageMenu({
               >
                 <PinMenuIcon />
                 <span>{isPinned ? "Unpin" : "Pin"}</span>
+              </button>
+            )}
+            {isFromMe && onEdit && (
+              <button
+                onClick={() => handleMenuItemClick(onEdit)}
+                className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
+              >
+                <EditIcon />
+                <span>Edit</span>
+              </button>
+            )}
+            {onForward && (
+              <button
+                onClick={() => handleMenuItemClick(onForward)}
+                className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
+              >
+                <ForwardIcon />
+                <span>Forward</span>
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => handleMenuItemClick(onDelete)}
+                className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-500 dark:text-red-400 text-sm"
+              >
+                <DeleteIcon />
+                <span>{isFromMe ? "Delete for everyone" : "Delete for me"}</span>
               </button>
             )}
           </div>,

@@ -19,9 +19,10 @@ const (
 	);
 	`
 
-	// AddGifPlaybackColumn / AddThumbnailColumn migrate existing message_media
-	// tables that predate those columns. SQLite has no ADD COLUMN IF NOT EXISTS,
-	// so the caller ignores the "duplicate column" error on subsequent runs.
+	// AddGifPlaybackColumn / AddThumbnailColumn / AddPTAColumns migrate
+	// existing message_media tables that predate those columns. SQLite has no
+	// ADD COLUMN IF NOT EXISTS, so the caller ignores the "duplicate column"
+	// error on subsequent runs.
 	AddGifPlaybackColumn = `
 	ALTER TABLE message_media ADD COLUMN gif_playback INTEGER DEFAULT 0;
 	`
@@ -30,10 +31,16 @@ const (
 	ALTER TABLE message_media ADD COLUMN thumbnail BLOB;
 	`
 
+	AddPTAColumns = `
+	ALTER TABLE message_media ADD COLUMN ptt INTEGER DEFAULT 0;
+	ALTER TABLE message_media ADD COLUMN seconds INTEGER DEFAULT 0;
+	ALTER TABLE message_media ADD COLUMN waveform BLOB;
+	`
+
 	InsertMessageMedia = `
 	INSERT OR REPLACE INTO message_media
-	(message_id, type, url, mimetype, direct_path, media_key, file_sha256, file_enc_sha256, width, height, file_name, gif_playback, thumbnail)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+	(message_id, type, url, mimetype, direct_path, media_key, file_sha256, file_enc_sha256, width, height, file_name, gif_playback, thumbnail, ptt, seconds, waveform)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 	`
 
 	SelectGifPlaybackByMessageID = `
@@ -50,7 +57,7 @@ const (
 
 	UpdateMessageMediaByMessageID = `
 	UPDATE message_media
-	SET type = ?, url = ?, mimetype = ?, direct_path = ?, media_key = ?, file_sha256 = ?, file_enc_sha256 = ?, width = ?, height = ?, file_name = ?
+	SET type = ?, url = ?, mimetype = ?, direct_path = ?, media_key = ?, file_sha256 = ?, file_enc_sha256 = ?, width = ?, height = ?, file_name = ?, ptt = ?, seconds = ?, waveform = ?
 	WHERE message_id = ?;
 	`
 
@@ -58,5 +65,9 @@ const (
 	SELECT type, url, mimetype, direct_path, media_key, file_sha256, file_enc_sha256, width, height, file_name
 	FROM message_media
 	WHERE message_id = ?;
+	`
+
+	SelectPttByMessageID = `
+	SELECT ptt, seconds, waveform FROM message_media WHERE message_id = ?;
 	`
 )

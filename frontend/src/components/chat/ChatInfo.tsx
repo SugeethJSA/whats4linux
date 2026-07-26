@@ -8,7 +8,7 @@ import {
   DisappearingMessagesIcon,
   ReportIcon,
 } from "../../assets/svgs/chat_info_icons"
-import { GetProfile, GetGroupInfo, IsChatMuted, ToggleChatMute } from "../../../wailsjs/go/api/Api"
+import { GetProfile, GetGroupInfo, IsChatMuted, ToggleChatMute, BlockContact, UnblockContact, LeaveGroup, GetBlockList, SetDisappearingTimer, SetGroupName, GetGroupInviteLink, AddGroupParticipants, ClearChat } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { EventsOn } from "../../../wailsjs/runtime/runtime"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
@@ -38,13 +38,41 @@ export function ChatInfo({
   const [showAllParticipants, setShowAllParticipants] = useState(false)
   const [muted, setMutedState] = useState(false)
   const [muteBusy, setMuteBusy] = useState(false)
+  const [blocked, setBlocked] = useState(false)
+  const [actionBusy, setActionBusy] = useState(false)
+  const [disappearTimer, setDisappearTimer] = useState(0)
+  const [showDisappearPicker, setShowDisappearPicker] = useState(false)
+  const [subjectEdit, setSubjectEdit] = useState(false)
+  const [subjectDraft, setSubjectDraft] = useState("")
+  const [inviteLink, setInviteLink] = useState("")
+  const [inviteBusy, setInviteBusy] = useState(false)
   const MAX_VISIBLE = 10
+
+  const DISAPPEAR_OPTIONS = [
+    { value: 0, label: "Off" },
+    { value: 86400, label: "24 hours" },
+    { value: 604800, label: "7 days" },
+    { value: 7776000, label: "90 days" },
+  ]
+
+  const DISAPPEAR_LABEL: Record<number, string> = {
+    0: "Off",
+    86400: "24 hours",
+    604800: "7 days",
+    7776000: "90 days",
+  }
 
   useEffect(() => {
     if (isOpen) {
       setShowAllParticipants(false)
+      if (chatType === "contact") {
+        GetBlockList().then(list => {
+          const isBlocked = list?.some((b: any) => b.jid === chatId) ?? false
+          setBlocked(isBlocked)
+        }).catch(() => {})
+      }
     }
-  }, [isOpen, chatId])
+  }, [isOpen, chatId, chatType])
 
   // Load mute state when the panel opens and keep it fresh via runtime events.
   useEffect(() => {
@@ -93,6 +121,51 @@ export function ChatInfo({
       setMuteBusy(false)
     }
   }, [chatId, muted, muteBusy])
+
+  const handleDisappearChange = async (seconds: number) => {
+    setActionBusy(true)
+    try {
+      await SetDisappearingTimer(chatId, seconds)
+      setDisappearTimer(seconds)
+      setShowDisappearPicker(false)
+    } catch (e) {
+      console.error("Failed to set disappearing timer:", e)
+    } finally {
+      setActionBusy(false)
+    }
+  }
+
+  const handleCopyInviteLink = async () => {
+    if (inviteLink) {
+      navigator.clipboard.writeText(inviteLink)
+      return
+    }
+    setInviteBusy(true)
+    try {
+      const link = await GetGroupInviteLink(chatId)
+      setInviteLink(link)
+      navigator.clipboard.writeText(link)
+    } catch (e) {
+      console.error("Failed to get invite link:", e)
+    } finally {
+      setInviteBusy(false)
+    }
+  }
+
+  const handleSaveSubject = async () => {
+    const name = subjectDraft.trim()
+    if (!name) return
+    setActionBusy(true)
+    try {
+      await SetGroupName(chatId, name)
+      if (groupInfo) setGroupInfo({ ...groupInfo, group_name: name })
+      setSubjectEdit(false)
+    } catch (e) {
+      console.error("Failed to set group name:", e)
+    } finally {
+      setActionBusy(false)
+    }
+  }
 
   const loadInfo = useCallback(async () => {
     // Don't re-fetch if we already have the data for this chat
@@ -255,14 +328,57 @@ export function ChatInfo({
               </button>
 
               {/* Disappearing messages */}
-              <button className="w-full p-4 flex items-center rounded-xl m-2 justify-between hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors">
-                <div className="flex items-center gap-3">
-                  <DisappearingMessagesIcon />
-                  <div className="flex-1 text-left">
-                    <p className="text-gray-900 dark:text-gray-100">Disappearing messages</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Off</p>
+              <div className="relative">
+                <button
+                  onClick={() => setShowDisappearPicker(!showDisappearPicker)}
+                  className="w-full p-4 flex items-center rounded-xl m-2 justify-between hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <DisappearingMessagesIcon />
+                    <div className="flex-1 text-left">
+                      <p className="text-gray-900 dark:text-gray-100">Disappearing messages</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {DISAPPEAR_LABEL[disappearTimer] || "Off"}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                </button>
+                {showDisappearPicker && (
+                  <div className="mx-4 mb-2 flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-white/10 dark:bg-dark-secondary">
+                    {DISAPPEAR_OPTIONS.map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => handleDisappearChange(opt.value)}
+                        disabled={actionBusy}
+                        className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-50 ${
+                          disappearTimer === opt.value
+                            ? "font-medium text-[#21c063]"
+                            : "text-light-text dark:text-dark-text"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Clear chat */}
+            <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
+              <button
+                onClick={async () => {
+                  if (!confirm("Clear all messages in this chat?")) return
+                  try {
+                    await ClearChat(chatId)
+                    window.location.reload()
+                  } catch (e) {
+                    console.error("Clear chat failed:", e)
+                  }
+                }}
+                className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors"
+              >
+                <span className="text-gray-900 dark:text-gray-100">Clear messages</span>
               </button>
             </div>
 
@@ -324,9 +440,27 @@ export function ChatInfo({
             {/* Block/Report (for contacts) */}
             {chatType === "contact" && (
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
-                <button className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-600 dark:text-red-400">
+                <button
+                  onClick={async () => {
+                    setActionBusy(true)
+                    try {
+                      if (blocked) {
+                        await UnblockContact(chatId)
+                      } else {
+                        await BlockContact(chatId)
+                      }
+                      setBlocked(!blocked)
+                    } catch (e) {
+                      console.error("Block toggle failed:", e)
+                    } finally {
+                      setActionBusy(false)
+                    }
+                  }}
+                  disabled={actionBusy}
+                  className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-600 dark:text-red-400 disabled:opacity-50"
+                >
                   <BlockIcon />
-                  <span>Block {contactInfo?.full_name || contactInfo?.phno || "contact"}</span>
+                  <span>{blocked ? "Unblock" : "Block"} {contactInfo?.full_name || contactInfo?.phno || "contact"}</span>
                 </button>
                 <button className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-600 dark:text-red-400">
                   <ReportIcon />
@@ -335,10 +469,78 @@ export function ChatInfo({
               </div>
             )}
 
+            {/* Group actions */}
+            {chatType === "group" && (
+              <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
+                {/* Change subject */}
+                {subjectEdit ? (
+                  <div className="p-4 flex flex-col gap-2">
+                    <input
+                      autoFocus
+                      className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text"
+                      value={subjectDraft}
+                      onChange={e => setSubjectDraft(e.target.value)}
+                      placeholder="Group subject"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setSubjectEdit(false)}
+                        className="rounded-md px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveSubject}
+                        disabled={actionBusy || !subjectDraft.trim()}
+                        className="rounded-md bg-[#21c063] px-3 py-1 text-sm font-medium text-[#0a1014] disabled:opacity-50"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setSubjectDraft(groupInfo?.group_name || "")
+                      setSubjectEdit(true)
+                    }}
+                    className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors"
+                  >
+                    <span className="text-gray-900 dark:text-gray-100">Change subject</span>
+                  </button>
+                )}
+
+                {/* Invite link */}
+                <button
+                  onClick={handleCopyInviteLink}
+                  disabled={inviteBusy}
+                  className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors disabled:opacity-50"
+                >
+                  <span className="text-gray-900 dark:text-gray-100">
+                    {inviteBusy ? "Loading…" : inviteLink ? "Invite link copied!" : "Get invite link"}
+                  </span>
+                </button>
+              </div>
+            )}
+
             {/* Exit group (for groups) */}
             {chatType === "group" && (
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
-                <button className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-600 dark:text-red-400">
+                <button
+                  onClick={async () => {
+                    setActionBusy(true)
+                    try {
+                      await LeaveGroup(chatId)
+                      window.location.reload()
+                    } catch (e) {
+                      console.error("Leave group failed:", e)
+                    } finally {
+                      setActionBusy(false)
+                    }
+                  }}
+                  disabled={actionBusy}
+                  className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-600 dark:text-red-400 disabled:opacity-50"
+                >
                   <ExitGroupIcon />
                   <span>Exit group</span>
                 </button>

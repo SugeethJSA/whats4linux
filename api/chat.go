@@ -169,3 +169,23 @@ func (a *Api) SendChatPresence(jid string, cp types.ChatPresence, cpm types.Chat
 	}
 	return a.waClient.SendChatPresence(a.ctx, parsedJid, cp, cpm)
 }
+
+// SubscribeContactPresence subscribes to presence updates for a specific user.
+// After subscribing, the app will receive wa:presence and wa:chat_presence
+// events for that user.
+func (a *Api) SubscribeContactPresence(jidStr string) error {
+	jid, err := types.ParseJID(jidStr)
+	if err != nil {
+		return err
+	}
+	return a.waClient.SubscribePresence(a.ctx, jid.ToNonAD())
+}
+
+// ClearChat deletes all messages for a given chat and refreshes the UI.
+func (a *Api) ClearChat(jidStr string) error {
+	if err := a.messageStore.DeleteChatMessages(jidStr); err != nil {
+		return err
+	}
+	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	return nil
+}
