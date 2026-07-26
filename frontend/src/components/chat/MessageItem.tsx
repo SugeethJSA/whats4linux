@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useMemo, lazy, Suspense } from "react"
 import { store } from "../../../wailsjs/go/models"
 import {
-  DownloadImageToFile,
+  DownloadMediaToFile,
+  EditMessage,
   GetCachedAvatar,
+  RevokeMessage,
+  DeleteForMe,
   SendReaction,
   SetMessagePinned,
+  AcceptGroupInviteLink,
 } from "../../../wailsjs/go/api/Api"
 import { MediaContent } from "./MediaContent"
 import { QuotedMessage } from "./QuotedMessage"
@@ -12,10 +16,12 @@ import { ReactionBubble } from "./Reactions"
 import { LinkPreview } from "./LinkPreview"
 import clsx from "clsx"
 import { MessageMenu } from "./MessageMenu"
+import { ForwardDialog } from "./ForwardDialog"
 import {
   ClockPendingIcon,
   BlueTickIcon,
   ForwardedIcon,
+  DownloadIcon,
   UserAvatar,
 } from "../../assets/svgs/chat_icons"
 import { useContactStore } from "../../store/useContactStore"
@@ -36,6 +42,7 @@ interface MessageItemProps {
   onReply?: (message: store.DecodedMessage) => void
   onQuotedClick?: (messageId: string) => void
   highlightedMessageId?: string | null
+  isAnnounceGroup?: boolean
 }
 
 // Module-level cache: one avatar lookup per sender per session, shared by
@@ -62,7 +69,7 @@ function SenderAvatar({ jid }: { jid: string }) {
   }, [jid])
 
   return (
-    <div className="w-7 h-7 ml-3 rounded-full overflow-hidden bg-gray-300 dark:bg-gray-600 shrink-0 self-start flex items-center justify-center text-gray-500 dark:text-gray-400 [&_svg]:w-5 [&_svg]:h-5">
+    <div className="w-7 h-7 ml-3 rounded-full overflow-hidden bg-gray-300 dark:bg-gray-600 shrink-0 self-start flex items-center justify-center text-gray-500 dark:text-light-muted dark:text-dark-muted [&_svg]:w-5 [&_svg]:h-5">
       {url ? <img src={url} className="w-full h-full object-cover" /> : <UserAvatar />}
     </div>
   )
@@ -89,6 +96,7 @@ export function MessageItem({
   onReply,
   onQuotedClick,
   highlightedMessageId,
+  isAnnounceGroup = false,
 }: MessageItemProps) {
   const isFromMe = message.Info.IsFromMe
   const content = message.Content
@@ -121,10 +129,12 @@ export function MessageItem({
     return <div className="mt-1" dangerouslySetInnerHTML={{ __html: caption }} />
   }
 
-  const handleImageDownload = async () => {
+  const handleMediaDownload = async () => {
     try {
-      await DownloadImageToFile(message.Info.ID)
-    } catch (e) {}
+      await DownloadMediaToFile(message.Info.ID)
+    } catch (e) {
+      console.error("Failed to download media", e)
+    }
   }
 
   const handleReply = () => onReply?.(message)
@@ -160,6 +170,58 @@ export function MessageItem({
     SetMessagePinned(chatId, message.Info.Sender, message.Info.ID, isFromMe, !isPinned).catch(err =>
       console.error("Failed to toggle message pin:", err),
     )
+  }
+
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState("")
+
+  const handleEdit = () => {
+    const text = content?.conversation || content?.extendedTextMessage?.text || ""
+    setEditText(text)
+    setEditing(true)
+  }
+
+  const handleEditSubmit = async () => {
+    if (!editText.trim()) return
+    try {
+      await EditMessage(chatId, message.Info.ID, editText)
+      setEditing(false)
+    } catch (e) {
+      console.error("EditMessage failed:", e)
+    }
+  }
+
+  const handleDelete = () => {
+    const method = isFromMe ? RevokeMessage : DeleteForMe
+    method(chatId, message.Info.ID).catch((e: any) =>
+      console.error("Delete message failed:", e),
+    )
+  }
+
+  const [forwardTarget, setForwardTarget] = useState<string | null>(null)
+  const handleForward = () => setForwardTarget(message.Info.ID)
+
+  const INVITE_LINK_RE = /chat\.whatsapp\.com\/([A-Za-z0-9_-]+)/
+  const [joinBusy, setJoinBusy] = useState(false)
+  const [joinError, setJoinError] = useState("")
+  const [joinSuccess, setJoinSuccess] = useState("")
+  const textContent = content?.conversation || content?.extendedTextMessage?.text || ""
+  const inviteMatch = textContent.match(INVITE_LINK_RE)
+  const hasInviteLink = !!inviteMatch
+
+  const handleAcceptInvite = async () => {
+    if (!inviteMatch) return
+    setJoinBusy(true)
+    setJoinError("")
+    setJoinSuccess("")
+    try {
+      const jid = await AcceptGroupInviteLink(inviteMatch[1])
+      setJoinSuccess("Joined group!")
+    } catch (e: any) {
+      setJoinError(e?.message || "Failed to join")
+    } finally {
+      setJoinBusy(false)
+    }
   }
 
   // Fetch group member name + color from the cached store (one RPC per sender,
@@ -206,13 +268,17 @@ export function MessageItem({
   const timeMeta = (floated: boolean) => (
     <span
       className={clsx(
-        "inline-flex items-center gap-1 text-[11px] leading-none opacity-60 select-none whitespace-nowrap",
+        "inline-flex items-center gap-1 text-[11px] leading-none opacity-55 select-none whitespace-nowrap",
         floated && "float-right ml-2 mt-2",
       )}
     >
-      {message.edited && <span>Edited</span>}
+      {message.edited && <span className="italic">Edited</span>}
       <span>{timeStr}</span>
-      {isFromMe && (isPending ? <ClockPendingIcon /> : <BlueTickIcon />)}
+      {isFromMe && (
+        <span className="transition-colors duration-300">
+          {isPending ? <ClockPendingIcon /> : <BlueTickIcon />}
+        </span>
+      )}
     </span>
   )
 
@@ -227,10 +293,48 @@ export function MessageItem({
       const emojiOnly = stripped.length > 0 && stripped.length <= 16 && EMOJI_ONLY_RE.test(stripped)
       return (
         <>
+          {editing ? (
+            <div className="flex gap-2">
+              <input
+                value={editText}
+                onChange={e => setEditText(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleEditSubmit()}
+                className="flex-1 bg-transparent border border-gray-400 dark:border-gray-600 rounded px-2 py-1 text-sm outline-none"
+                autoFocus
+              />
+              <button
+                onClick={handleEditSubmit}
+                className="text-xs text-blue-600 dark:text-green font-medium"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setEditing(false)}
+                className="text-xs text-light-muted dark:text-dark-muted"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
           <div className={clsx("[display:flow-root]", emojiOnly && "text-[32px] leading-10")}>
             <span dangerouslySetInnerHTML={{ __html: htmlContent }} />
             {timeMeta(true)}
           </div>
+          )}
+          {hasInviteLink && (
+            <div className="mt-2 flex flex-col gap-1">
+              <button
+                onClick={handleAcceptInvite}
+                disabled={joinBusy || !!joinSuccess}
+                className="w-full rounded-lg bg-[#21c063] px-3 py-1.5 text-sm font-medium text-[#0a1014] hover:bg-[#1ea952] disabled:opacity-50 transition-colors"
+              >
+                {joinBusy ? "Joining..." : joinSuccess ? "Joined ✓" : "Accept Invite"}
+              </button>
+              {joinError && (
+                <span className="text-xs text-red-500">{joinError}</span>
+              )}
+            </div>
+          )}
           {htmlContent.includes('class="msg-link"') && (
             <LinkPreview messageId={message.Info.ID} preview={message.link_preview ?? null} />
           )}
@@ -244,7 +348,7 @@ export function MessageItem({
             type="image"
             chatId={chatId}
             sentMediaCache={sentMediaCache}
-            onDownload={handleImageDownload}
+            onDownload={handleMediaDownload}
           />
           {renderCaption(content.imageMessage.caption)}
         </div>
@@ -258,6 +362,7 @@ export function MessageItem({
             chatId={chatId}
             isGif={!!content.videoMessage.gifPlayback}
             sentMediaCache={sentMediaCache}
+            onDownload={handleMediaDownload}
           />
           {renderCaption(content.videoMessage.caption)}
         </div>
@@ -291,22 +396,16 @@ export function MessageItem({
               <div className="truncate font-medium text-sm text-gray-900 dark:text-gray-100">
                 {fileName}
               </div>
-              <div className="text-xs opacity-60 text-gray-500 dark:text-gray-400">
+              <div className="text-xs opacity-60 text-gray-500 dark:text-light-muted dark:text-dark-muted">
                 {fileSize > 0 ? formatSize(fileSize) : "Document"}
               </div>
             </div>
             <button
-              onClick={handleImageDownload}
+              onClick={handleMediaDownload}
+              title="Download Document"
               className="p-2 border border-gray-300 dark:border-gray-600 rounded-full"
             >
-              <svg
-                viewBox="0 0 24 24"
-                width="20"
-                height="20"
-                className="fill-current text-gray-600 dark:text-gray-300"
-              >
-                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
-              </svg>
+              <DownloadIcon />
             </button>
           </div>
           {renderCaption(doc.caption)}
@@ -325,7 +424,7 @@ export function MessageItem({
       <div
         className={clsx(
           "flex group",
-          isFromMe ? "justify-end" : "justify-start",
+          isAnnounceGroup ? "justify-center" : isFromMe ? "justify-end" : "justify-start",
           // Reserve room for the reaction pill overhanging the bubble bottom.
           reactions.length > 0 && "mb-3",
           {
@@ -337,8 +436,9 @@ export function MessageItem({
         )}
       >
         {/* Sender avatar column (group chats, received): avatar on the first
-            message of a run, an equally wide spacer on the rest. */}
-        {!isFromMe &&
+            message of a run, an equally wide spacer on the rest.
+            Hidden in announcement groups — all messages are centered. */}
+        {!isAnnounceGroup && !isFromMe &&
           isGroup &&
           (firstInGroup ? (
             <SenderAvatar jid={message.Info.Sender} />
@@ -347,26 +447,43 @@ export function MessageItem({
           ))}
         <div
           className={clsx(
-            "max-w-[85%] lg:max-w-[65%] rounded-xl px-2 pt-1 pb-1.5 relative min-w-0",
-            !isFromMe && isGroup ? "ml-2 mr-5" : "mx-5",
+            "max-w-[85%] lg:max-w-[65%] rounded-2xl px-3 pt-1.5 pb-2 relative min-w-0 shadow-sm",
+            isAnnounceGroup ? "mx-auto" : !isFromMe && isGroup ? "ml-2 mr-5" : "mx-5",
             {
               "w-min": hasMedia,
               "bg-transparent shadow-none": isSticker,
-              // WhatsApp sharpens the corner facing the sender on the first
-              // bubble of a run.
-              "rounded-tl-[4px]": firstInGroup && !isFromMe && !isSticker,
-              "rounded-tr-[4px]": firstInGroup && isFromMe && !isSticker,
+              "rounded-tl-md": firstInGroup && !isFromMe && !isSticker,
+              "rounded-tr-md": firstInGroup && isFromMe && !isSticker,
+
+              // Announcement group — neutral bubble for all messages
+              "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100":
+                isAnnounceGroup && !isSticker,
 
               // SENT
               "bg-sent-bubble-bg dark:bg-sent-bubble-dark-bg text-(--color-sent-bubble-text) dark:text-(--color-sent-bubble-dark-text)":
-                isFromMe && !isSticker,
+                isFromMe && !isSticker && !isAnnounceGroup,
 
               // RECEIVED
               "bg-received-bubble-bg dark:bg-received-bubble-dark-bg text-(--color-received-bubble-text) dark:text-(--color-received-bubble-dark-text)":
-                !isFromMe && !isSticker,
+                !isFromMe && !isSticker && !isAnnounceGroup,
             },
           )}
         >
+          {/* Sender name — always shown in announcement groups (centered has
+              no left-side context), otherwise only for received group messages. */}
+          {isAnnounceGroup && (
+            <div className="flex items-baseline justify-center gap-4 mb-0.5 pt-0.5">
+              <span className="text-[11px] font-semibold truncate" style={{ color: senderColor }}>
+                {senderName}
+              </span>
+              {senderName.startsWith("~") && senderPhone && (
+                <span className="shrink-0 text-[11px] text-black/40 dark:text-white/40">
+                  {senderPhone}
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Hover reaction trigger just outside the bubble (WhatsApp-style). */}
           <button
             onClick={() => setShowReactionPicker(v => !v)}
@@ -391,8 +508,8 @@ export function MessageItem({
                   key={emoji}
                   onClick={() => sendReaction(emoji)}
                   className={clsx(
-                    "rounded-full px-1 text-lg leading-none transition-transform hover:scale-125",
-                    myReaction === emoji && "bg-blue-500/40",
+                    "rounded-full px-1 text-xl leading-none transition-all duration-150 hover:scale-125 hover:-translate-y-1",
+                    myReaction === emoji && "bg-[#21c063]/30 scale-110",
                   )}
                 >
                   {emoji}
@@ -439,9 +556,19 @@ export function MessageItem({
             onReply={handleReply}
             onCopy={handleCopy}
             onReact={handleReact}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onForward={handleForward}
           />
+          {forwardTarget === message.Info.ID && (
+            <ForwardDialog
+              sourceJID={chatId}
+              messageID={message.Info.ID}
+              onClose={() => setForwardTarget(null)}
+            />
+          )}
 
-          {!isFromMe && chatId.endsWith("@g.us") && firstInGroup && (
+          {!isAnnounceGroup && !isFromMe && chatId.endsWith("@g.us") && firstInGroup && (
             <div className="flex items-baseline justify-between gap-4 mb-0.5 pt-0.5">
               <span className="text-[11px] font-semibold truncate" style={{ color: senderColor }}>
                 {senderName}
@@ -472,7 +599,7 @@ export function MessageItem({
             <div
               onClick={() => setShowReactionPicker(v => !v)}
               className={clsx(
-                "absolute -bottom-3 z-9999 cursor-pointer",
+                "absolute -bottom-3 z-9999 cursor-pointer transition-transform duration-150 hover:-translate-y-0.5",
                 isFromMe ? "right-2" : "left-2",
               )}
             >

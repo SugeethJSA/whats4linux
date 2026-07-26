@@ -7,6 +7,7 @@ import { LoginScreen } from "./screens/LoginScreen"
 import { SettingsScreen } from "./screens/SettingsScreen"
 import { initSelf } from "./lib/self"
 import { Lightbox } from "./components/Lightbox"
+import { CallOverlay } from "./components/chat/CallOverlay"
 
 import { useUIStore } from "./store"
 import { useAppSettingsStore } from "./store/useAppSettingsStore"
@@ -153,6 +154,7 @@ function App() {
       )}
 
       {screen === "settings" && <SettingsScreen onBack={() => setScreen("chats")} />}
+      <CallOverlay />
     </div>
   )
 }

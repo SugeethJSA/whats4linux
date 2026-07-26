@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import clsx from "clsx"
-import { GetCommunityList, GetCommunityDetails, GetCachedAvatar } from "../../../wailsjs/go/api/Api"
+import { createPortal } from "react-dom"
+import { GetCommunityList, GetCommunityDetails, GetCachedAvatar, CreateCommunity, CreateCommunitySubGroup } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
 import { getAvatarColor, AVATAR_ICON_COLOR } from "../../lib/utils"
@@ -12,7 +13,7 @@ const CommunitiesEmptyIcon = () => (
     viewBox="0 0 24 24"
     width="96"
     height="96"
-    className="fill-current text-gray-300 dark:text-gray-600"
+    className="fill-current text-gray-300 dark:text-light-muted dark:text-dark-muted"
   >
     <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
   </svg>
@@ -128,16 +129,16 @@ export function CommunityList({ searchTerm, selectedJid, onSelect }: CommunityLi
     : communities
 
   if (loading) {
-    return <div className="p-6 text-center text-sm text-gray-500">Loading communities…</div>
+    return <div className="p-6 text-center text-sm text-light-muted dark:text-dark-muted">Loading communities…</div>
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-gray-500 dark:text-gray-400">
+      <div className="flex flex-col items-center justify-center p-8 text-gray-500 dark:text-light-muted dark:text-dark-muted">
         <p className="text-center text-sm">{error}</p>
         <button
           onClick={load}
-          className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
+          className="mt-4 px-4 py-2 bg-[#21c063] text-white rounded-lg hover:bg-[#1b9a58] text-sm"
         >
           Retry
         </button>
@@ -147,7 +148,7 @@ export function CommunityList({ searchTerm, selectedJid, onSelect }: CommunityLi
 
   if (filtered.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-gray-500 dark:text-gray-400">
+      <div className="flex flex-col items-center justify-center p-8 text-gray-500 dark:text-light-muted dark:text-dark-muted">
         <CommunitiesEmptyIcon />
         <p className="mt-4 text-center text-sm">
           {searchTerm ? "No communities match your search." : "You're not in any communities yet."}
@@ -158,7 +159,7 @@ export function CommunityList({ searchTerm, selectedJid, onSelect }: CommunityLi
         {!searchTerm && (
           <button
             onClick={load}
-            className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
+            className="mt-4 px-4 py-2 bg-[#21c063] text-white rounded-lg hover:bg-[#1b9a58] text-sm"
           >
             Refresh
           </button>
@@ -177,7 +178,7 @@ export function CommunityList({ searchTerm, selectedJid, onSelect }: CommunityLi
           className={clsx(
             "flex w-full items-center px-4 py-3 text-left cursor-pointer",
             "hover:bg-gray-100 dark:hover:bg-[#202121]",
-            selectedJid === c.jid && "bg-gray-200 dark:bg-[#2e2f2f]",
+            selectedJid === c.jid && "bg-gray-200 dark:bg-dark-tertiary",
           )}
         >
           <CommunityAvatar avatar={c.avatar_url} name={c.name} jid={c.jid} />
@@ -204,6 +205,62 @@ interface CommunityHomeProps {
 }
 
 /** Community home: header, announcements, and linked groups. */
+function CreateSubGroupDialog({
+  communityJid,
+  communityName,
+  onClose,
+  onCreated,
+}: {
+  communityJid: string
+  communityName: string
+  onClose: () => void
+  onCreated: (jid: string, name: string) => void
+}) {
+  const [name, setName] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  const handleCreate = async () => {
+    if (!name.trim()) return
+    setLoading(true)
+    setError("")
+    try {
+      const jid = await CreateCommunitySubGroup(communityJid, name.trim(), [])
+      onCreated(jid, name.trim())
+      onClose()
+    } catch (e: any) {
+      setError(e?.message || "Failed to create group")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="bg-white dark:bg-dark-secondary rounded-2xl w-96 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">New Group in {communityName}</h2>
+        <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
+          Creates a linked sub-group within this community.
+        </p>
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Group name"
+          className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3"
+        />
+        {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg">Cancel</button>
+          <button onClick={handleCreate} disabled={loading || !name.trim()} className="px-4 py-2 text-sm bg-[#21c063] text-white rounded-lg hover:bg-[#1b9a58] disabled:opacity-50">
+            {loading ? "Creating..." : "Create"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 export function CommunityHome({
   communityJid,
   communityName,
@@ -216,6 +273,7 @@ export function CommunityHome({
   const [details, setDetails] = useState<api.CommunityDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showCreateGroup, setShowCreateGroup] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -324,7 +382,7 @@ export function CommunityHome({
           )}
         </div>
 
-        {loading && <div className="p-6 text-center text-sm text-gray-500">Loading groups…</div>}
+        {loading && <div className="p-6 text-center text-sm text-light-muted dark:text-dark-muted">Loading groups…</div>}
 
         {error && (
           <div className="p-6 text-center text-sm text-red-500 dark:text-red-400">{error}</div>
@@ -385,8 +443,16 @@ export function CommunityHome({
 
             {/* Groups in community */}
             <section className="mt-2 bg-white dark:bg-dark-secondary pb-4">
-              <div className="px-4 py-2 text-xs font-medium uppercase tracking-wide text-[#008069] dark:text-[#21c063]">
-                Groups{groups.length > 0 ? ` · ${groups.length}` : ""}
+              <div className="flex items-center justify-between px-4 py-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-[#008069] dark:text-[#21c063]">
+                  Groups{groups.length > 0 ? ` · ${groups.length}` : ""}
+                </span>
+                <button
+                  onClick={() => setShowCreateGroup(true)}
+                  className="text-xs px-3 py-1 rounded bg-[#21c063] text-[#0a1014] font-medium hover:bg-[#1b9a58]"
+                >
+                  + New Group
+                </button>
               </div>
 
               {groups.length === 0 && !announcement ? (
@@ -435,6 +501,14 @@ export function CommunityHome({
                 ))
               )}
             </section>
+            {showCreateGroup && (
+              <CreateSubGroupDialog
+                communityJid={communityJid}
+                communityName={communityName}
+                onClose={() => setShowCreateGroup(false)}
+                onCreated={(jid, name) => onOpenGroup(jid, name)}
+              />
+            )}
           </>
         )}
       </div>
@@ -442,21 +516,82 @@ export function CommunityHome({
   )
 }
 
+function CreateCommunityDialog({ onClose }: { onClose: () => void }) {
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  const handleCreate = async () => {
+    if (!name.trim()) return
+    setLoading(true)
+    setError("")
+    try {
+      await CreateCommunity(name.trim(), description.trim())
+      onClose()
+    } catch (e: any) {
+      setError(e?.message || "Failed to create community")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="bg-white dark:bg-dark-secondary rounded-2xl w-96 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Create Community</h2>
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Community name"
+          className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3"
+        />
+        <textarea
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          placeholder="Description (optional)"
+          rows={3}
+          className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3 resize-none"
+        />
+        {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg">Cancel</button>
+          <button onClick={handleCreate} disabled={loading || !name.trim()} className="px-4 py-2 text-sm bg-[#21c063] text-white rounded-lg hover:bg-[#1b9a58] disabled:opacity-50">
+            {loading ? "Creating..." : "Create"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 /** Welcome panel when Communities tab is active but nothing is selected. */
 export function CommunitiesWelcome() {
+  const [showCreate, setShowCreate] = useState(false)
+
   return (
-    <div className="flex-1 flex flex-col items-center justify-center z-10 text-center px-10 border-b-[6px] border-[#43d187]">
-      <div className="mb-6">
-        <CommunitiesEmptyIcon />
+    <>
+      <div className="flex-1 flex flex-col items-center justify-center z-10 text-center px-10 border-b-[6px] border-[#43d187]">
+        <div className="mb-6">
+          <CommunitiesEmptyIcon />
+        </div>
+        <h1 className="text-3xl font-light text-gray-600 dark:text-gray-300 mb-4">Communities</h1>
+        <p className="text-gray-500 dark:text-light-muted dark:text-dark-muted max-w-md">
+          Communities bring members together in topic-based groups and let admins send announcements
+          to everyone.
+        </p>
+        <p className="mt-4 text-sm text-gray-400 dark:text-[#8696a0] max-w-sm">
+          Select a community from the list to view its announcement channel and groups.
+        </p>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="mt-6 px-6 py-2.5 bg-[#21c063] text-white rounded-lg hover:bg-[#1b9a58] text-sm font-medium transition-colors"
+        >
+          Create Community
+        </button>
       </div>
-      <h1 className="text-3xl font-light text-gray-600 dark:text-gray-300 mb-4">Communities</h1>
-      <p className="text-gray-500 dark:text-gray-400 max-w-md">
-        Communities bring members together in topic-based groups and let admins send announcements
-        to everyone.
-      </p>
-      <p className="mt-4 text-sm text-gray-400 dark:text-[#8696a0] max-w-sm">
-        Select a community from the list to view its announcement channel and groups.
-      </p>
-    </div>
+      {showCreate && <CreateCommunityDialog onClose={() => setShowCreate(false)} />}
+    </>
   )
 }

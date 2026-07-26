@@ -3,6 +3,9 @@ import clsx from "clsx"
 import {
   GetChatList,
   GetChannelList,
+  SubscribeNewsletter,
+  UnsubscribeNewsletter,
+  SearchNewsletters,
   GetCachedAvatar,
   GetSelfAvatar,
   ToggleChatPin,
@@ -16,6 +19,7 @@ import { useSelfAvatarStore } from "../store/useSelfAvatarStore"
 import { useChatMuted } from "../store/useMuteStore"
 import type { ChatItem } from "../store/types"
 import { StatusList, StoryViewer, type StatusGroup } from "../components/chat/Status"
+import { CreateGroupDialog } from "../components/chat/CreateGroupDialog"
 import { CommunityList, CommunityHome, CommunitiesWelcome } from "../components/chat/Communities"
 import { getAvatarColor, AVATAR_ICON_COLOR, AVATAR_ICON_ON_DARK } from "../lib/utils"
 import { useAppSettingsStore } from "../store/useAppSettingsStore"
@@ -34,18 +38,29 @@ import {
   ResizableHandle,
 } from "../components/common/resizable"
 import { useContactStore } from "@/store/useContactStore"
+import { MessageSearchScreen } from "./MessageSearchScreen"
 
 interface HeaderProps {
   onOpenSettings: () => void
+  onNewChat?: () => void
+  onSearch?: () => void
   avatar?: string
 }
 
-const Header = ({ onOpenSettings, avatar }: HeaderProps) => (
+const Header = ({ onOpenSettings, onNewChat, onSearch, avatar }: HeaderProps) => (
   <div className="h-16 bg-light-secondary dark:bg-dark-bg flex items-center justify-between px-4 border-b border-gray-200 dark:border-white/5">
     <h1 className="text-xl font-bold text-light-text dark:text-white">WhatsApp</h1>
-    <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+    <div className="flex items-center gap-1 text-gray-500 dark:text-light-muted dark:text-dark-muted">
+      <button
+        title="Search Messages"
+        onClick={onSearch}
+        className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full"
+      >
+        <SearchIcon />
+      </button>
       <button
         title="New Chat"
+        onClick={onNewChat}
         className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full"
       >
         <NewChatIcon />
@@ -76,8 +91,8 @@ const SearchBar = ({
   placeholder = "Search or start new chat",
 }: SearchBarProps) => (
   <div className="px-3 py-2 bg-light-bg dark:bg-dark-bg">
-    <div className="bg-light-tertiary dark:bg-[#242626] rounded-full flex items-center px-4 py-2">
-      <div className="text-gray-500 dark:text-gray-400 mr-4">
+    <div className="bg-light-tertiary dark:bg-dark-secondary rounded-full flex items-center px-4 py-2">
+      <div className="text-gray-500 dark:text-light-muted dark:text-dark-muted mr-4">
         <SearchIcon />
       </div>
       <input
@@ -239,9 +254,9 @@ const ChatListItemContent = memo(
         onClick={() => onSelect(chat)}
         onContextMenu={e => onContextMenu(e, chat)}
         className={clsx(
-          "flex items-center px-4 py-3 cursor-pointer",
-          "hover:bg-gray-100 dark:hover:bg-[#1a1a1a]",
-          isSelected && "bg-gray-200 dark:bg-[#242626]",
+          "flex items-center px-3 py-3 mx-2 my-1 cursor-pointer rounded-xl transition-all duration-150",
+          "hover:bg-gray-100/80 dark:hover:bg-white/5",
+          isSelected && "bg-[#21c063]/10 dark:bg-[#21c063]/10 chat-row-selected",
         )}
       >
         {isCommunityChat ? (
@@ -358,29 +373,183 @@ interface EmptyStateProps {
 }
 
 const EmptyState = ({ hasChats, isLoading, onRefresh }: EmptyStateProps) => (
-  <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 p-8">
-    <p className="text-center">
+  <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-light-muted dark:text-dark-muted p-8">
+    <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+      style={{ background: "rgba(33,192,99,0.08)", color: "#21c063" }}>
+      <SearchIcon />
+    </div>
+    <p className="text-center font-medium">
       {hasChats ? "No chats match your search." : "No chats available. Start a conversation!"}
     </p>
     <button
       onClick={onRefresh}
       disabled={isLoading}
-      className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
+      className="mt-6 px-6 py-2.5 rounded-full text-sm font-semibold transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+      style={{ background: "#21c063", color: "#0a1014" }}
     >
       {isLoading ? "Loading..." : "Refresh Chats"}
     </button>
   </div>
 )
 
-const WelcomeScreen = () => (
-  <div className="flex-1 flex flex-col items-center justify-center z-10 text-center px-10 border-b-[6px] border-[#43d187]">
-    <div className="mb-8">
-      <EmptyStateIcon />
+function SubscribeChannelDialog({ onClose }: { onClose: () => void }) {
+  const [input, setInput] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [success, setSuccess] = useState("")
+  const [error, setError] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<api.ChatElement[]>([])
+  const [searching, setSearching] = useState(false)
+
+  const handleSubscribe = async (jid?: string) => {
+    const target = (jid || input).trim()
+    if (!target) return
+    setBusy(true)
+    setError("")
+    setSuccess("")
+    try {
+      await SubscribeNewsletter(target)
+      setSuccess("Subscribed successfully!")
+      setTimeout(onClose, 1500)
+    } catch (e: any) {
+      setError(e?.message || "Failed to subscribe")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleUnsubscribe = async (jid: string) => {
+    if (!confirm("Unsubscribe from this channel?")) return
+    setBusy(true)
+    setError("")
+    try {
+      await UnsubscribeNewsletter(jid)
+      setSuccess("Unsubscribed!")
+    } catch (e: any) {
+      setError(e?.message || "Failed to unsubscribe")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Debounced search
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.length < 2) { setSearchResults([]); return }
+    const timer = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const results = await SearchNewsletters(searchQuery.trim())
+        setSearchResults(results || [])
+      } catch { setSearchResults([]) }
+      finally { setSearching(false) }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white dark:bg-dark-secondary rounded-2xl w-96 max-h-[80vh] flex flex-col p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Subscribe to Channel</h2>
+        <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
+          Enter a newsletter JID or search for channels.
+        </p>
+        <input
+          autoFocus
+          value={input}
+          onChange={e => { setInput(e.target.value); setError(""); setSuccess("") }}
+          onKeyDown={e => { if (e.key === "Enter") handleSubscribe(); if (e.key === "Escape") onClose() }}
+          placeholder="Newsletter JID or invite code"
+          className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3"
+        />
+
+        {/* Search newsletters */}
+        <input
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search channels..."
+          className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3"
+        />
+
+        {searching && <p className="text-xs text-gray-500 mb-2">Searching...</p>}
+
+        {searchResults.length > 0 && (
+          <div className="flex-1 overflow-y-auto max-h-40 mb-3 border border-gray-200 dark:border-dark-border rounded-lg">
+            {searchResults.map(ch => (
+              <div key={ch.jid} className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 dark:hover:bg-white/5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-light-text dark:text-dark-text truncate">
+                    {ch.full_name || ch.push_name || ch.jid}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted truncate">{ch.jid}</p>
+                </div>
+                <div className="flex gap-1 shrink-0 ml-2">
+                  <button
+                    onClick={() => handleSubscribe(ch.jid)}
+                    disabled={busy}
+                    className="text-xs px-2 py-1 rounded bg-[#21c063] text-[#0a1014] hover:bg-[#1ea952] disabled:opacity-50"
+                  >
+                    Subscribe
+                  </button>
+                  <button
+                    onClick={() => handleUnsubscribe(ch.jid)}
+                    disabled={busy}
+                    className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 disabled:opacity-50"
+                  >
+                    Unsub
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
+        {success && <p className="text-sm text-[#21c063] mb-3">{success}</p>}
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => handleSubscribe()}
+            disabled={busy || !input.trim()}
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-[#21c063] text-[#0a1014] hover:bg-[#1ea952] disabled:opacity-50"
+          >
+            {busy ? "Subscribing..." : "Subscribe"}
+          </button>
+        </div>
+      </div>
     </div>
-    <h1 className="text-3xl font-light text-gray-600 dark:text-gray-300 mb-4">
+  )
+}
+
+const WelcomeScreen = () => (
+  <div className="flex-1 flex flex-col items-center justify-center z-10 text-center px-10 relative overflow-hidden"
+    style={{ borderBottom: "6px solid #21c063" }}>
+    
+    <div className="absolute inset-0 pointer-events-none opacity-40 dark:opacity-20"
+      style={{ background: "radial-gradient(circle at center, rgba(33,192,99,0.15) 0%, transparent 60%)" }} />
+
+    <div className="mb-8 relative z-10">
+      <div className="w-24 h-24 rounded-3xl flex items-center justify-center shadow-2xl glass-light dark:glass"
+        style={{
+          border: "1px solid rgba(255,255,255,0.1)"
+        }}>
+        <EmptyStateIcon />
+      </div>
+    </div>
+    
+    <h1 className="text-3xl font-semibold mb-4 relative z-10"
+      style={{ color: "var(--color-light-text)", letterSpacing: "-0.02em" }}>
       WhatsApp for Linux
     </h1>
-    <p className="text-gray-500 dark:text-gray-400">
+    
+    <p className="relative z-10 text-sm leading-relaxed" style={{ color: "#8696a0" }}>
       Send and receive messages without keeping your phone online.
       <br />
       Use WhatsApp on up to 4 linked devices and 1 phone.
@@ -410,6 +579,9 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   const getContactName = useContactStore(state => state.getContactName)
 
   const [showArchived, setShowArchived] = useState(false)
+  const [showCreateGroup, setShowCreateGroup] = useState(false)
+  const [showSubscribeChannel, setShowSubscribeChannel] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
   // Get filtered chat IDs - only re-renders when IDs or search changes, not on message/timestamp updates
   const filteredChatIds = useFilteredChatIds(showArchived)
   const archivedCount = useArchivedCount()
@@ -765,10 +937,10 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   }, [fetchChats, getChat, loadSelfAvatar, updateChatLastMessage, updateSingleChat])
 
   return (
-    <div className="flex h-screen bg-light-secondary dark:bg-black overflow-hidden">
+    <div className="flex h-screen bg-light-secondary dark:bg-dark-bg overflow-hidden">
       {chatMenu && (
         <div
-          className="fixed z-50 min-w-36 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#242626]"
+          className="fixed z-50 min-w-36 rounded-lg border border-gray-200 dark:border-dark-border bg-white py-1 shadow-lg dark:border-white/10 dark:bg-dark-secondary"
           style={{ top: chatMenu.y, left: chatMenu.x }}
         >
           <button
@@ -798,7 +970,11 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
             selectedChatId || selectedCommunity ? "hidden md:flex" : "flex",
           )}
         >
-          <Header onOpenSettings={onOpenSettings} avatar={selfAvatar} />
+          {showSearch ? (
+            <MessageSearchScreen onClose={() => setShowSearch(false)} />
+          ) : (
+            <>
+          <Header onOpenSettings={onOpenSettings} onNewChat={() => setShowCreateGroup(true)} onSearch={() => setShowSearch(true)} avatar={selfAvatar} />
           <div className="flex gap-2 px-3 pb-2 pt-1 overflow-x-auto">
             {(["chats", "communities", "channels", "status"] as const).map(v => (
               <button
@@ -808,7 +984,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
                   "rounded-full border px-3 py-1 text-sm capitalize transition-colors shrink-0",
                   view === v
                     ? "border-transparent bg-[#d9fdd3] font-medium text-[#0a1014] dark:bg-[#e9edef] dark:text-[#0b141a]"
-                    : "border-gray-300 text-gray-500 hover:bg-gray-100 dark:border-white/10 dark:text-[#8696a0] dark:hover:bg-white/5",
+                    : "border-gray-300 dark:border-dark-border text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:border-white/10 dark:text-[#8696a0] dark:hover:bg-white/5",
                 )}
               >
                 {v}
@@ -829,6 +1005,15 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
             />
           )}
 
+          {view === "channels" && (
+            <button
+              onClick={() => setShowSubscribeChannel(true)}
+              className="mx-3 mt-2 px-4 py-2 bg-[#21c063] text-[#0a1014] rounded-lg text-sm font-medium hover:bg-[#1ea952] transition-colors"
+            >
+              Subscribe to Channel
+            </button>
+          )}
+
           {/* Archived entry (main view) / archived header (archived view) */}
           {!showArchived && view === "chats" && archivedCount > 0 && (
             <button
@@ -847,10 +1032,10 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
             </button>
           )}
           {showArchived && (
-            <div className="flex items-center gap-4 border-b border-gray-200 px-4 py-3 dark:border-white/5">
+            <div className="flex items-center gap-4 border-b border-gray-200 dark:border-dark-border px-4 py-3 dark:border-white/5">
               <button
                 onClick={() => setShowArchived(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="text-light-muted dark:text-dark-muted hover:text-gray-700 dark:text-light-muted dark:text-dark-muted dark:hover:text-gray-200"
                 aria-label="Back to chats"
               >
                 <GoBackIcon />
@@ -886,6 +1071,8 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
               ))
             )}
           </div>
+          </>
+          )}
         </ResizablePanel>
         {storyGroup && <StoryViewer group={storyGroup} onClose={() => setStoryGroup(null)} />}
 
@@ -899,7 +1086,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
             "flex-col h-full",
             selectedCommunity
               ? "bg-light-secondary dark:bg-dark-bg"
-              : "bg-[#efeae2] dark:bg-[#0a0a0a]",
+              : "bg-[#efeae2] dark:bg-dark-bg",
             "relative",
             selectedChatId || selectedCommunity ? "flex" : "hidden md:flex",
           )}
@@ -927,6 +1114,8 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           )}
         </ResizablePanel>
       </ResizablePanelGroup>
+      {showCreateGroup && <CreateGroupDialog onClose={() => setShowCreateGroup(false)} />}
+      {showSubscribeChannel && <SubscribeChannelDialog onClose={() => setShowSubscribeChannel(false)} />}
     </div>
   )
 }
