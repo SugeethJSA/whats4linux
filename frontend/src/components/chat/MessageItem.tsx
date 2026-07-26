@@ -419,6 +419,20 @@ export function MessageItem({
 
   const hasMedia = !!(content?.imageMessage || content?.videoMessage)
 
+  const isSystemMsg = !!(textContent && textContent.startsWith("[system]"))
+
+  // System messages render as centered indicator lines (no bubble).
+  if (isSystemMsg) {
+    const displayText = textContent.replace(/^\[system\]/, "").trim()
+    return (
+      <div className="flex justify-center my-1.5">
+        <span className="text-xs text-gray-500 dark:text-gray-400 italic text-center max-w-md select-none">
+          {displayText}
+        </span>
+      </div>
+    )
+  }
+
   return (
     <>
       <div

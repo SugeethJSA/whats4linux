@@ -4,12 +4,13 @@ go 1.25.0
 
 require (
 	github.com/gen2brain/beeep v0.11.2
+	github.com/gen2brain/malgo v0.11.25
 	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-sqlite3 v1.14.46
 	github.com/nyaruka/phonenumbers v1.8.0
 	github.com/purpshell/meowcaller v0.0.0-20260724092103-1ac278769bdc
 	github.com/urfave/cli v1.22.17
-	github.com/wailsapp/wails/v2 v2.13.0
+	github.com/wailsapp/wails/v2 v2.12.0
 	go.mau.fi/whatsmeow v0.0.0-20260616120636-eaa388b4e537
 	google.golang.org/protobuf v1.36.11
 )
