@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -240,7 +241,18 @@ func NewMessageStore() (*MessageStore, error) {
 func (ms *MessageStore) runWriter() {
 	defer close(ms.writerDone)
 	for req := range ms.writeCh {
-		tx, err := ms.db.BeginTx(context.Background(), nil)
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					err := fmt.Errorf("PANIC in message store writer: %v", r)
+					log.Println(err)
+					if req.done != nil {
+						req.done <- err
+						close(req.done)
+					}
+				}
+			}()
+			tx, err := ms.db.BeginTx(context.Background(), nil)
 		if err == nil {
 			err = req.job(tx)
 			if err != nil {
@@ -258,6 +270,7 @@ func (ms *MessageStore) runWriter() {
 		} else if err != nil {
 			log.Println("asynchronous message-store write failed:", err)
 		}
+		}()
 	}
 }
 

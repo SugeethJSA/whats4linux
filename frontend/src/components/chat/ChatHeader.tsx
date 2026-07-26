@@ -30,7 +30,7 @@ export function ChatHeader({
 }: ChatHeaderProps) {
   return (
     <div
-      className="flex items-center justify-between px-4 py-3 border-b"
+      className="flex items-center justify-between px-4 py-3 border-b chat-header-glass"
       style={{
         background: "rgba(240,242,245,0.85)",
         backdropFilter: "blur(12px) saturate(180%)",
@@ -46,8 +46,7 @@ export function ChatHeader({
         }
       `}</style>
 
-      <div className="flex items-center gap-3 min-w-0 flex-1 chat-header-glass"
-        style={{ background: "transparent", borderColor: "transparent" }}>
+      <div className="flex items-center gap-3 min-w-0 flex-1">
         {onBack && (
           <button
             onClick={onBack}
@@ -85,8 +84,8 @@ export function ChatHeader({
           {/* Name + status */}
           <div className="min-w-0">
             <h2
-              className="text-sm font-semibold truncate"
-              style={{ color: "var(--color-light-text)", letterSpacing: "-0.01em" }}
+              className="text-sm font-semibold truncate text-light-text dark:text-dark-text"
+              style={{ letterSpacing: "-0.01em" }}
             >
               {chatName}
             </h2>
@@ -115,10 +114,7 @@ export function ChatHeader({
       {/* Info button */}
       <button
         onClick={onInfoClick}
-        className="p-2 rounded-full transition-all duration-150 shrink-0"
-        style={{ color: "#8696a0" }}
-        onMouseEnter={e => (e.currentTarget.style.background = "rgba(0,0,0,0.06)")}
-        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+        className="ml-2 p-2 rounded-full transition-colors text-light-muted hover:text-light-text dark:text-dark-muted dark:hover:text-dark-text"
         aria-label="Chat info"
       >
         <InfoIcon />

@@ -51,7 +51,7 @@ export function PollDialog({ chatId, onClose }: { chatId: string; onClose: () =>
   }
 
   const inputCls =
-    "w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm outline-none " +
+    "w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none " +
     "focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] " +
     "text-light-text dark:text-dark-text placeholder-gray-500"
 
@@ -88,7 +88,7 @@ export function PollDialog({ chatId, onClose }: { chatId: string; onClose: () =>
               {options.length > 2 && (
                 <button
                   onClick={() => removeOption(i)}
-                  className="shrink-0 text-gray-400 hover:text-red-500"
+                  className="shrink-0 text-light-muted dark:text-dark-muted hover:text-red-500"
                   title="Remove option"
                 >
                   ×
@@ -122,7 +122,7 @@ export function PollDialog({ chatId, onClose }: { chatId: string; onClose: () =>
         <div className="mt-4 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
+            className="rounded-lg px-4 py-2 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
           >
             Cancel
           </button>

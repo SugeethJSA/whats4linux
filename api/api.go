@@ -177,8 +177,7 @@ func (a *Api) resyncAppState() {
 			 WHERE (first_name IS NULL OR first_name = '')
 			   AND (full_name IS NULL OR full_name = '')
 			   AND (push_name IS NULL OR push_name = '')
-			   AND (business_name IS NULL OR business_name = '')
-			   AND (nick_name IS NULL OR nick_name = '')`)
+			   AND (business_name IS NULL OR business_name = '')`)
 		if err != nil {
 			a.logcatLog(logcat.LevelError, "contacts", "Failed to purge empty stubs: %v", err)
 		} else if n, _ := res.RowsAffected(); n > 0 {

@@ -18,6 +18,7 @@ interface MessageListProps {
   isLoading?: boolean
   hasMore?: boolean
   highlightedMessageId?: string | null
+  isAnnounceGroup?: boolean
 }
 
 export interface MessageListHandle {
@@ -69,6 +70,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
     isLoading,
     hasMore,
     highlightedMessageId,
+    isAnnounceGroup = false,
   },
   ref,
 ) {
@@ -135,6 +137,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
               onReply={onReply}
               onQuotedClick={onQuotedClick}
               highlightedMessageId={highlightedMessageId}
+              isAnnounceGroup={isAnnounceGroup}
             />
           </div>
         )

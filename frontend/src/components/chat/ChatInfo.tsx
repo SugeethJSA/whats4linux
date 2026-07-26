@@ -8,7 +8,7 @@ import {
   DisappearingMessagesIcon,
   ReportIcon,
 } from "../../assets/svgs/chat_info_icons"
-import { GetProfile, GetGroupInfo, IsChatMuted, ToggleChatMute, BlockContact, UnblockContact, LeaveGroup, GetBlockList, SetDisappearingTimer, SetGroupName, GetGroupInviteLink, AddGroupParticipants, ClearChat, GetBusinessProfile, SetGroupPhoto } from "../../../wailsjs/go/api/Api"
+import { GetProfile, GetGroupInfo, IsChatMuted, ToggleChatMute, BlockContact, UnblockContact, LeaveGroup, GetBlockList, SetDisappearingTimer, SetGroupName, GetGroupInviteLink, AddGroupParticipants, ClearChat, GetBusinessProfile, SetGroupPhoto, RemoveGroupParticipants, PromoteGroupParticipants, DemoteGroupParticipants, SetGroupAnnounce, SetGroupLocked, GetMyJID } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { EventsOn } from "../../../wailsjs/runtime/runtime"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
@@ -49,6 +49,11 @@ export function ChatInfo({
   const [inviteLink, setInviteLink] = useState("")
   const [inviteBusy, setInviteBusy] = useState(false)
   const [showJoinDialog, setShowJoinDialog] = useState(false)
+  const [myJid, setMyJid] = useState("")
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [groupLocked, setGroupLocked] = useState(false)
+  const [groupAnnounce, setGroupAnnounce] = useState(false)
+  const [participantBusy, setParticipantBusy] = useState<string | null>(null)
   const MAX_VISIBLE = 10
 
   const DISAPPEAR_OPTIONS = [
@@ -203,6 +208,23 @@ export function ChatInfo({
     }
   }, [isOpen, loadInfo])
 
+  useEffect(() => {
+    GetMyJID().then(setMyJid).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (!myJid || !groupInfo) return
+    const me = groupInfo.group_participants?.find(p => p.contact.jid === myJid)
+    setIsAdmin(me?.is_admin ?? false)
+  }, [myJid, groupInfo])
+
+  useEffect(() => {
+    if (groupInfo) {
+      setGroupAnnounce(groupInfo.is_group_announce)
+      setGroupLocked(groupInfo.is_group_lock)
+    }
+  }, [groupInfo])
+
   const participants = groupInfo?.group_participants ?? []
   const sortedParticipants = participants.sort((a, b) => {
     if (a.is_admin && !b.is_admin) return -1
@@ -293,10 +315,10 @@ export function ChatInfo({
                   : contactInfo?.full_name || "~ " + contactInfo?.push_name || chatName}
               </h3>
               {chatType === "contact" && contactInfo && (
-                <p className="text-sm text-gray-600 dark:text-gray-400">{contactInfo.phno}</p>
+                <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">{contactInfo.phno}</p>
               )}
               {chatType === "group" && groupInfo && (
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">
                   Group · {groupInfo.participant_count} participants
                 </p>
               )}
@@ -328,7 +350,7 @@ export function ChatInfo({
             {chatType === "contact" && contactInfo && (
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">About</p>
+                  <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">About</p>
                   <p className="text-gray-900 dark:text-gray-100">{"No about info"}</p>
                 </div>
               </div>
@@ -338,7 +360,7 @@ export function ChatInfo({
             {chatType === "contact" && contactInfo && (
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Phone</p>
+                  <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">Phone</p>
                   <p className="text-gray-900 dark:text-gray-100">{contactInfo.phno}</p>
                 </div>
               </div>
@@ -348,7 +370,7 @@ export function ChatInfo({
             {chatType === "contact" && businessInfo && (
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Business</p>
+                  <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-2">Business</p>
                   {businessInfo.description && (
                     <p className="text-sm text-gray-900 dark:text-gray-100 mb-1">{businessInfo.description}</p>
                   )}
@@ -356,13 +378,13 @@ export function ChatInfo({
                     <p className="text-sm text-blue-500 mb-1">{businessInfo.website}</p>
                   )}
                   {businessInfo.email && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{businessInfo.email}</p>
+                    <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">{businessInfo.email}</p>
                   )}
                   {businessInfo.category && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{businessInfo.category}</p>
+                    <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">{businessInfo.category}</p>
                   )}
                   {businessInfo.address && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{businessInfo.address}</p>
+                    <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">{businessInfo.address}</p>
                   )}
                 </div>
               </div>
@@ -376,7 +398,7 @@ export function ChatInfo({
               </div>
 
               <div className="p-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted text-center">
                   No media available
                 </p>
               </div>
@@ -408,14 +430,14 @@ export function ChatInfo({
                     <DisappearingMessagesIcon />
                     <div className="flex-1 text-left">
                       <p className="text-gray-900 dark:text-gray-100">Disappearing messages</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">
                         {DISAPPEAR_LABEL[disappearTimer] || "Off"}
                       </p>
                     </div>
                   </div>
                 </button>
                 {showDisappearPicker && (
-                  <div className="mx-4 mb-2 flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-white/10 dark:bg-dark-secondary">
+                  <div className="mx-4 mb-2 flex flex-col gap-1 rounded-lg border border-gray-200 dark:border-dark-border bg-white p-2 shadow-lg dark:border-white/10 dark:bg-dark-secondary">
                     {DISAPPEAR_OPTIONS.map(opt => (
                       <button
                         key={opt.value}
@@ -480,19 +502,81 @@ export function ChatInfo({
                         )}
                       </div>
 
-                      <div className="flex-1">
-                        <p className="text-gray-900 dark:text-gray-100 font-medium">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-gray-900 dark:text-gray-100 font-medium truncate">
                           {participant.contact.full_name || "~ " + participant.contact.push_name}
                         </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                        <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">
                           {participant.contact.phno}
                         </p>
                       </div>
 
                       {participant.is_admin && (
-                        <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-[#C8ECC5]">
-                          Group admin
+                        <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-[#C8ECC5] shrink-0">
+                          Admin
                         </span>
+                      )}
+
+                      {isAdmin && participant.contact.jid !== myJid && (
+                        <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                          {participant.is_admin ? (
+                            <button
+                              onClick={async () => {
+                                setParticipantBusy(participant.contact.jid)
+                                try {
+                                  await DemoteGroupParticipants(chatId, [participant.contact.jid])
+                                  loadInfo()
+                                } catch (e) {
+                                  console.error("Failed to demote:", e)
+                                } finally {
+                                  setParticipantBusy(null)
+                                }
+                              }}
+                              disabled={participantBusy === participant.contact.jid}
+                              className="text-xs px-2 py-1 rounded bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400 disabled:opacity-50"
+                            >
+                              Demote
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={async () => {
+                                  setParticipantBusy(participant.contact.jid)
+                                  try {
+                                    await PromoteGroupParticipants(chatId, [participant.contact.jid])
+                                    loadInfo()
+                                  } catch (e) {
+                                    console.error("Failed to promote:", e)
+                                  } finally {
+                                    setParticipantBusy(null)
+                                  }
+                                }}
+                                disabled={participantBusy === participant.contact.jid}
+                                className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 disabled:opacity-50"
+                              >
+                                Promote
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`Remove ${participant.contact.full_name || participant.contact.push_name} from the group?`)) return
+                                  setParticipantBusy(participant.contact.jid)
+                                  try {
+                                    await RemoveGroupParticipants(chatId, [participant.contact.jid])
+                                    loadInfo()
+                                  } catch (e) {
+                                    console.error("Failed to remove:", e)
+                                  } finally {
+                                    setParticipantBusy(null)
+                                  }
+                                }}
+                                disabled={participantBusy === participant.contact.jid}
+                                className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 disabled:opacity-50"
+                              >
+                                Remove
+                              </button>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                   ))}
@@ -548,7 +632,7 @@ export function ChatInfo({
                   <div className="p-4 flex flex-col gap-2">
                     <input
                       autoFocus
-                      className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text"
+                      className="w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text"
                       value={subjectDraft}
                       onChange={e => setSubjectDraft(e.target.value)}
                       placeholder="Group subject"
@@ -556,7 +640,7 @@ export function ChatInfo({
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => setSubjectEdit(false)}
-                        className="rounded-md px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
+                        className="rounded-md px-3 py-1 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
                       >
                         Cancel
                       </button>
@@ -591,6 +675,66 @@ export function ChatInfo({
                     {inviteBusy ? "Loading…" : inviteLink ? "Invite link copied!" : "Get invite link"}
                   </span>
                 </button>
+
+                {/* Group announce toggle */}
+                <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors">
+                  <span className="text-sm text-gray-900 dark:text-gray-100">Send Messages</span>
+                  <button
+                    onClick={async () => {
+                      const next = !groupAnnounce
+                      setGroupAnnounce(next)
+                      try {
+                        await SetGroupAnnounce(chatId, next)
+                      } catch (e) {
+                        console.error("Failed to set group announce:", e)
+                        setGroupAnnounce(!next)
+                      }
+                    }}
+                    disabled={!isAdmin}
+                    className={`relative w-10 h-5 rounded-full transition-colors disabled:opacity-40 ${
+                      groupAnnounce ? "bg-[#21c063]" : "bg-gray-300 dark:bg-gray-600"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                        groupAnnounce ? "translate-x-5" : ""
+                      }`}
+                    />
+                  </button>
+                </div>
+                <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
+                  {groupAnnounce ? "Only admins can send messages" : "All participants can send messages"}
+                </p>
+
+                {/* Group locked toggle */}
+                <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors">
+                  <span className="text-sm text-gray-900 dark:text-gray-100">Lock Group</span>
+                  <button
+                    onClick={async () => {
+                      const next = !groupLocked
+                      setGroupLocked(next)
+                      try {
+                        await SetGroupLocked(chatId, next)
+                      } catch (e) {
+                        console.error("Failed to set group lock:", e)
+                        setGroupLocked(!next)
+                      }
+                    }}
+                    disabled={!isAdmin}
+                    className={`relative w-10 h-5 rounded-full transition-colors disabled:opacity-40 ${
+                      groupLocked ? "bg-[#21c063]" : "bg-gray-300 dark:bg-gray-600"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                        groupLocked ? "translate-x-5" : ""
+                      }`}
+                    />
+                  </button>
+                </div>
+                <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
+                  {groupLocked ? "Group info locked by admins" : "Anyone can edit group info"}
+                </p>
               </div>
             )}
 

@@ -61,7 +61,7 @@ export function InviteLinkDialog({ onClose }: InviteLinkDialogProps) {
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
           Join Group by Link
         </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
           Paste a WhatsApp group invite link or code
         </p>
         <input
@@ -81,7 +81,7 @@ export function InviteLinkDialog({ onClose }: InviteLinkDialogProps) {
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg transition-colors"
+            className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg transition-colors"
           >
             Cancel
           </button>

@@ -322,7 +322,7 @@ export function MediaContent({
             <div className="flex-1 h-1 bg-gray-400 dark:bg-gray-600 rounded-full overflow-hidden">
               <div className="w-0 h-full bg-[#21c063] rounded-full" />
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums shrink-0">
+            <span className="text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted tabular-nums shrink-0">
               {durationStr}
             </span>
           </div>

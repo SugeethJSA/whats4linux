@@ -70,7 +70,7 @@ export function QuotedMessage({
 
   return (
     <div
-      className="bg-black/5 dark:bg-black/25 rounded-lg p-2 mb-1.5 border-l-4 text-xs cursor-pointer hover:bg-black/10 dark:hover:bg-black/35 transition-colors"
+      className="bg-black/5 dark:bg-dark-bg/25 rounded-lg p-2 mb-1.5 border-l-4 text-xs cursor-pointer hover:bg-black/10 dark:hover:bg-black/35 transition-colors"
       style={{ borderLeftColor: accentColor }}
       onClick={handleClick}
     >
