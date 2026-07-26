@@ -778,6 +778,28 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 	})
 }
 
+// InsertSystemMessage inserts a system-generated status message (e.g. "X joined
+// the group") into the messages table so it appears in the chat history as a
+// user‑facing line item.
+func (ms *MessageStore) InsertSystemMessage(chatJID, messageID, text string, timestamp int64) error {
+	return ms.runSync(func(tx *sql.Tx) error {
+		_, err := tx.Stmt(ms.stmtInsertMessage).Exec(
+			messageID,
+			chatJID,
+			"",      // sender_jid – empty for system
+			timestamp,
+			false,   // is_from_me
+			text,    // text — starts with "[system]" for frontend detection
+			false,   // has_media
+			"",      // reply_to_message_id
+			false,   // edited
+			false,   // forwarded
+			0,       // type – MediaTypeNone
+		)
+		return err
+	})
+}
+
 // UpdateMessageContent updates an existing message's content
 func (ms *MessageStore) UpdateMessageContent(messageID string, content *waE2E.Message, parsedHTML string) error {
 

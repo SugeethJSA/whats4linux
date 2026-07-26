@@ -702,10 +702,86 @@ func (a *Api) mainEventHandler(evt any) {
 			"unavailable": v.Unavailable,
 			"lastSeen":    v.LastSeen.UnixMilli(),
 		})
+
+	case *events.GroupInfo:
+		a.startBackground(func() { a.handleGroupInfoEvent(v) })
+
 	default:
 		// Ignore other events for now
 	}
 
+}
+
+// contactNameForJID looks up a human-readable display name for a JID from the
+// contact store, falling back to the JID user portion.
+func (a *Api) contactNameForJID(jid types.JID) string {
+	myJID := a.waClient.Store.ID
+	if myJID != nil {
+		if jid.ToNonAD() == myJID.ToNonAD() {
+			return "You"
+		}
+	}
+	contact, err := a.waClient.Store.Contacts.GetContact(a.ctx, jid.ToNonAD())
+	if err == nil {
+		if contact.FullName != "" {
+			return contact.FullName
+		}
+		if contact.PushName != "" {
+			return contact.PushName
+		}
+	}
+	return jid.User
+}
+
+// handleGroupInfoEvent stores system messages for group participant changes so
+// the UI can display "X joined the group", "X left", etc.
+func (a *Api) handleGroupInfoEvent(v *events.GroupInfo) {
+	groupJID := v.JID.String()
+	ts := v.Timestamp.Unix()
+	now := time.Now().UnixMilli()
+	seq := int64(0)
+
+	insert := func(verb string, jids []types.JID) {
+		prefix := "[system]"
+		for _, jid := range jids {
+			name := a.contactNameForJID(jid)
+			var text string
+			switch verb {
+			case "joined":
+				text = prefix + "👋 " + name + " joined the group"
+			case "left":
+				text = prefix + "👋 " + name + " left the group"
+			case "promoted":
+				text = prefix + "⭐ " + name + " was promoted to admin"
+			case "demoted":
+				text = prefix + "⭐ " + name + " was demoted"
+			default:
+				text = prefix + name + " " + verb
+			}
+			msgID := fmt.Sprintf("system_%s_%d", groupJID, now+seq)
+			seq++
+			if err := a.messageStore.InsertSystemMessage(groupJID, msgID, text, ts); err != nil {
+				a.logcatLog(logcat.LevelWarn, "groups", "Failed to store system message: %v", err)
+			}
+		}
+	}
+
+	if len(v.Join) > 0 {
+		insert("joined", v.Join)
+	}
+	if len(v.Leave) > 0 {
+		insert("left", v.Leave)
+	}
+	if len(v.Promote) > 0 {
+		insert("promoted", v.Promote)
+	}
+	if len(v.Demote) > 0 {
+		insert("demoted", v.Demote)
+	}
+
+	if len(v.Join) > 0 || len(v.Leave) > 0 || len(v.Promote) > 0 || len(v.Demote) > 0 {
+		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	}
 }
 
 // processHistorySync stores the messages contained in a whatsmeow HistorySync

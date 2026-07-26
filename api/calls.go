@@ -9,7 +9,8 @@ import (
 )
 
 type ActiveCall struct {
-	Call *meowcaller.Call
+	Call   *meowcaller.Call
+	Bridge *LiveAudioBridge
 }
 
 // Global active calls map
@@ -62,23 +63,21 @@ func (a *Api) AcceptCall(callID string) error {
 
 	callData.Call.Answer()
 
-	// For Phase 1: Play a test audio file to the caller
-	// Meowcaller has MP3File source included. We'll play a dummy beep/file if it exists.
-	// In production, this would be bound to malgo/portaudio for mic access.
-	mp3, err := meowcaller.MP3File("beep.mp3")
-	if err == nil {
-		callData.Call.Play(mp3)
-	} else {
-		log.Printf("[Calls] Could not load beep.mp3: %v", err)
+	// For Phase 2: Attach Live OS Audio Bridge
+	bridge, err := NewLiveAudioBridge()
+	if err != nil {
+		log.Printf("[Calls] Failed to initialize live audio bridge: %v", err)
+		return fmt.Errorf("audio bridge init failed: %v", err)
+	}
+	
+	if err := bridge.Start(); err != nil {
+		log.Printf("[Calls] Failed to start audio bridge: %v", err)
+		return fmt.Errorf("audio bridge start failed: %v", err)
 	}
 
-	// Record caller's audio to a wav file
-	wav, err := meowcaller.WAVRecorder(fmt.Sprintf("%s.wav", callID))
-	if err == nil {
-		callData.Call.Receive(wav)
-	} else {
-		log.Printf("[Calls] Could not initialize WAV recorder: %v", err)
-	}
+	callData.Bridge = bridge
+	callData.Call.Play(bridge)
+	callData.Call.Receive(bridge)
 
 	return nil
 }
@@ -88,6 +87,9 @@ func (a *Api) RejectCall(callID string) error {
 	callData, ok := activeCalls[callID]
 	if !ok {
 		return fmt.Errorf("call %s not found", callID)
+	}
+	if callData.Bridge != nil {
+		callData.Bridge.Close()
 	}
 	callData.Call.Reject()
 	delete(activeCalls, callID)
@@ -99,6 +101,9 @@ func (a *Api) EndCall(callID string) error {
 	callData, ok := activeCalls[callID]
 	if !ok {
 		return fmt.Errorf("call %s not found", callID)
+	}
+	if callData.Bridge != nil {
+		callData.Bridge.Close()
 	}
 	callData.Call.Hangup()
 	delete(activeCalls, callID)
