@@ -31,6 +31,7 @@ import (
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
+	"github.com/purpshell/meowcaller"
 )
 
 // Api struct
@@ -42,6 +43,7 @@ type Api struct {
 	imageCache          *cache.ImageCache
 	us                  *socket.UnixSocket
 	waContainer         *sqlstore.Container
+	callClient          *meowcaller.Client
 	sessionDB           *sql.DB
 	eventHandlerID      uint32
 	eventHandlerSet     bool
@@ -451,6 +453,9 @@ func (a *Api) Startup(ctx context.Context) {
 		a.failStartup(fmt.Errorf("open image cache: %w", err))
 		return
 	}
+	
+	// Initialize VoIP extension
+	a.initMeowcaller()
 }
 
 func (a *Api) Login() error {

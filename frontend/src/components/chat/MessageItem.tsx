@@ -21,7 +21,6 @@ import {
   ClockPendingIcon,
   BlueTickIcon,
   ForwardedIcon,
-  ReadReceiptIcon,
   DownloadIcon,
   UserAvatar,
 } from "../../assets/svgs/chat_icons"

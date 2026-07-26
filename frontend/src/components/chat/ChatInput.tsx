@@ -402,7 +402,7 @@ export function ChatInput({
   }
 
   return (
-    <div className="relative mx-3 mb-3 mt-1.5">
+    <div className="relative z-20 mx-3 mb-3 mt-1.5">
       {showEmojiPicker && (
         <div ref={emojiPickerRef} className="absolute bottom-full left-0 z-50 mb-2">
           <Suspense fallback={<div className="p-4 text-sm">Loading emojis...</div>}>

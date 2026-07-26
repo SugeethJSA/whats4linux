@@ -4,6 +4,8 @@ import {
   GetChatList,
   GetChannelList,
   SubscribeNewsletter,
+  UnsubscribeNewsletter,
+  SearchNewsletters,
   GetCachedAvatar,
   GetSelfAvatar,
   ToggleChatPin,
@@ -395,15 +397,18 @@ function SubscribeChannelDialog({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false)
   const [success, setSuccess] = useState("")
   const [error, setError] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<api.ChatElement[]>([])
+  const [searching, setSearching] = useState(false)
 
-  const handleSubscribe = async () => {
-    const jid = input.trim()
-    if (!jid) return
+  const handleSubscribe = async (jid?: string) => {
+    const target = (jid || input).trim()
+    if (!target) return
     setBusy(true)
     setError("")
     setSuccess("")
     try {
-      await SubscribeNewsletter(jid)
+      await SubscribeNewsletter(target)
       setSuccess("Subscribed successfully!")
       setTimeout(onClose, 1500)
     } catch (e: any) {
@@ -413,15 +418,43 @@ function SubscribeChannelDialog({ onClose }: { onClose: () => void }) {
     }
   }
 
+  const handleUnsubscribe = async (jid: string) => {
+    if (!confirm("Unsubscribe from this channel?")) return
+    setBusy(true)
+    setError("")
+    try {
+      await UnsubscribeNewsletter(jid)
+      setSuccess("Unsubscribed!")
+    } catch (e: any) {
+      setError(e?.message || "Failed to unsubscribe")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Debounced search
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.length < 2) { setSearchResults([]); return }
+    const timer = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const results = await SearchNewsletters(searchQuery.trim())
+        setSearchResults(results || [])
+      } catch { setSearchResults([]) }
+      finally { setSearching(false) }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white dark:bg-dark-secondary rounded-2xl w-96 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-dark-secondary rounded-2xl w-96 max-h-[80vh] flex flex-col p-6 shadow-xl" onClick={e => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Subscribe to Channel</h2>
         <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
-          Enter the newsletter JID or invite code to subscribe.
+          Enter a newsletter JID or search for channels.
         </p>
         <input
           autoFocus
@@ -429,8 +462,50 @@ function SubscribeChannelDialog({ onClose }: { onClose: () => void }) {
           onChange={e => { setInput(e.target.value); setError(""); setSuccess("") }}
           onKeyDown={e => { if (e.key === "Enter") handleSubscribe(); if (e.key === "Escape") onClose() }}
           placeholder="Newsletter JID or invite code"
-          className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-4"
+          className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3"
         />
+
+        {/* Search newsletters */}
+        <input
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search channels..."
+          className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3"
+        />
+
+        {searching && <p className="text-xs text-gray-500 mb-2">Searching...</p>}
+
+        {searchResults.length > 0 && (
+          <div className="flex-1 overflow-y-auto max-h-40 mb-3 border border-gray-200 dark:border-dark-border rounded-lg">
+            {searchResults.map(ch => (
+              <div key={ch.jid} className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 dark:hover:bg-white/5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-light-text dark:text-dark-text truncate">
+                    {ch.full_name || ch.push_name || ch.jid}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted truncate">{ch.jid}</p>
+                </div>
+                <div className="flex gap-1 shrink-0 ml-2">
+                  <button
+                    onClick={() => handleSubscribe(ch.jid)}
+                    disabled={busy}
+                    className="text-xs px-2 py-1 rounded bg-[#21c063] text-[#0a1014] hover:bg-[#1ea952] disabled:opacity-50"
+                  >
+                    Subscribe
+                  </button>
+                  <button
+                    onClick={() => handleUnsubscribe(ch.jid)}
+                    disabled={busy}
+                    className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 disabled:opacity-50"
+                  >
+                    Unsub
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
         {success && <p className="text-sm text-[#21c063] mb-3">{success}</p>}
         <div className="flex justify-end gap-2">
@@ -441,7 +516,7 @@ function SubscribeChannelDialog({ onClose }: { onClose: () => void }) {
             Cancel
           </button>
           <button
-            onClick={handleSubscribe}
+            onClick={() => handleSubscribe()}
             disabled={busy || !input.trim()}
             className="px-4 py-2 text-sm font-medium rounded-lg bg-[#21c063] text-[#0a1014] hover:bg-[#1ea952] disabled:opacity-50"
           >

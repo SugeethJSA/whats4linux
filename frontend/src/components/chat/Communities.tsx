@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import clsx from "clsx"
 import { createPortal } from "react-dom"
-import { GetCommunityList, GetCommunityDetails, GetCachedAvatar, CreateCommunity } from "../../../wailsjs/go/api/Api"
+import { GetCommunityList, GetCommunityDetails, GetCachedAvatar, CreateCommunity, CreateCommunitySubGroup } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
 import { getAvatarColor, AVATAR_ICON_COLOR } from "../../lib/utils"
@@ -205,6 +205,62 @@ interface CommunityHomeProps {
 }
 
 /** Community home: header, announcements, and linked groups. */
+function CreateSubGroupDialog({
+  communityJid,
+  communityName,
+  onClose,
+  onCreated,
+}: {
+  communityJid: string
+  communityName: string
+  onClose: () => void
+  onCreated: (jid: string, name: string) => void
+}) {
+  const [name, setName] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  const handleCreate = async () => {
+    if (!name.trim()) return
+    setLoading(true)
+    setError("")
+    try {
+      const jid = await CreateCommunitySubGroup(communityJid, name.trim(), [])
+      onCreated(jid, name.trim())
+      onClose()
+    } catch (e: any) {
+      setError(e?.message || "Failed to create group")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="bg-white dark:bg-dark-secondary rounded-2xl w-96 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">New Group in {communityName}</h2>
+        <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
+          Creates a linked sub-group within this community.
+        </p>
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Group name"
+          className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3"
+        />
+        {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg">Cancel</button>
+          <button onClick={handleCreate} disabled={loading || !name.trim()} className="px-4 py-2 text-sm bg-[#21c063] text-white rounded-lg hover:bg-[#1b9a58] disabled:opacity-50">
+            {loading ? "Creating..." : "Create"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 export function CommunityHome({
   communityJid,
   communityName,
@@ -217,6 +273,7 @@ export function CommunityHome({
   const [details, setDetails] = useState<api.CommunityDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showCreateGroup, setShowCreateGroup] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -386,8 +443,16 @@ export function CommunityHome({
 
             {/* Groups in community */}
             <section className="mt-2 bg-white dark:bg-dark-secondary pb-4">
-              <div className="px-4 py-2 text-xs font-medium uppercase tracking-wide text-[#008069] dark:text-[#21c063]">
-                Groups{groups.length > 0 ? ` · ${groups.length}` : ""}
+              <div className="flex items-center justify-between px-4 py-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-[#008069] dark:text-[#21c063]">
+                  Groups{groups.length > 0 ? ` · ${groups.length}` : ""}
+                </span>
+                <button
+                  onClick={() => setShowCreateGroup(true)}
+                  className="text-xs px-3 py-1 rounded bg-[#21c063] text-[#0a1014] font-medium hover:bg-[#1b9a58]"
+                >
+                  + New Group
+                </button>
               </div>
 
               {groups.length === 0 && !announcement ? (
@@ -436,6 +501,14 @@ export function CommunityHome({
                 ))
               )}
             </section>
+            {showCreateGroup && (
+              <CreateSubGroupDialog
+                communityJid={communityJid}
+                communityName={communityName}
+                onClose={() => setShowCreateGroup(false)}
+                onCreated={(jid, name) => onOpenGroup(jid, name)}
+              />
+            )}
           </>
         )}
       </div>

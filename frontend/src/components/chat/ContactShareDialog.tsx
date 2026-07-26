@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react"
-import { FetchContacts, SendShareContact } from "../../../wailsjs/go/api/Api"
+import { useEffect, useState } from "react"
+import { FetchContacts, SendShareContact, SearchContacts } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 
 export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClose: () => void }) {
@@ -31,6 +31,24 @@ export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClos
     }
   }, [])
 
+  // Search contacts on the backend when the user types.
+  useEffect(() => {
+    if (!search.trim()) {
+      setContacts(prev => prev)
+      return
+    }
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const results = await SearchContacts(search.trim())
+        if (!cancelled) setContacts(results || [])
+      } catch (err) {
+        console.error("SearchContacts failed:", err)
+      }
+    }, 200)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [search])
+
   // Capture-phase ESC so the chat's own ESC handler doesn't fire too.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -42,12 +60,6 @@ export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClos
     window.addEventListener("keydown", onKey, true)
     return () => window.removeEventListener("keydown", onKey, true)
   }, [onClose])
-
-  const filtered = useMemo(() => {
-    const term = search.toLowerCase()
-    if (!term) return contacts
-    return contacts.filter(c => (c.full_name || c.push_name || c.phno).toLowerCase().includes(term))
-  }, [contacts, search])
 
   const share = async (c: api.Contact) => {
     if (sendingJid) return
@@ -92,12 +104,12 @@ export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClos
             <div className="flex justify-center py-6">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#21c063] border-t-transparent" />
             </div>
-          ) : filtered.length === 0 ? (
+          ) : contacts.length === 0 ? (
             <div className="py-6 text-center text-sm text-gray-500 dark:text-[#8696a0]">
               No contacts found
             </div>
           ) : (
-            filtered.map(c => (
+            contacts.map(c => (
               <button
                 key={c.jid}
                 onClick={() => share(c)}

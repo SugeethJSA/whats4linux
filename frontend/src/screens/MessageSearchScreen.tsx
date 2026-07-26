@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import clsx from "clsx"
-import { SearchMessages } from "../../wailsjs/go/api/Api"
+import { SearchMessages, GetSearchSuggestions } from "../../wailsjs/go/api/Api"
 import { useMessageStore } from "../store"
 import { GoBackIcon } from "../assets/svgs/header_icons"
 
@@ -43,9 +43,11 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
   const [error, setError] = useState("")
   const [hasMore, setHasMore] = useState(true)
   const [offset, setOffset] = useState(0)
+  const [suggestions, setSuggestions] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const setActiveChatId = useMessageStore(s => s.setActiveChatId)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+  const suggestionRef = useRef<ReturnType<typeof setTimeout>>()
 
   const doSearch = useCallback(async (q: string, filter: string, sender: string, off: number, append: boolean) => {
     if (!q.trim()) {
@@ -90,6 +92,23 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
     }
   }, [query, mediaFilter, senderFilter, doSearch])
 
+  useEffect(() => {
+    if (suggestionRef.current) clearTimeout(suggestionRef.current)
+    if (!query.trim() || query.length < 2) {
+      setSuggestions([])
+      return
+    }
+    suggestionRef.current = setTimeout(async () => {
+      try {
+        const res = await GetSearchSuggestions(query.trim(), 5)
+        setSuggestions(res || [])
+      } catch {
+        setSuggestions([])
+      }
+    }, 200)
+    return () => { if (suggestionRef.current) clearTimeout(suggestionRef.current) }
+  }, [query])
+
   const handleLoadMore = () => {
     doSearch(query, mediaFilter, senderFilter, offset, true)
   }
@@ -105,7 +124,7 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-dark-bg" onKeyDown={handleKeyDown}>
-      <div className="flex items-center p-3 border-b border-gray-200 dark:border-white/5 gap-2">
+      <div className="relative flex items-center p-3 border-b border-gray-200 dark:border-white/5 gap-2">
         <button
           onClick={onClose}
           className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full"
@@ -123,6 +142,20 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
             onChange={e => setQuery(e.target.value)}
           />
         </div>
+
+        {suggestions.length > 0 && (
+          <div className="absolute top-full left-3 right-3 z-10 mt-1 bg-white dark:bg-dark-secondary border border-gray-200 dark:border-dark-border rounded-lg shadow-lg overflow-hidden">
+            {suggestions.map(s => (
+              <button
+                key={s}
+                onClick={() => { setQuery(s); setSuggestions([]) }}
+                className="w-full px-4 py-2 text-left text-sm text-light-text dark:text-dark-text hover:bg-gray-100 dark:hover:bg-white/5"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex gap-1.5 px-3 py-2 overflow-x-auto border-b border-gray-200 dark:border-white/5">
