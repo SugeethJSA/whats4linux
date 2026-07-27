@@ -58,6 +58,9 @@ type Api struct {
 	windowFocused       atomic.Bool
 	groupRepairInFlight atomic.Bool
 	appStateResync      atomic.Bool
+
+	taskCh   chan func()
+	workerWg sync.WaitGroup
 }
 
 // repairGroupNames heals whats4linux_groups rows that are missing or were
@@ -280,21 +283,48 @@ func (a *Api) notifyIncoming(v *events.Message, parsedHTML string) {
 
 // NewApi creates a new Api application struct
 func New() *Api {
-	return &Api{}
+	a := &Api{}
+	a.startWorkerPool()
+	return a
+}
+
+const workerPoolSize = 8
+const workerQueueSize = 256
+
+func (a *Api) startWorkerPool() {
+	a.taskCh = make(chan func(), workerQueueSize)
+	for i := 0; i < workerPoolSize; i++ {
+		a.workerWg.Add(1)
+		go func() {
+			defer a.workerWg.Done()
+			for task := range a.taskCh {
+				if task == nil {
+					return
+				}
+				task()
+			}
+		}()
+	}
 }
 
 func (a *Api) startBackground(task func()) bool {
-	a.taskMu.Lock()
-	defer a.taskMu.Unlock()
-	if a.shuttingDown {
+	if task == nil {
 		return false
 	}
-	a.backgroundTasks.Add(1)
-	go func() {
-		defer a.backgroundTasks.Done()
-		task()
-	}()
-	return true
+	a.taskMu.Lock()
+	shuttingDown := a.shuttingDown
+	a.taskMu.Unlock()
+	if shuttingDown {
+		return false
+	}
+	select {
+	case a.taskCh <- task:
+		return true
+	default:
+		// Queue full — drop the task to avoid blocking the event loop.
+		log.Println("[bg] worker queue full, dropping task")
+		return false
+	}
 }
 
 func (a *Api) isShuttingDown() bool {
@@ -340,7 +370,8 @@ func (a *Api) Shutdown(ctx context.Context) {
 	// background task it launched before closing their stores.
 	a.eventMu.Lock()
 	a.eventMu.Unlock()
-	a.backgroundTasks.Wait()
+	close(a.taskCh)
+	a.workerWg.Wait()
 
 	if err := a.closeResources(); err != nil {
 		log.Println("shutdown cleanup failed:", err)

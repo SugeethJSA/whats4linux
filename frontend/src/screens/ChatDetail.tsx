@@ -706,7 +706,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
               MakeCall(chatId)
             }
           }}
-          isTyping={typingIndicators[chatId] ?? false}
+          isTyping={typingIndicators[chatId]?.isTyping ?? false}
         />
 
         {/* Pinned-messages banner: shows the latest pin, click cycles through

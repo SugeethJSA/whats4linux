@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
+	"github.com/lugvitc/whats4linux/internal/logcat"
 	"github.com/purpshell/meowcaller"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -26,8 +28,13 @@ type CallStats struct {
 }
 
 type ActiveCall struct {
-	Call   *meowcaller.Call
-	Bridge *LiveAudioBridge
+	Call       *meowcaller.Call
+	Bridge     *LiveAudioBridge
+	PeerJID    string
+	Direction  string // "incoming" or "outgoing"
+	IsVideo    bool
+	StartTime  time.Time
+	AnswerTime time.Time
 }
 
 // Global active calls map
@@ -45,7 +52,14 @@ func (a *Api) initMeowcaller() {
 	// Handle incoming calls
 	a.callClient.OnIncomingCall(func(call *meowcaller.Call) {
 		log.Printf("[Calls] Incoming call from %s (CallID: %s)", call.Peer().String(), call.ID())
-		activeCalls[call.ID()] = &ActiveCall{Call: call}
+		now := time.Now()
+		activeCalls[call.ID()] = &ActiveCall{
+			Call:      call,
+			PeerJID:   call.Peer().String(),
+			Direction: "incoming",
+			IsVideo:   call.IsVideo(),
+			StartTime: now,
+		}
 
 		// Emit event to frontend
 		if a.ctx != nil {
@@ -59,8 +73,12 @@ func (a *Api) initMeowcaller() {
 		// Handle call termination directly on the call object
 		call.OnEnd(func(reason string) {
 			log.Printf("[Calls] Call %s ended: %s", call.ID(), reason)
-			delete(activeCalls, call.ID())
-	
+			ac := activeCalls[call.ID()]
+			if ac != nil {
+				a.insertCallLog(ac)
+				delete(activeCalls, call.ID())
+			}
+
 			if a.ctx != nil {
 				runtime.EventsEmit(a.ctx, "call:ended", map[string]interface{}{
 					"callID": call.ID(),
@@ -79,6 +97,7 @@ func (a *Api) AcceptCall(callID string) error {
 	}
 
 	callData.Call.Answer()
+	callData.AnswerTime = time.Now()
 
 	// For Phase 2: Attach Live OS Audio Bridge
 	bridge, err := NewLiveAudioBridge()
@@ -113,7 +132,14 @@ func (a *Api) MakeCall(targetJID string) error {
 	}
 
 	log.Printf("[Calls] Outbound call placed to %s (CallID: %s)", targetJID, call.ID())
-	activeCalls[call.ID()] = &ActiveCall{Call: call}
+	now := time.Now()
+	activeCalls[call.ID()] = &ActiveCall{
+		Call:      call,
+		PeerJID:   targetJID,
+		Direction: "outgoing",
+		IsVideo:   call.IsVideo(),
+		StartTime: now,
+	}
 
 	// Initialize Audio Bridge immediately for outgoing call
 	bridge, err := NewLiveAudioBridge()
@@ -129,6 +155,9 @@ func (a *Api) MakeCall(targetJID string) error {
 
 	call.OnPeerAccept(func() {
 		log.Printf("[Calls] Outbound call %s accepted by peer", call.ID())
+		if ac := activeCalls[call.ID()]; ac != nil {
+			ac.AnswerTime = time.Now()
+		}
 		if a.ctx != nil {
 			runtime.EventsEmit(a.ctx, "call:accepted", map[string]interface{}{
 				"callID": call.ID(),
@@ -138,10 +167,14 @@ func (a *Api) MakeCall(targetJID string) error {
 
 	call.OnEnd(func(reason string) {
 		log.Printf("[Calls] Outbound call %s ended: %s", call.ID(), reason)
-		if activeCalls[call.ID()] != nil && activeCalls[call.ID()].Bridge != nil {
-			activeCalls[call.ID()].Bridge.Close()
+		ac := activeCalls[call.ID()]
+		if ac != nil {
+			if ac.Bridge != nil {
+				ac.Bridge.Close()
+			}
+			a.insertCallLog(ac)
+			delete(activeCalls, call.ID())
 		}
-		delete(activeCalls, call.ID())
 		if a.ctx != nil {
 			runtime.EventsEmit(a.ctx, "call:ended", map[string]interface{}{
 				"callID": call.ID(),
@@ -167,12 +200,51 @@ func (a *Api) RejectCall(callID string) error {
 	if !ok {
 		return fmt.Errorf("call %s not found", callID)
 	}
+	// Remove first so the OnEnd callback won't insert a duplicate log.
+	delete(activeCalls, callID)
+	a.insertCallLog(callData)
 	if callData.Bridge != nil {
 		callData.Bridge.Close()
 	}
 	callData.Call.Reject()
-	delete(activeCalls, callID)
 	return nil
+}
+
+// insertCallLog stores a call history entry as a system message in the chat so
+// the frontend can display it as a call log entry. The format uses a [call]
+// prefix so the UI can distinguish it from group system messages.
+func (a *Api) insertCallLog(ac *ActiveCall) {
+	mediaType := "voice"
+	if ac.IsVideo {
+		mediaType = "video"
+	}
+
+	var status string
+	durSecs := int64(0)
+	endTime := time.Now()
+	if ac.AnswerTime.IsZero() {
+		status = "missed"
+	} else {
+		status = "answered"
+		durSecs = int64(endTime.Sub(ac.AnswerTime).Seconds())
+	}
+
+	durStr := ""
+	if durSecs > 0 {
+		mins := durSecs / 60
+		secs := durSecs % 60
+		durStr = fmt.Sprintf(" · %d:%02d", mins, secs)
+	}
+
+	prefix := "[call]"
+	text := fmt.Sprintf("%s📞%s %s call%s", prefix, status, mediaType, durStr)
+	msgID := fmt.Sprintf("call_%s_%d", ac.PeerJID, ac.StartTime.UnixMilli())
+	chatJID := ac.PeerJID
+
+	if err := a.messageStore.InsertSystemMessage(chatJID, msgID, text, ac.StartTime.Unix()); err != nil {
+		a.logcatLog(logcat.LevelWarn, "calls", "Failed to store call log: %v", err)
+	}
+	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 }
 
 // GetCallStats returns diagnostic information about an active call.
@@ -231,10 +303,12 @@ func (a *Api) EndCall(callID string) error {
 	if !ok {
 		return fmt.Errorf("call %s not found", callID)
 	}
+	// Remove first so Hangup's OnEnd callback won't insert a duplicate.
+	delete(activeCalls, callID)
+	a.insertCallLog(callData)
 	if callData.Bridge != nil {
 		callData.Bridge.Close()
 	}
 	callData.Call.Hangup()
-	delete(activeCalls, callID)
 	return nil
 }

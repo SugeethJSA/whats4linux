@@ -1,14 +1,18 @@
 package api
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/gen2brain/beeep"
 	"github.com/lugvitc/whats4linux/internal/store"
@@ -325,8 +329,10 @@ func (a *Api) GetSelfAvatar(recache bool) (string, error) {
 }
 
 // getFileExtension returns file extension for mime type
-func getFileExtension(mime string) string {
-	switch mime {
+func getFileExtension(mimeType string) string {
+	mimeType = strings.Split(mimeType, ";")[0]
+	
+	switch mimeType {
 	case "image/png":
 		return ".png"
 	case "image/gif":
@@ -335,9 +341,27 @@ func getFileExtension(mime string) string {
 		return ".webp"
 	case "image/jpeg", "image/jpg":
 		return ".jpg"
-	default:
-		return ".jpg"
+	case "video/mp4":
+		return ".mp4"
+	case "audio/ogg", "audio/ogg; codecs=opus":
+		return ".ogg"
+	case "audio/mpeg":
+		return ".mp3"
+	case "application/pdf":
+		return ".pdf"
 	}
+
+	exts, _ := mime.ExtensionsByType(mimeType)
+	if len(exts) > 0 {
+		// mime.ExtensionsByType can return multiple extensions, take the first one
+		return exts[0]
+	}
+
+	parts := strings.Split(mimeType, "/")
+	if len(parts) == 2 && parts[1] != "octet-stream" && parts[1] != "" {
+		return "." + parts[1]
+	}
+	return ".bin"
 }
 
 // DownloadImageToFile downloads an image from cache to the Downloads folder
@@ -369,10 +393,61 @@ func (a *Api) DownloadImageToFile(messageID string) error {
 	}
 
 	beeep.Notify("whats4linux", "Downloaded: "+filePath, "")
-	go func() {
-		if _, err := exec.LookPath("mpg123"); err == nil {
-			exec.Command("mpg123", "./beep.mp3").Run()
-		}
-	}()
+	playBeep()
+	return nil
+}
+
+func playBeep() {
+	if _, err := exec.LookPath("mpg123"); err != nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_ = exec.CommandContext(ctx, "mpg123", "./beep.mp3").Run()
+}
+
+// DownloadMediaToFile downloads any media type (document, video, audio, image) to the filesystem.
+// It directly fetches from the CDN if not cached, determines the correct filename,
+// and prompts the user where to save it.
+func (a *Api) DownloadMediaToFile(messageID string) error {
+	if a.messageStore == nil {
+		return fmt.Errorf("message store is not ready")
+	}
+	msg, err := a.messageStore.GetMessageWithMediaByID(messageID)
+	if err != nil || msg == nil {
+		return fmt.Errorf("message not found")
+	}
+	if msg.Media == nil {
+		return fmt.Errorf("message %s has no downloadable media", messageID)
+	}
+
+	data, mime, _, _, err := a.downloadMedia(msg)
+	if err != nil {
+		return fmt.Errorf("failed to download media: %w", err)
+	}
+
+	homeDir, _ := os.UserHomeDir()
+	downloadsDir := filepath.Join(homeDir, "Downloads")
+	fileName := messageID + getFileExtension(mime)
+
+	filePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		DefaultDirectory: downloadsDir,
+		DefaultFilename:  fileName,
+		Title:            "Save file",
+		Filters:          []runtime.FileFilter{{DisplayName: "All Files", Pattern: "*"}},
+	})
+	if err != nil {
+		return err
+	}
+	if filePath == "" {
+		return nil // Cancelled
+	}
+
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return err
+	}
+
+	beeep.Notify("whats4linux", "Downloaded: "+filePath, "")
+	playBeep()
 	return nil
 }
