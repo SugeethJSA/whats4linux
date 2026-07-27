@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"regexp"
 	"strings"
@@ -16,7 +17,6 @@ import (
 	"github.com/gen2brain/beeep"
 
 	"github.com/lugvitc/whats4linux/internal/cache"
-	"github.com/lugvitc/whats4linux/internal/logcat"
 	"github.com/lugvitc/whats4linux/internal/misc"
 	"github.com/lugvitc/whats4linux/internal/settings"
 	"github.com/lugvitc/whats4linux/internal/store"
@@ -136,36 +136,33 @@ func (a *Api) resyncAppState() {
 	// handleAppStateSyncKeyShare only fires during initial pairing or key
 	// renewal — NOT on every connect.
 	for _, name := range []appstate.WAPatchName{appstate.WAPatchRegularLow, appstate.WAPatchRegularHigh} {
-		a.logcatLog(logcat.LevelInfo, "appstate", "Starting app state full sync for %s", name)
+		slog.Info(fmt.Sprintf("Starting app state full sync for %s", name), "source", "appstate")
 		if err := a.waClient.FetchAppState(a.ctx, name, true, false); err != nil {
-			a.logcatLog(logcat.LevelError, "appstate", "App state full sync failed for %s: %v", name, err)
+			slog.Error(fmt.Sprintf("App state full sync failed for %s: %v", name, err), "source", "appstate")
 			a.emitError(fmt.Sprintf("App state sync failed: %s — %v", name, err))
 			continue
 		}
-		a.logcatLog(logcat.LevelInfo, "appstate", "App state fully synced: %s", name)
+		slog.Info(fmt.Sprintf("App state fully synced: %s", name), "source", "appstate")
 	}
-	// Sync critical_block (blocked contacts)
-	a.logcatLog(logcat.LevelInfo, "appstate", "Starting app state sync for %s", appstate.WAPatchCriticalBlock)
+	slog.Info(fmt.Sprintf("Starting app state sync for %s", appstate.WAPatchCriticalBlock), "source", "appstate")
 	if err := a.waClient.FetchAppState(a.ctx, appstate.WAPatchCriticalBlock, false, false); err != nil {
-		a.logcatLog(logcat.LevelError, "appstate", "Block list sync failed: %v", err)
+		slog.Error(fmt.Sprintf("Block list sync failed: %v", err), "source", "appstate")
 	}
-	// Sync critical_unblock_low (phone contacts — first_name/full_name)
-	// without fullSync to avoid destroying existing mutation MACs.
-	a.logcatLog(logcat.LevelInfo, "appstate", "Starting app state sync for %s", appstate.WAPatchCriticalUnblockLow)
+	slog.Info(fmt.Sprintf("Starting app state sync for %s", appstate.WAPatchCriticalUnblockLow), "source", "appstate")
 	if err := a.waClient.FetchAppState(a.ctx, appstate.WAPatchCriticalUnblockLow, false, false); err != nil {
-		a.logcatLog(logcat.LevelError, "appstate", "Contact sync failed: %v", err)
+		slog.Error(fmt.Sprintf("Contact sync failed: %v", err), "source", "appstate")
 		a.emitError(fmt.Sprintf("Contact sync failed: %v", err))
 	}
 	// Log contact sync status for diagnostics
 	if versions, _, err := a.waClient.Store.AppState.GetAppStateVersion(a.ctx, string(appstate.WAPatchCriticalUnblockLow)); err == nil && versions > 0 {
 		contacts, _ := a.waClient.Store.Contacts.GetAllContacts(a.ctx)
-		a.logcatLog(logcat.LevelInfo, "contacts", "Synced %d entries (version %d)", len(contacts), versions)
+		slog.Info(fmt.Sprintf("Synced %d entries (version %d)", len(contacts), versions), "source", "contacts")
 	} else if err != nil {
-		a.logcatLog(logcat.LevelError, "contacts", "Version check failed: %v", err)
+		slog.Error(fmt.Sprintf("Version check failed: %v", err), "source", "contacts")
 	} else {
-		a.logcatLog(logcat.LevelWarn, "contacts", "Sync has never completed (version 0)")
+		slog.Warn("Sync has never completed (version 0)", "source", "contacts")
 	}
-	a.logcatLog(logcat.LevelInfo, "appstate", "Resync complete")
+	slog.Info("Resync complete", "source", "appstate")
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 	// Purge empty contact stubs that have no data at all (no push_name,
 	// no first_name, no full_name, no business_name). These accumulate
@@ -179,9 +176,9 @@ func (a *Api) resyncAppState() {
 			   AND (push_name IS NULL OR push_name = '')
 			   AND (business_name IS NULL OR business_name = '')`)
 		if err != nil {
-			a.logcatLog(logcat.LevelError, "contacts", "Failed to purge empty stubs: %v", err)
+			slog.Error(fmt.Sprintf("Failed to purge empty stubs: %v", err), "source", "contacts")
 		} else if n, _ := res.RowsAffected(); n > 0 {
-			a.logcatLog(logcat.LevelInfo, "contacts", "Purged %d empty stubs", n)
+			slog.Info(fmt.Sprintf("Purged %d empty stubs", n), "source", "contacts")
 		}
 	}
 }
@@ -205,50 +202,28 @@ func (a *Api) reconnectLoop() {
 		if a.isShuttingDown() {
 			return
 		}
-		a.logcatLog(logcat.LevelInfo, "reconnect", "Attempt %d/8...", i+1)
+		slog.Info(fmt.Sprintf("Attempt %d/8...", i+1), "source", "reconnect")
 		if err := a.waClient.Connect(); err != nil {
-			a.logcatLog(logcat.LevelWarn, "reconnect", "Attempt %d failed: %v", i+1, err)
+			slog.Warn(fmt.Sprintf("Attempt %d failed: %v", i+1, err), "source", "reconnect")
 			if backoff < maxBackoff {
 				backoff = time.Duration(float64(backoff) * 1.5)
 			}
 			continue
 		}
-		a.logcatLog(logcat.LevelInfo, "reconnect", "Reconnect successful")
+		slog.Info("Reconnect successful", "source", "reconnect")
 		return
 	}
-	a.logcatLog(logcat.LevelError, "reconnect", "All attempts exhausted — staying disconnected")
+	slog.Error("All attempts exhausted — staying disconnected", "source", "reconnect")
 	runtime.EventsEmit(a.ctx, "wa:status", "disconnected")
 	runtime.EventsEmit(a.ctx, "wa:error", "Could not reconnect to WhatsApp after 8 attempts.")
 }
 
-// emitError sends an error toast to the frontend, writes to the in-memory
-// logcat buffer, and prints to stderr.
 func (a *Api) emitError(msg string) {
-	log.Println("ERROR:", msg)
-	logcat.Get().Write(logcat.LevelError, "app", "%s", msg)
+	slog.Error(msg, "source", "app")
 	runtime.EventsEmit(a.ctx, "wa:error", msg)
 }
 
-// logcatLog writes a structured log entry to both the in-memory logcat buffer
-// and the standard log. The frontend's Log Viewer screen reads these entries
-// via GetLogEntries.
-func (a *Api) logcatLog(level logcat.Level, source, format string, args ...any) {
-	msg := fmt.Sprintf(format, args...)
-	log.Printf("[%s] %s: %s", level, source, msg)
-	logcat.Get().Write(level, source, format, args...)
-}
 
-// GetLogEntries returns log entries from the in-memory ring buffer.
-//
-//   - limit:  max entries to return (0 = all available)
-//   - afterID: only entries with ID > afterID (used for polling; pass 0 for
-//     the initial fetch)
-//
-// The frontend Log Viewer polls this method periodically to display live log
-// output from every subsystem.
-func (a *Api) GetLogEntries(limit int, afterID int64) []logcat.Entry {
-	return logcat.Get().Read(limit, afterID)
-}
 
 // htmlTagRE strips HTML tags from message previews so desktop notifications
 // show plain text rather than markup.
@@ -388,12 +363,7 @@ func (a *Api) failStartup(err error) {
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
 func (a *Api) Startup(ctx context.Context) {
-	// Initialise the centralised log buffer (logcat) so every subsystem
-	// that writes during startup appears in the log viewer.
-	if cdr, err := os.UserConfigDir(); err == nil {
-		logcat.SetLogDir(cdr + "/whats4linux/logs")
-	}
-	logcat.Init(500)
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
 
 	// The window is focused when the app launches; the frontend keeps this in
 	// sync via SetWindowFocused so we don't notify while the user is looking.
@@ -625,7 +595,7 @@ func (a *Api) mainEventHandler(evt any) {
 		// groups in the app until a manual reinitialize is done). To avoid that,
 		// wait here until logged in.
 		if err := a.cw.Initialise(a.waClient); err != nil {
-			a.logcatLog(logcat.LevelError, "groups", "Database init failed: %v", err)
+			slog.Error(fmt.Sprintf("Database init failed: %v", err), "source", "groups")
 			a.emitError(fmt.Sprintf("Group init failed: %v", err))
 		}
 		// Heal group rows with missing/empty names in the background now
@@ -634,15 +604,15 @@ func (a *Api) mainEventHandler(evt any) {
 		// Recover archive/pin/mute sync if the local app state is corrupted.
 		a.startBackground(a.resyncAppState)
 		if err := a.waClient.SendPresence(a.ctx, types.PresenceAvailable); err != nil {
-			a.logcatLog(logcat.LevelWarn, "presence", "Failed to send available: %v", err)
+			slog.Warn(fmt.Sprintf("Failed to send available: %v", err), "source", "presence")
 		}
 		// Run migration for messages.db
 		err := a.messageStore.MigrateLIDToPN(a.ctx, a.waClient.Store.LIDs)
 		if err != nil {
-			a.logcatLog(logcat.LevelError, "migration", "LID migration failed: %v", err)
+			slog.Error(fmt.Sprintf("LID migration failed: %v", err), "source", "migration")
 			a.emitError(fmt.Sprintf("LID migration failed: %v", err))
 		} else {
-			a.logcatLog(logcat.LevelInfo, "migration", "LID migration completed")
+			slog.Info("LID migration completed", "source", "migration")
 			runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 		}
 	case *events.HistorySync:
@@ -679,7 +649,7 @@ func (a *Api) mainEventHandler(evt any) {
 		if action != nil {
 			fullName = action.GetFullName()
 		}
-		a.logcatLog(logcat.LevelInfo, "contacts", "Contact event for %s: fullName=%q", v.JID, fullName)
+		slog.Info(fmt.Sprintf("Contact event for %s: fullName=%q", v.JID, fullName), "source", "contacts")
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 	case *events.PushName, *events.BusinessName:
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
@@ -690,7 +660,7 @@ func (a *Api) mainEventHandler(evt any) {
 			"media":  string(v.Media),
 		})
 	case *events.IdentityChange:
-		a.logcatLog(logcat.LevelInfo, "security", "Identity change for %s", v.JID)
+		slog.Info(fmt.Sprintf("Identity change for %s", v.JID), "source", "security")
 	case *events.Presence:
 		runtime.EventsEmit(a.ctx, "wa:presence", map[string]any{
 			"jid":         v.From.String(),
@@ -757,6 +727,6 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 		"processedMessages":     stored,
 		"done":                  true,
 	})
-	a.logcatLog(logcat.LevelInfo, "history", "Stored %d messages from %d conversations", stored, len(conversations))
+	slog.Info(fmt.Sprintf("Stored %d messages from %d conversations", stored, len(conversations)), "source", "history")
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 }
