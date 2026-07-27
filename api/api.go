@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"os"
 	"regexp"
 	"strings"
 	"sync"
