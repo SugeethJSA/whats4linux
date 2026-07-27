@@ -12,7 +12,6 @@ import KeyBoardShortCuts from "./settingscreens/KeyBoardShortCuts"
 import HelpAndFeedback from "./settingscreens/HelpAndFeedback"
 import LogOut from "./settingscreens/LogOut"
 import AdvancedScreen from "./settingscreens/AdvancedScreen"
-import { LogcatScreen } from "./settingscreens/LogcatScreen"
 import { useSelfAvatarStore } from "../store/useSelfAvatarStore.ts"
 import {
   AccountIcon,
@@ -38,7 +37,7 @@ type SettingsCategory =
   | "notifications"
   | "shortcuts"
   | "help"
-  | "logcat"
+
   | "logout"
   | "advanced"
 
@@ -107,13 +106,6 @@ const settingsItems: SettingsItem[] = [
     description: "CSS & JS editor, Developer options",
     icon: <DotsIcon />,
     screen: <AdvancedScreen />,
-  },
-  {
-    id: "logcat",
-    label: "Log Viewer",
-    description: "Live log output, errors, diagnostics",
-    icon: <LogIcon />,
-    screen: <LogcatScreen />,
   },
   {
     id: "logout",
