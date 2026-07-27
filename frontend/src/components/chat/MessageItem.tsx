@@ -526,7 +526,7 @@ export function MessageItem({
             onClick={() => setShowReactionPicker(v => !v)}
             title="React"
             className={clsx(
-              "absolute bottom-1 z-20 rounded-full bg-white p-1 text-sm leading-none opacity-0 shadow transition-opacity group-hover:opacity-100 dark:bg-dark-tertiary",
+              "absolute bottom-1 z-20 rounded-full bg-white p-1 text-sm leading-none opacity-0 shadow transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto pointer-events-none dark:bg-dark-tertiary",
               isFromMe ? "-left-9" : "-right-9",
             )}
           >

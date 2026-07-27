@@ -13,7 +13,7 @@ import (
 	"time"
 
 	query "github.com/lugvitc/whats4linux/internal/query"
-	_ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type ImageCache struct {
@@ -54,7 +54,7 @@ func NewImageCache() (*ImageCache, error) {
 		return nil, fmt.Errorf("failed to create idxdb directory: %v", err)
 	}
 
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %v", err)
 	}

@@ -460,13 +460,13 @@ func (a *Api) Startup(ctx context.Context) {
 		a.failStartup(fmt.Errorf("open application database: %w", err))
 		return
 	}
-	db, err := sql.Open("sqlite", misc.GetSQLiteAddress("session.wa"))
+	db, err := sql.Open("sqlite3", misc.GetSQLiteAddress("session.wa"))
 	if err != nil {
 		a.failStartup(fmt.Errorf("open WhatsApp session database: %w", err))
 		return
 	}
 	a.sessionDB = db
-	container := sqlstore.NewWithDB(db, "sqlite", dbLog)
+	container := sqlstore.NewWithDB(db, "sqlite3", dbLog)
 	a.waContainer = container
 	err = container.Upgrade(ctx)
 	if err != nil {

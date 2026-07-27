@@ -5,8 +5,8 @@ const SecurityNotificationsScreen = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* TODO: add the security icon from whatsapp */}
-      <div className="text-xl font-semibold">Your chats and calls are private</div>
-      <div className="text-lg">
+      <div className="text-xl font-semibold text-light-text dark:text-dark-text">Your chats and calls are private</div>
+      <div className="text-lg text-light-text dark:text-dark-text">
         End-to-end encryption keeps your personal messages and calls between you and the people you
         choose. No one outside of the chat, not even WhatsApp, can read, listen to, or share them.
         This includes your:

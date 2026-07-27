@@ -336,7 +336,7 @@ func (ms *MessageStore) Close() error {
 
 // openDB opens a connection to messages.db
 func openDB() (*sql.DB, error) {
-	db, err := sql.Open("sqlite", misc.GetSQLiteAddress("messages.db"))
+	db, err := sql.Open("sqlite3", misc.GetSQLiteAddress("messages.db"))
 	if err != nil {
 		return nil, err
 	}

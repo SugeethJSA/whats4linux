@@ -111,7 +111,7 @@ const ComponentColorSelector = () => {
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <h2 className="font-bold text-xl">{selectedComponent}</h2>
+            <h2 className="font-bold text-xl text-light-text dark:text-dark-text">{selectedComponent}</h2>
             <div className="space-y-4">
               {draft &&
                 (
@@ -129,7 +129,7 @@ const ComponentColorSelector = () => {
                     const value = (draft as any)[selectedComponent][label]
                     return (
                       <div key={label} className="flex flex-col gap-1">
-                        <label className="text-md font-bold uppercase opacity-50">{label}</label>
+                        <label className="text-md font-bold uppercase opacity-50 text-light-text dark:text-dark-text">{label}</label>
                         <div className="flex items-center gap-2">
                           <div className="relative flex-1">
                             <input

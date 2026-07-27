@@ -94,7 +94,11 @@ export function MessageMenu({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node
+      if (
+        menuRef.current && !menuRef.current.contains(target) &&
+        (!dropdownRef.current || !dropdownRef.current.contains(target))
+      ) {
         closeMenu()
       }
     }
@@ -122,7 +126,7 @@ export function MessageMenu({
     <div className="absolute top-1 right-1 z-10" ref={menuRef}>
       <button
         onClick={() => setIsMenuOpen(!isMenuOpen)}
-        className="opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer p-1"
+        className="opacity-0 group-hover:opacity-100 group-hover:pointer-events-auto pointer-events-none transition-all duration-200 cursor-pointer p-1"
         aria-label="Message options"
       >
         <MenuArrowIcon />

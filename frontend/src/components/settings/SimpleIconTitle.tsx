@@ -34,7 +34,7 @@ const SimpleIconTitle = ({
       onClick={handleClick}
     >
       <div>{icon}</div>
-      <div className="text-xl font-semibold">{title}</div>
+      <div className="text-xl font-semibold text-light-text dark:text-dark-text">{title}</div>
     </div>
   )
 }

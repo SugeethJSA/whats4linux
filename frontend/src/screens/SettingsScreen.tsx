@@ -160,7 +160,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
             style={{ background: "rgba(33,192,99,0.08)", border: "1px solid rgba(33,192,99,0.15)" }}>
             <SettingsIcon className="w-10 h-10" style={{ color: "#21c063" } as any} />
           </div>
-          <h2 className="text-xl font-semibold" style={{ color: "var(--color-light-text)", letterSpacing: "-0.02em" }}>Settings</h2>
+          <h2 className="text-xl font-semibold text-light-text dark:text-dark-text" style={{ letterSpacing: "-0.02em" }}>Settings</h2>
           <p className="text-sm" style={{ color: "#8696a0" }}>Select a category to get started</p>
         </div>
       )
@@ -293,7 +293,7 @@ function ProfileCard({ profile, avatar }: { profile: api.Contact | null; avatar?
           )}
         </div>
         <div className="pt-6">
-          <h3 className="font-semibold text-sm" style={{ color: "var(--color-light-text)", letterSpacing: "-0.01em" }}>
+          <h3 className="font-semibold text-sm text-light-text dark:text-dark-text" style={{ letterSpacing: "-0.01em" }}>
             {profile?.push_name || "Your Name"}
           </h3>
           <p className="text-xs mt-0.5" style={{ color: "#8696a0" }}>{profile?.phno}</p>
@@ -338,9 +338,9 @@ function SettingsMenuItem({
       </div>
       <div className="flex-1 min-w-0">
         <h3
-          className="font-medium text-sm"
+          className={clsx("font-medium text-sm", !item.danger && !isSelected && "text-light-text dark:text-dark-text")}
           style={{
-            color: item.danger ? "#e74c3c" : isSelected ? "#21c063" : "var(--color-light-text)",
+            color: item.danger ? "#e74c3c" : isSelected ? "#21c063" : undefined,
             letterSpacing: "-0.01em",
           }}
         >

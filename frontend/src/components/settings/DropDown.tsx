@@ -95,7 +95,7 @@ const DropDown = ({
 
   return (
     <div ref={containerRef} className="flex flex-col">
-      <div className="font-semibold mb-2">{title}</div>
+      <div className="font-semibold mb-2 text-light-text dark:text-dark-text">{title}</div>
       <div
         className="bg-dropdown-bg dark:bg-dropdown-dark-bg cursor-pointer flex items-center justify-between p-2 hover:bg-dropdown-hover-bg dark:hover:bg-dropdown-dark-hover-bg rounded-md transition-colors border border-dropdown-border dark:border-dropdown-dark-border text-dropdown-text dark:text-dropdown-dark-text"
         onClick={toggleOpen}
