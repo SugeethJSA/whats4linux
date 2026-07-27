@@ -7,6 +7,8 @@ import {
   GetGroupInfo,
   GetProfile,
   MarkRead,
+  SubscribeContactPresence,
+  MakeCall,
 } from "../../wailsjs/go/api/Api"
 import { store } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
@@ -52,7 +54,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     addPendingMessage,
     updatePendingMessageToSent,
   } = useMessageStore()
-  const { setTypingIndicator, showEmojiPicker, setShowEmojiPicker, chatInfoOpen, setChatInfoOpen } =
+  const { setTypingIndicator, showEmojiPicker, setShowEmojiPicker, chatInfoOpen, setChatInfoOpen, typingIndicators } =
     useUIStore()
   const { chatsById } = useChatStore()
 
@@ -66,6 +68,8 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
 
   const [mentionableContacts, setMentionableContacts] = useState<any[]>([])
   const [selectedMentions, setSelectedMentions] = useState<any[]>([])
+  const [isAnnounceGroup, setIsAnnounceGroup] = useState(false)
+  const [canSend, setCanSend] = useState(true)
   const [hasMore, setHasMore] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [initialLoad, setInitialLoad] = useState(true)
@@ -122,10 +126,14 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
 
   useEffect(() => {
     setChatSubtitle("")
+    setIsAnnounceGroup(false)
+    setCanSend(true)
     const loadMentionableContacts = async () => {
       if (chatType === "group") {
         try {
           const groupInfo = await GetGroupInfo(chatId)
+
+          setIsAnnounceGroup(!!groupInfo.is_group_announce)
 
           // WhatsApp-style participants line under the group name:
           // "You, Alice, ~ Bob, +91 98765 43210, …"
@@ -136,12 +144,18 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
             (c.phno ? formatPhone(c.phno) : "")
           try {
             const self = await GetProfile("")
+            const currentUserParticipant = groupInfo.group_participants?.find(
+              (p: any) => p.contact && (p.contact.jid === self.jid || p.contact.phno === self.phno),
+            )
+            const isAdmin = !!currentUserParticipant?.is_admin
+            setCanSend(!groupInfo.is_group_announce || isAdmin)
             const others = groupInfo.group_participants
               .map((p: any) => p.contact)
               .filter((c: any) => c && c.phno !== self.phno && c.jid !== self.jid)
             setChatSubtitle(["You", ...others.map(participantLabel).filter(Boolean)].join(", "))
             setMentionableContacts(others)
           } catch (err) {
+            setCanSend(true)
             const contacts = groupInfo.group_participants.map((p: any) => p.contact)
             setChatSubtitle(contacts.map(participantLabel).filter(Boolean).join(", "))
             setMentionableContacts(contacts)
@@ -635,6 +649,31 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     return () => unsub()
   }, [chatId, updateMessage, updatePendingMessageToSent])
 
+  // Subscribe to contact presence + listen for typing indicators
+  useEffect(() => {
+    if (!chatId || chatType !== "contact") return
+
+    SubscribeContactPresence(chatId).catch(() => {})
+
+    const unsubPresence = EventsOn("wa:chat_presence", (data: { chatId: string; state: string }) => {
+      if (data?.chatId === chatId) {
+        useUIStore.getState().setTypingIndicator(chatId, data.state === "composing")
+      }
+    })
+
+    const unsubOnline = EventsOn("wa:presence", (data: { jid: string; unavailable: boolean }) => {
+      if (data?.jid === chatId || data?.jid.split("@")[0] === chatId.split("@")[0]) {
+        useUIStore.getState().setOnlineStatus(data.jid, !data.unavailable)
+      }
+    })
+
+    return () => {
+      unsubPresence()
+      unsubOnline()
+      useUIStore.getState().setTypingIndicator(chatId, false)
+    }
+  }, [chatId, chatType])
+
   useGSAP(() => {
     if (!scrollButtonRef.current) return
 
@@ -662,6 +701,12 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
           chatAvatar={chatAvatar}
           onBack={onBack}
           onInfoClick={() => setChatInfoOpen(!chatInfoOpen)}
+          onCallClick={() => {
+            if (chatId) {
+              MakeCall(chatId)
+            }
+          }}
+          isTyping={typingIndicators[chatId] ?? false}
         />
 
         {/* Pinned-messages banner: shows the latest pin, click cycles through
@@ -674,7 +719,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
               pinnedCycleRef.current = idx + 1
               handleQuotedClick(target.message_id)
             }}
-            className="flex items-center gap-2 border-b border-gray-200 bg-light-secondary px-4 py-2 text-sm cursor-pointer dark:border-white/5 dark:bg-dark-bg"
+            className="flex items-center gap-2 border-b border-gray-200 dark:border-dark-border bg-light-secondary px-4 py-2 text-sm cursor-pointer dark:border-white/5 dark:bg-dark-bg"
           >
             <svg
               viewBox="0 0 24 24"
@@ -703,7 +748,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
               scrolling (and repainting) with it — big scroll-perf win. */}
           <div className="chat-wallpaper absolute inset-0 pointer-events-none z-0" />
           {(initialLoad || !isReady) && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#efeae2] dark:bg-[#0a0a0a] z-50">
+            <div className="absolute inset-0 flex items-center justify-center bg-[#efeae2] dark:bg-dark-bg z-50">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
             </div>
           )}
@@ -717,7 +762,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
               viewBox="0 0 24 24"
               width="24"
               height="24"
-              className="fill-current text-gray-600 dark:text-gray-400"
+              className="fill-current text-gray-600 dark:text-light-muted dark:text-dark-muted"
             >
               <path d="M12 16.17L4.83 9L3.41 10.41L12 19L20.59 10.41L19.17 9L12 16.17Z" />
             </svg>
@@ -739,11 +784,13 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
               isLoading={isLoadingMore}
               hasMore={isReady && hasMore}
               highlightedMessageId={highlightedMessageId}
+              isAnnounceGroup={isAnnounceGroup}
             />
           </div>
         </div>
         <ChatInput
           chatId={chatId}
+          disabled={!canSend}
           inputText={inputText}
           pastedImage={pastedImage}
           selectedFile={selectedFile}

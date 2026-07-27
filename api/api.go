@@ -542,6 +542,12 @@ func (a *Api) mainEventHandler(evt any) {
 	}
 	switch v := evt.(type) {
 	case *events.Message:
+		// Poll vote messages: insert a system message and skip normal processing
+		if v.Message.GetPollUpdateMessage() != nil {
+			a.startBackground(func() { a.handlePollVoteEvent(v) })
+			return
+		}
+
 		parsedHTML := a.processMessageText(v.Message)
 
 		// Handle message edits: re-parse the edited content
@@ -733,55 +739,144 @@ func (a *Api) contactNameForJID(jid types.JID) string {
 	return jid.User
 }
 
-// handleGroupInfoEvent stores system messages for group participant changes so
-// the UI can display "X joined the group", "X left", etc.
+// formatEphemeralTimer converts a disappearing-timer value in seconds to a
+// short human-readable string (e.g. "24h", "7d", "90d").
+func formatEphemeralTimer(secs uint32) string {
+	switch {
+	case secs <= 0:
+		return "off"
+	case secs < 60:
+		return fmt.Sprintf("%ds", secs)
+	case secs < 3600:
+		return fmt.Sprintf("%dm", secs/60)
+	case secs < 86400:
+		return fmt.Sprintf("%dh", secs/3600)
+	default:
+		return fmt.Sprintf("%dd", secs/86400)
+	}
+}
+
+// handleGroupInfoEvent stores system messages for all group configuration
+// changes (name, topic, locked, announce, disappearing timer, membership
+// approval, delete, community links, invite link, suspend, and participant
+// changes) so the UI can display descriptive event cards.
 func (a *Api) handleGroupInfoEvent(v *events.GroupInfo) {
 	groupJID := v.JID.String()
 	ts := v.Timestamp.Unix()
 	now := time.Now().UnixMilli()
 	seq := int64(0)
+	changed := false
 
-	insert := func(verb string, jids []types.JID) {
-		prefix := "[system]"
-		for _, jid := range jids {
-			name := a.contactNameForJID(jid)
-			var text string
-			switch verb {
-			case "joined":
-				text = prefix + "👋 " + name + " joined the group"
-			case "left":
-				text = prefix + "👋 " + name + " left the group"
-			case "promoted":
-				text = prefix + "⭐ " + name + " was promoted to admin"
-			case "demoted":
-				text = prefix + "⭐ " + name + " was demoted"
-			default:
-				text = prefix + name + " " + verb
-			}
-			msgID := fmt.Sprintf("system_%s_%d", groupJID, now+seq)
-			seq++
-			if err := a.messageStore.InsertSystemMessage(groupJID, msgID, text, ts); err != nil {
-				a.logcatLog(logcat.LevelWarn, "groups", "Failed to store system message: %v", err)
-			}
+	ins := func(text string) {
+		msgID := fmt.Sprintf("system_%s_%d", groupJID, now+seq)
+		seq++
+		if err := a.messageStore.InsertSystemMessage(groupJID, msgID, text, ts); err != nil {
+			a.logcatLog(logcat.LevelWarn, "groups", "Failed to store system message: %v", err)
+		}
+		changed = true
+	}
+
+	// Resolve who triggered the change (if available)
+	senderName := ""
+	if v.Sender != nil {
+		senderName = a.contactNameForJID(*v.Sender)
+	}
+	senderPrefix := ""
+	if senderName != "" {
+		senderPrefix = senderName + " "
+	}
+
+	if v.Name != nil && v.Name.Name != "" {
+		ins("[system]✏️ " + senderPrefix + "changed the group name to \"" + v.Name.Name + "\"")
+	}
+	if v.Topic != nil {
+		if v.Topic.TopicDeleted {
+			ins("[system]✏️ " + senderPrefix + "removed the group description")
+		} else if v.Topic.Topic != "" {
+			ins("[system]✏️ " + senderPrefix + "changed the group description")
 		}
 	}
+	if v.Locked != nil {
+		if v.Locked.IsLocked {
+			ins("[system]🔒 " + senderPrefix + "restricted group info editing to admins")
+		} else {
+			ins("[system]🔓 " + senderPrefix + "opened group info editing to all members")
+		}
+	}
+	if v.Announce != nil {
+		if v.Announce.IsAnnounce {
+			ins("[system]🔇 " + senderPrefix + "set the group to announcement mode — only admins can send messages")
+		} else {
+			ins("[system]🔊 " + senderPrefix + "opened the group — all members can send messages")
+		}
+	}
+	if v.Ephemeral != nil {
+		if v.Ephemeral.IsEphemeral {
+			ins("[system]⏳ " + senderPrefix + "set disappearing messages to " + formatEphemeralTimer(v.Ephemeral.DisappearingTimer))
+		} else {
+			ins("[system]⏳ " + senderPrefix + "turned off disappearing messages")
+		}
+	}
+	if v.MembershipApprovalMode != nil {
+		if v.MembershipApprovalMode.IsJoinApprovalRequired {
+			ins("[system]🔐 " + senderPrefix + "enabled membership approval — new join requests require admin approval")
+		} else {
+			ins("[system]🔓 " + senderPrefix + "disabled membership approval — anyone can join freely")
+		}
+	}
+	if v.Delete != nil && v.Delete.Deleted {
+		ins("[system]🗑️ " + senderPrefix + "deleted the group")
+	}
+	if v.Link != nil {
+		groupName := v.Link.Group.Name
+		if groupName == "" {
+			ins("[system]🔗 " + senderPrefix + "linked this group to a community")
+		} else {
+			ins("[system]🔗 " + senderPrefix + "linked this group to the community \"" + groupName + "\"")
+		}
+	}
+	if v.Unlink != nil {
+		ins("[system]🔗 " + senderPrefix + "unlinked this group from its community")
+	}
+	if v.NewInviteLink != nil && *v.NewInviteLink != "" {
+		ins("[system]🔗 " + senderPrefix + "reset the group invite link")
+	}
+	if v.Suspended {
+		ins("[system]🚫 Group has been suspended")
+	}
+	if v.Unsuspended {
+		ins("[system]✅ Group has been unsuspended")
+	}
 
-	if len(v.Join) > 0 {
-		insert("joined", v.Join)
+	// Participant changes
+	for _, jid := range v.Join {
+		ins("[system]👋 " + a.contactNameForJID(jid) + " joined the group")
 	}
-	if len(v.Leave) > 0 {
-		insert("left", v.Leave)
+	for _, jid := range v.Leave {
+		ins("[system]👋 " + a.contactNameForJID(jid) + " left the group")
 	}
-	if len(v.Promote) > 0 {
-		insert("promoted", v.Promote)
+	for _, jid := range v.Promote {
+		ins("[system]⭐ " + a.contactNameForJID(jid) + " was promoted to admin")
 	}
-	if len(v.Demote) > 0 {
-		insert("demoted", v.Demote)
+	for _, jid := range v.Demote {
+		ins("[system]⭐ " + a.contactNameForJID(jid) + " was demoted")
 	}
 
-	if len(v.Join) > 0 || len(v.Leave) > 0 || len(v.Promote) > 0 || len(v.Demote) > 0 {
+	if changed {
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 	}
+}
+
+// handlePollVoteEvent creates a system message when someone votes in a poll.
+func (a *Api) handlePollVoteEvent(v *events.Message) {
+	chat := v.Info.Chat.String()
+	senderName := a.contactNameForJID(v.Info.Sender)
+	text := "[system]🗳️ " + senderName + " voted"
+	msgID := fmt.Sprintf("pollvote_%s_%s", chat, v.Info.ID)
+	if err := a.messageStore.InsertSystemMessage(chat, msgID, text, v.Info.Timestamp.Unix()); err != nil {
+		a.logcatLog(logcat.LevelWarn, "polls", "Failed to store poll vote system message: %v", err)
+	}
+	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 }
 
 // processHistorySync stores the messages contained in a whatsmeow HistorySync
