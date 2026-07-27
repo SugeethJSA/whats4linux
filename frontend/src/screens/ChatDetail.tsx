@@ -8,6 +8,7 @@ import {
   GetProfile,
   MarkRead,
   SubscribeContactPresence,
+  MakeCall,
 } from "../../wailsjs/go/api/Api"
 import { store } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
@@ -700,6 +701,11 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
           chatAvatar={chatAvatar}
           onBack={onBack}
           onInfoClick={() => setChatInfoOpen(!chatInfoOpen)}
+          onCallClick={() => {
+            if (chatId) {
+              MakeCall(chatId)
+            }
+          }}
           isTyping={typingIndicators[chatId] ?? false}
         />
 

@@ -7,6 +7,7 @@ interface ChatHeaderProps {
   chatAvatar?: string
   onBack?: () => void
   onInfoClick?: () => void
+  onCallClick?: () => void
   isTyping?: boolean
 }
 
@@ -26,6 +27,7 @@ export function ChatHeader({
   chatAvatar,
   onBack,
   onInfoClick,
+  onCallClick,
   isTyping,
 }: ChatHeaderProps) {
   return (
@@ -111,14 +113,30 @@ export function ChatHeader({
         </div>
       </div>
 
-      {/* Info button */}
-      <button
-        onClick={onInfoClick}
-        className="ml-2 p-2 rounded-full transition-colors text-light-muted hover:text-light-text dark:text-dark-muted dark:hover:text-dark-text"
-        aria-label="Chat info"
-      >
-        <InfoIcon />
-      </button>
+      {/* Header action buttons */}
+      <div className="flex items-center gap-1">
+        {onCallClick && (
+          <button
+            onClick={onCallClick}
+            className="p-2 rounded-full transition-all duration-150 hover:bg-black/5 dark:hover:bg-white/10 text-[#21c063]"
+            aria-label="Start voice call"
+            title="Start voice call"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/>
+            </svg>
+          </button>
+        )}
+
+        {/* Info button */}
+        <button
+          onClick={onInfoClick}
+          className="p-2 rounded-full transition-colors text-light-muted hover:text-light-text dark:text-dark-muted dark:hover:text-dark-text"
+          aria-label="Chat info"
+        >
+          <InfoIcon />
+        </button>
+      </div>
     </div>
   )
 }

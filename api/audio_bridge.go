@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	"log"
+	"math"
 	"sync"
 	"unsafe"
 
@@ -11,7 +13,7 @@ import (
 const (
 	sampleRate   = 16000
 	channels     = 1
-	frameSamples = 320 // WhatsApp MLOW expects 20ms chunks at 16kHz
+	frameSamples = 960 // 60ms at 16kHz — matches meowcaller's FrameSamples constant
 )
 
 type LiveAudioBridge struct {
@@ -26,6 +28,9 @@ type LiveAudioBridge struct {
 	playbackMu  sync.Mutex
 
 	isClosed bool
+	phase    float64 // for synthetic comfort noise
+
+	logCounter int
 }
 
 // NewLiveAudioBridge initializes a duplex malgo hardware device at 16kHz Mono.
@@ -65,12 +70,21 @@ func NewLiveAudioBridge() (*LiveAudioBridge, error) {
 
 			// Downmix to Mono if OS fed us Stereo/Multichannel
 			mono := make([]float32, framecount)
+			var sumSquare float64
 			for i := 0; i < int(framecount); i++ {
 				var sum float32
 				for c := 0; c < actualChannels; c++ {
 					sum += rawSamples[i*actualChannels+c]
 				}
-				mono[i] = sum / float32(actualChannels)
+				val := sum / float32(actualChannels)
+				mono[i] = val
+				sumSquare += float64(val * val)
+			}
+
+			bridge.logCounter++
+			if bridge.logCounter%100 == 0 { // Every ~2 seconds
+				rms := math.Sqrt(sumSquare / float64(framecount))
+				log.Printf("[AudioBridge] Mic Capture Active: frames=%d, channels=%d, RMS Volume=%.5f", framecount, actualChannels, rms)
 			}
 
 			bridge.captureMu.Lock()
@@ -135,7 +149,8 @@ func (b *LiveAudioBridge) Start() error {
 // meowcaller.AudioSource Implementation
 // ---------------------------------------------------------
 
-// ReadFrame is called by meowcaller to grab exactly 320 samples to send to WhatsApp.
+// ReadFrame is called by meowcaller to grab exactly 960 samples (60ms at 16kHz)
+// to encode and send to WhatsApp via the MLow codec.
 func (b *LiveAudioBridge) ReadFrame() ([]float32, error) {
 	b.captureMu.Lock()
 	defer b.captureMu.Unlock()
@@ -144,11 +159,30 @@ func (b *LiveAudioBridge) ReadFrame() ([]float32, error) {
 		return nil, fmt.Errorf("audio bridge closed")
 	}
 
+	// Wait until the OS audio callback has filled captureBuf with at least one
+	// full frame. The Cond is signalled from the malgo data callback every time
+	// new samples arrive (roughly every 10ms on Windows), so this loop typically
+	// returns within 60ms at most.
+	for len(b.captureBuf) < frameSamples && !b.isClosed {
+		b.captureCond.Wait()
+	}
+
 	frame := make([]float32, frameSamples)
 	if len(b.captureBuf) >= frameSamples {
 		copy(frame, b.captureBuf[:frameSamples])
 		b.captureBuf = b.captureBuf[frameSamples:]
-	} // else: return the silent frame (0s) to keep the connection alive
+	} else {
+		// INJECT COMFORT NOISE (Very faint 400Hz sine wave)
+		// This prevents OPUS from entering DTX mode (1-byte packets) on absolute silence,
+		// which causes some WhatsApp clients to stall their jitter buffer and show 'Reconnecting...'
+		for i := 0; i < frameSamples; i++ {
+			frame[i] = float32(math.Sin(b.phase) * 0.005) // 0.5% volume
+			b.phase += 2.0 * math.Pi * 400.0 / float64(sampleRate)
+		}
+		if b.phase > 2.0*math.Pi {
+			b.phase -= 2.0 * math.Pi
+		}
+	}
 
 	// Prevent buffer bloat if OS mic is faster than WhatsApp network pacing
 	if len(b.captureBuf) > frameSamples*50 {
@@ -162,7 +196,7 @@ func (b *LiveAudioBridge) ReadFrame() ([]float32, error) {
 // meowcaller.AudioSink Implementation
 // ---------------------------------------------------------
 
-// WriteFrame is called by meowcaller with 320 decrypted samples from WhatsApp.
+// WriteFrame is called by meowcaller with decrypted samples from WhatsApp.
 func (b *LiveAudioBridge) WriteFrame(frame []float32) error {
 	b.playbackMu.Lock()
 	defer b.playbackMu.Unlock()
