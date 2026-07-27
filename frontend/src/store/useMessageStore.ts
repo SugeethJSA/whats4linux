@@ -2,6 +2,8 @@ import { create } from "zustand"
 import { immer } from "zustand/middleware/immer"
 import { useContactStore } from "./useContactStore"
 
+const MAX_MSGS_PER_CHAT = 200
+
 interface MessageStore {
   messages: Record<string, any[]>
   activeChatId: string | null
@@ -13,6 +15,7 @@ interface MessageStore {
   addReactionToMessage: (chatId: string, messageId: string, emoji: string, senderId: string) => void
   clearMessages: (chatId: string) => void
   trimOldMessages: (chatId: string, keepCount: number) => void
+  trimAllChats: () => void
   addPendingMessage: (chatId: string, message: any) => void
   updatePendingMessageToSent: (chatId: string, tempId: string, message: any) => void
 }
@@ -36,6 +39,12 @@ export const useMessageStore = create<MessageStore>()(
           useContactStore.getState().disposeCache()
         }
         state.activeChatId = chatId
+        // Cap all other chats to prevent unbounded growth across session
+        for (const cid of Object.keys(state.messages)) {
+          if (cid !== chatId && state.messages[cid].length > MAX_MSGS_PER_CHAT) {
+            state.messages[cid] = state.messages[cid].slice(-MAX_MSGS_PER_CHAT)
+          }
+        }
       })
     },
 
@@ -48,12 +57,18 @@ export const useMessageStore = create<MessageStore>()(
       set(state => {
         if (!state.messages[chatId]) state.messages[chatId] = []
         state.messages[chatId].push(message)
+        if (state.messages[chatId].length > MAX_MSGS_PER_CHAT) {
+          state.messages[chatId] = state.messages[chatId].slice(-MAX_MSGS_PER_CHAT)
+        }
       }),
 
     prependMessages: (chatId, messages) =>
       set(state => {
         const existing = state.messages[chatId] || []
         state.messages[chatId] = [...messages, ...existing]
+        if (state.messages[chatId].length > MAX_MSGS_PER_CHAT) {
+          state.messages[chatId] = state.messages[chatId].slice(-MAX_MSGS_PER_CHAT)
+        }
       }),
 
     updateMessage: (chatId, message) =>
@@ -66,6 +81,9 @@ export const useMessageStore = create<MessageStore>()(
           state.messages[chatId][idx] = message
         } else {
           state.messages[chatId].push(message)
+          if (state.messages[chatId].length > MAX_MSGS_PER_CHAT) {
+            state.messages[chatId] = state.messages[chatId].slice(-MAX_MSGS_PER_CHAT)
+          }
         }
       }),
 
@@ -95,6 +113,15 @@ export const useMessageStore = create<MessageStore>()(
         }
       }),
 
+    trimAllChats: () =>
+      set(state => {
+        for (const cid of Object.keys(state.messages)) {
+          if (state.messages[cid].length > MAX_MSGS_PER_CHAT) {
+            state.messages[cid] = state.messages[cid].slice(-MAX_MSGS_PER_CHAT)
+          }
+        }
+      }),
+
     clearMessages: chatId =>
       set(state => {
         delete state.messages[chatId]
@@ -104,6 +131,9 @@ export const useMessageStore = create<MessageStore>()(
       set(state => {
         if (!state.messages[chatId]) state.messages[chatId] = []
         state.messages[chatId].push(message)
+        if (state.messages[chatId].length > MAX_MSGS_PER_CHAT) {
+          state.messages[chatId] = state.messages[chatId].slice(-MAX_MSGS_PER_CHAT)
+        }
       }),
 
     updatePendingMessageToSent: (chatId, tempId, message) =>
@@ -121,6 +151,9 @@ export const useMessageStore = create<MessageStore>()(
             state.messages[chatId][existingIdx] = message
           } else {
             state.messages[chatId].push(message)
+            if (state.messages[chatId].length > MAX_MSGS_PER_CHAT) {
+              state.messages[chatId] = state.messages[chatId].slice(-MAX_MSGS_PER_CHAT)
+            }
           }
         }
       }),

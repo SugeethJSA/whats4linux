@@ -9,7 +9,7 @@ import { initSelf } from "./lib/self"
 import { Lightbox } from "./components/Lightbox"
 import { CallOverlay } from "./components/chat/CallOverlay"
 
-import { useUIStore } from "./store"
+import { useUIStore, useMessageStore } from "./store"
 import { useAppSettingsStore } from "./store/useAppSettingsStore"
 import { applyThemeClass } from "./lib/theme"
 import { useMuteStore } from "./store/useMuteStore"
@@ -171,9 +171,12 @@ function App() {
     }
   }, [addNotification, removeNotification])
 
-  // Periodically evict stale entries from transient UI caches
+  // Periodically evict stale entries from transient UI caches and cap message stores
   useEffect(() => {
-    const id = setInterval(() => useUIStore.getState().evictStale(), 60_000)
+    const id = setInterval(() => {
+      useUIStore.getState().evictStale()
+      useMessageStore.getState().trimAllChats()
+    }, 60_000)
     return () => clearInterval(id)
   }, [])
 

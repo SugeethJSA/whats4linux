@@ -1153,6 +1153,7 @@ func (ms *MessageStore) GetReactionsByMessageID(messageID string) ([]Reaction, e
 	underlying, mu = ms.reactionCache.GetMapWithMutex()
 	mu.Lock()
 	underlying[messageID] = cacheMap
+	ms.trimReactionCacheLocked(underlying)
 	mu.Unlock()
 	return reactions, nil
 }
@@ -1215,6 +1216,7 @@ func (ms *MessageStore) AddReactionToMessage(targetID, reaction, senderJID strin
 		inner = make(map[string][]string)
 		underlying[targetID] = inner
 	}
+	ms.trimReactionCacheLocked(underlying)
 	// Remove from all
 	for emoji, senders := range inner {
 		newSenders := make([]string, 0, len(senders))
@@ -1628,11 +1630,38 @@ func buildDecodedContentValues(
 	return content
 }
 
+const maxPTTCache = 500
+const maxReactionCache = 2000
+
+// trimReactionCacheLocked removes random entries when the reaction cache
+// exceeds maxReactionCache. Must be called while holding the reaction cache
+// write lock.
+func (ms *MessageStore) trimReactionCacheLocked(m map[string]map[string][]string) {
+	if len(m) < maxReactionCache {
+		return
+	}
+	target := maxReactionCache / 2
+	for k := range m {
+		delete(m, k)
+		if len(m) <= target {
+			break
+		}
+	}
+}
+
 // CachePTT stores PTA (voice note) metadata for a message so the frontend
 // can render voice notes with duration and waveform data.
 func (ms *MessageStore) CachePTT(messageID string, ptt bool, seconds uint32, waveform []byte) {
 	ms.pttCacheMu.Lock()
 	defer ms.pttCacheMu.Unlock()
+	if len(ms.pttCache) >= maxPTTCache {
+		for k := range ms.pttCache {
+			delete(ms.pttCache, k)
+			if len(ms.pttCache) <= maxPTTCache/2 {
+				break
+			}
+		}
+	}
 	ms.pttCache[messageID] = pttCacheEntry{ptt: ptt, seconds: seconds, waveform: waveform}
 }
 
