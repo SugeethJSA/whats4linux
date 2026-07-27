@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -97,6 +98,9 @@ type MediaMessageContent struct {
 	GifPlayback bool         `json:"gifPlayback,omitempty"`
 	Width       int          `json:"width,omitempty"`
 	Height      int          `json:"height,omitempty"`
+	PTT         bool         `json:"ptt,omitempty"`
+	Seconds     uint32       `json:"seconds,omitempty"`
+	Waveform    []byte       `json:"waveform,omitempty"`
 	ContextInfo *ContextInfo `json:"contextInfo,omitempty"`
 }
 
@@ -120,12 +124,20 @@ type writeRequest struct {
 	done chan error
 }
 
+type pttCacheEntry struct {
+	ptt      bool
+	seconds  uint32
+	waveform []byte
+}
+
 type MessageStore struct {
 	db *sql.DB
 
 	// [chatJID.User] = ChatMessage
 	chatListMap   misc.VMap[string, ChatMessage]
 	reactionCache misc.NMap[string, string, []string]
+	pttCache      map[string]pttCacheEntry
+	pttCacheMu    sync.RWMutex
 
 	stmtInsertMessage *sql.Stmt
 	stmtInsertMedia   *sql.Stmt
@@ -148,6 +160,7 @@ func NewMessageStore() (*MessageStore, error) {
 		db:            db,
 		chatListMap:   misc.NewVMap[string, ChatMessage](),
 		reactionCache: misc.NewNMap[string, string, []string](),
+		pttCache:      make(map[string]pttCacheEntry),
 		writeCh:       make(chan writeRequest, 100),
 		writerDone:    make(chan struct{}),
 	}
@@ -169,6 +182,9 @@ func NewMessageStore() (*MessageStore, error) {
 			return aerr
 		}
 		if _, aerr := tx.Exec(query.AddThumbnailColumn); aerr != nil && !strings.Contains(aerr.Error(), "duplicate column") {
+			return aerr
+		}
+		if _, aerr := tx.Exec(query.AddPTAColumns); aerr != nil && !strings.Contains(aerr.Error(), "duplicate column") {
 			return aerr
 		}
 		_, err = tx.Exec(query.CreatePinnedMessagesTable)
@@ -240,7 +256,18 @@ func NewMessageStore() (*MessageStore, error) {
 func (ms *MessageStore) runWriter() {
 	defer close(ms.writerDone)
 	for req := range ms.writeCh {
-		tx, err := ms.db.BeginTx(context.Background(), nil)
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					err := fmt.Errorf("PANIC in message store writer: %v", r)
+					log.Println(err)
+					if req.done != nil {
+						req.done <- err
+						close(req.done)
+					}
+				}
+			}()
+			tx, err := ms.db.BeginTx(context.Background(), nil)
 		if err == nil {
 			err = req.job(tx)
 			if err != nil {
@@ -258,6 +285,7 @@ func (ms *MessageStore) runWriter() {
 		} else if err != nil {
 			log.Println("asynchronous message-store write failed:", err)
 		}
+		}()
 	}
 }
 
@@ -308,7 +336,7 @@ func (ms *MessageStore) Close() error {
 
 // openDB opens a connection to messages.db
 func openDB() (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", misc.GetSQLiteAddress("messages.db"))
+	db, err := sql.Open("sqlite", misc.GetSQLiteAddress("messages.db"))
 	if err != nil {
 		return nil, err
 	}
@@ -652,6 +680,11 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 	// nil-safe and returns false for non-video messages.
 	gifPlayback := msg.GetVideoMessage().GetGifPlayback()
 
+	// PTA (Push-to-Audio / voice note) fields
+	ptt := msg.GetAudioMessage().GetPTT()
+	seconds := msg.GetAudioMessage().GetSeconds()
+	waveform := msg.GetAudioMessage().GetWaveform()
+
 	// Embedded preview thumbnail (WhatsApp ships a small JPEG in the message) so
 	// videos show a preview + play button in the list without downloading them.
 	var thumbnail []byte
@@ -732,8 +765,16 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 			fileName,
 			gifPlayback,
 			thumbnail,
+			ptt,
+			seconds,
+			waveform,
 		)
-		return err
+		if err != nil {
+			return err
+		}
+		// Also cache PTT data in-memory for immediate use by the frontend.
+		ms.CachePTT(info.ID, ptt, seconds, waveform)
+		return nil
 	})
 }
 
@@ -939,6 +980,7 @@ func (ms *MessageStore) GetMessageWithMediaByID(messageID string) (*ExtendedMess
 			url           sql.NullString
 			mimetype      sql.NullString
 			directPath    sql.NullString
+			fileName      sql.NullString
 			mediaKey      []byte
 			fileSHA256    []byte
 			fileEncSHA256 []byte
@@ -954,6 +996,7 @@ func (ms *MessageStore) GetMessageWithMediaByID(messageID string) (*ExtendedMess
 			&fileEncSHA256,
 			&width,
 			&height,
+			&fileName,
 		)
 		if err != nil {
 			return nil, err
@@ -1110,6 +1153,7 @@ func (ms *MessageStore) GetReactionsByMessageID(messageID string) ([]Reaction, e
 	underlying, mu = ms.reactionCache.GetMapWithMutex()
 	mu.Lock()
 	underlying[messageID] = cacheMap
+	ms.trimReactionCacheLocked(underlying)
 	mu.Unlock()
 	return reactions, nil
 }
@@ -1172,6 +1216,7 @@ func (ms *MessageStore) AddReactionToMessage(targetID, reaction, senderJID strin
 		inner = make(map[string][]string)
 		underlying[targetID] = inner
 	}
+	ms.trimReactionCacheLocked(underlying)
 	// Remove from all
 	for emoji, senders := range inner {
 		newSenders := make([]string, 0, len(senders))
@@ -1430,6 +1475,7 @@ func (ms *MessageStore) GetDecodedMessagesPaged(chatJID string, beforeTimestamp 
 			item.gif,
 			contextInfo,
 		)
+		ms.applyPTT(item.message.Info.ID, item.message.Content)
 		messages = append(messages, item.message)
 	}
 
@@ -1582,6 +1628,56 @@ func buildDecodedContentValues(
 	}
 
 	return content
+}
+
+const maxPTTCache = 500
+const maxReactionCache = 2000
+
+// trimReactionCacheLocked removes random entries when the reaction cache
+// exceeds maxReactionCache. Must be called while holding the reaction cache
+// write lock.
+func (ms *MessageStore) trimReactionCacheLocked(m map[string]map[string][]string) {
+	if len(m) < maxReactionCache {
+		return
+	}
+	target := maxReactionCache / 2
+	for k := range m {
+		delete(m, k)
+		if len(m) <= target {
+			break
+		}
+	}
+}
+
+// CachePTT stores PTA (voice note) metadata for a message so the frontend
+// can render voice notes with duration and waveform data.
+func (ms *MessageStore) CachePTT(messageID string, ptt bool, seconds uint32, waveform []byte) {
+	ms.pttCacheMu.Lock()
+	defer ms.pttCacheMu.Unlock()
+	if len(ms.pttCache) >= maxPTTCache {
+		for k := range ms.pttCache {
+			delete(ms.pttCache, k)
+			if len(ms.pttCache) <= maxPTTCache/2 {
+				break
+			}
+		}
+	}
+	ms.pttCache[messageID] = pttCacheEntry{ptt: ptt, seconds: seconds, waveform: waveform}
+}
+
+// applyPTT patches PTT metadata onto a DecodedMessageContent if available.
+func (ms *MessageStore) applyPTT(messageID string, content *DecodedMessageContent) {
+	ms.pttCacheMu.RLock()
+	entry, ok := ms.pttCache[messageID]
+	ms.pttCacheMu.RUnlock()
+	if !ok {
+		return
+	}
+	if content.AudioMessage != nil {
+		content.AudioMessage.PTT = entry.ptt
+		content.AudioMessage.Seconds = entry.seconds
+		content.AudioMessage.Waveform = entry.waveform
+	}
 }
 
 // mediaDimensions returns the stored intrinsic width/height for a media
@@ -1765,6 +1861,7 @@ func (ms *MessageStore) GetDecodedMessage(chatJID string, messageID string) (*De
 		gif.Bool,
 		contextInfo,
 	)
+	ms.applyPTT(messageID, msg.Content)
 
 	return &msg, nil
 }
@@ -1935,6 +2032,16 @@ func (ms *MessageStore) GetArchivedChats() map[string]int64 {
 	return archived
 }
 
+// DeleteChatMessages removes all messages for a chat JID from the database.
+func (ms *MessageStore) DeleteChatMessages(chatJID string) error {
+	_, err := ms.db.Exec(`DELETE FROM messages WHERE chat_jid = ?`, chatJID)
+	if err != nil {
+		return err
+	}
+	_, err = ms.db.Exec(`DELETE FROM chat_list WHERE jid = ?`, chatJID)
+	return err
+}
+
 // MarkMessageDeleted replaces a revoked message's content with a deleted
 // marker, mirroring WhatsApp's "This message was deleted".
 func (ms *MessageStore) MarkMessageDeleted(messageID string) error {
@@ -1942,4 +2049,102 @@ func (ms *MessageStore) MarkMessageDeleted(messageID string) error {
 		`UPDATE messages SET text = ?, has_media = 0 WHERE message_id = ?`,
 		`<i>🚫 This message was deleted</i>`, messageID)
 	return err
+}
+
+// MessageSearchResult holds a raw row from the search query.
+type MessageSearchResult struct {
+	ChatJID   string
+	MessageID string
+	SenderJID string
+	Timestamp int64
+	Text      string
+	IsFromMe  bool
+	HasMedia  bool
+	MediaType int
+	Edited    bool
+	Forwarded bool
+}
+
+// SearchMessages searches the messages table with optional filters.
+func (ms *MessageStore) SearchMessages(textQuery string, mediaTypeFilter string, senderFilter string, limit, offset int) ([]MessageSearchResult, error) {
+	q := query.SearchMessagesSelect
+	args := []any{textQuery}
+
+	if senderFilter != "" {
+		q += " AND m.sender_jid = ?"
+		args = append(args, senderFilter)
+	}
+
+	if mediaTypeFilter != "" {
+		switch mediaTypeFilter {
+		case "text":
+			q += " AND m.has_media = 0"
+		case "image":
+			q += " AND m.has_media = 1 AND mm.type = ?"
+			args = append(args, mtypes.MediaTypeImage)
+		case "video":
+			q += " AND m.has_media = 1 AND mm.type = ?"
+			args = append(args, mtypes.MediaTypeVideo)
+		case "audio":
+			q += " AND m.has_media = 1 AND mm.type = ?"
+			args = append(args, mtypes.MediaTypeAudio)
+		case "document":
+			q += " AND m.has_media = 1 AND mm.type = ?"
+			args = append(args, mtypes.MediaTypeDocument)
+		case "sticker":
+			q += " AND m.has_media = 1 AND mm.type = ?"
+			args = append(args, mtypes.MediaTypeSticker)
+		}
+	}
+
+	q += " ORDER BY m.timestamp DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := ms.db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []MessageSearchResult
+	for rows.Next() {
+		var (
+			r    MessageSearchResult
+			text sql.NullString
+		)
+		if err := rows.Scan(
+			&r.ChatJID, &r.MessageID, &r.SenderJID, &r.Timestamp,
+			&text, &r.IsFromMe, &r.HasMedia, &r.MediaType, &r.Edited, &r.Forwarded,
+		); err != nil {
+			return nil, err
+		}
+		r.Text = text.String
+		results = append(results, r)
+	}
+	return results, rows.Err()
+}
+
+// SearchSuggestions returns distinct chat JIDs whose messages match the query,
+// ordered by most recent message first.
+func (ms *MessageStore) SearchSuggestions(query string, limit int) ([]string, error) {
+	rows, err := ms.db.Query(`
+		SELECT chat_jid FROM messages
+		WHERE COALESCE(text, '') LIKE '%' || ? || '%'
+		GROUP BY chat_jid
+		ORDER BY MAX(timestamp) DESC
+		LIMIT ?`, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []string
+	for rows.Next() {
+		var jid string
+		if err := rows.Scan(&jid); err != nil {
+			return nil, err
+		}
+		out = append(out, jid)
+	}
+	return out, rows.Err()
 }
