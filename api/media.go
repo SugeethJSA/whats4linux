@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gen2brain/beeep"
 	"github.com/lugvitc/whats4linux/internal/store"
@@ -391,12 +393,17 @@ func (a *Api) DownloadImageToFile(messageID string) error {
 	}
 
 	beeep.Notify("whats4linux", "Downloaded: "+filePath, "")
-	go func() {
-		if _, err := exec.LookPath("mpg123"); err == nil {
-			exec.Command("mpg123", "./beep.mp3").Run()
-		}
-	}()
+	playBeep()
 	return nil
+}
+
+func playBeep() {
+	if _, err := exec.LookPath("mpg123"); err != nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_ = exec.CommandContext(ctx, "mpg123", "./beep.mp3").Run()
 }
 
 // DownloadMediaToFile downloads any media type (document, video, audio, image) to the filesystem.
@@ -441,10 +448,6 @@ func (a *Api) DownloadMediaToFile(messageID string) error {
 	}
 
 	beeep.Notify("whats4linux", "Downloaded: "+filePath, "")
-	go func() {
-		if _, err := exec.LookPath("mpg123"); err == nil {
-			exec.Command("mpg123", "./beep.mp3").Run()
-		}
-	}()
+	playBeep()
 	return nil
 }

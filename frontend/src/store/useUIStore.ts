@@ -1,11 +1,24 @@
 import { create } from "zustand"
 
+const STALE_TYPING_MS = 60_000
+const STALE_ONLINE_MS = 600_000
+
+interface TypingState {
+  isTyping: boolean
+  at: number
+}
+
+interface OnlineState {
+  isOnline: boolean
+  at: number
+}
+
 interface UIStore {
   sidebarOpen: boolean
   showEmojiPicker: boolean
   chatInfoOpen: boolean
-  typingIndicators: Record<string, boolean>
-  onlineStatus: Record<string, boolean>
+  typingIndicators: Record<string, TypingState>
+  onlineStatus: Record<string, OnlineState>
   notifications: Array<{ id: number; message: string }>
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
@@ -15,13 +28,14 @@ interface UIStore {
   setOnlineStatus: (userId: string, isOnline: boolean) => void
   addNotification: (message: string) => number
   removeNotification: (id: number) => void
+  evictStale: () => void
   lightboxSrc: string | null
   lightboxKind: "image" | "video"
   openLightbox: (src: string, kind?: "image" | "video") => void
   closeLightbox: () => void
 }
 
-export const useUIStore = create<UIStore>(set => ({
+export const useUIStore = create<UIStore>((set, get) => ({
   sidebarOpen: true,
   showEmojiPicker: false,
   chatInfoOpen: false,
@@ -40,19 +54,40 @@ export const useUIStore = create<UIStore>(set => ({
   setChatInfoOpen: open => set({ chatInfoOpen: open }),
 
   setTypingIndicator: (chatId, isTyping) =>
-    set(state => ({
-      typingIndicators: { ...state.typingIndicators, [chatId]: isTyping },
-    })),
+    set(state => {
+      const next = { ...state.typingIndicators }
+      if (isTyping) {
+        next[chatId] = { isTyping: true, at: Date.now() }
+      } else {
+        delete next[chatId]
+      }
+      return { typingIndicators: next }
+    }),
 
   setOnlineStatus: (userId, isOnline) =>
-    set(state => ({
-      onlineStatus: { ...state.onlineStatus, [userId]: isOnline },
-    })),
+    set(state => {
+      const next = { ...state.onlineStatus }
+      next[userId] = { isOnline, at: Date.now() }
+      return { onlineStatus: next }
+    }),
+
+  evictStale: () =>
+    set(state => {
+      const now = Date.now()
+      return {
+        typingIndicators: Object.fromEntries(
+          Object.entries(state.typingIndicators).filter(([, v]) => now - v.at < STALE_TYPING_MS),
+        ),
+        onlineStatus: Object.fromEntries(
+          Object.entries(state.onlineStatus).filter(([, v]) => now - v.at < STALE_ONLINE_MS),
+        ),
+      }
+    }),
 
   addNotification: message => {
     const id = Date.now()
     set(state => ({
-      notifications: [...state.notifications, { id, message }],
+      notifications: [...state.notifications, { id, message }].slice(-50),
     }))
     return id
   },

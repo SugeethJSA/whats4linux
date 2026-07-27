@@ -420,6 +420,7 @@ export function MessageItem({
   const hasMedia = !!(content?.imageMessage || content?.videoMessage)
 
   const isSystemMsg = !!(textContent && textContent.startsWith("[system]"))
+  const isCallLog = !!(textContent && textContent.startsWith("[call]"))
 
   // System messages render as centered indicator lines (no bubble).
   if (isSystemMsg) {
@@ -429,6 +430,28 @@ export function MessageItem({
         <span className="text-xs text-gray-500 dark:text-gray-400 italic text-center max-w-md select-none">
           {displayText}
         </span>
+      </div>
+    )
+  }
+
+  // Call log entries render as centered call history cards.
+  if (isCallLog) {
+    const raw = textContent.replace(/^\[call\]/, "").trim()
+    // Format: 📞[status] [mediaType] call[ · duration]
+    const body = raw.replace(/^📞|^📹/, "").trim()
+    const isMissed = body.startsWith("missed")
+    const durMatch = body.match(/·\s*(\d+:\d+)/)
+    const duration = durMatch ? durMatch[1] : ""
+    const isVideo = body.includes("video")
+
+    return (
+      <div className="flex justify-center my-1">
+        <div className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs select-none bg-black/20 dark:bg-white/5 border border-white/5">
+          <span className="text-base">{isVideo ? "📹" : "📞"}</span>
+          <span className="text-gray-300 font-medium">{isVideo ? "Video Call" : "Voice Call"}</span>
+          {duration && <span className="text-gray-500 font-mono">{duration}</span>}
+          {isMissed && <span className="text-red-400 font-medium">Missed</span>}
+        </div>
       </div>
     )
   }

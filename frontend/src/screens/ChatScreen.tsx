@@ -655,7 +655,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           return {
             id: c.jid || "",
             name: c.full_name || c.push_name || c.short || c.phno || "Unknown",
-            subtitle: c.latest_message || "",
+            subtitle: (c.latest_message || "").replace(/^\[call\].*?missed.*/, "📞 Missed call").replace(/^\[call\].*/, "📞 Call").replace(/^\[system\]/, ""),
             type: isGroup ? "group" : "contact",
             timestamp: c.LatestTS,
             avatar: avatar,

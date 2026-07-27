@@ -171,6 +171,12 @@ function App() {
     }
   }, [addNotification, removeNotification])
 
+  // Periodically evict stale entries from transient UI caches
+  useEffect(() => {
+    const id = setInterval(() => useUIStore.getState().evictStale(), 60_000)
+    return () => clearInterval(id)
+  }, [])
+
   return (
     <div className="min-h-screen bg-light-secondary text-light-text dark:bg-dark-bg dark:text-white relative">
       {historyProgress !== null && (
