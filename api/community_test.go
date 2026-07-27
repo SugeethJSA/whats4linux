@@ -8,7 +8,7 @@ import (
 	"github.com/lugvitc/whats4linux/internal/misc"
 	"github.com/lugvitc/whats4linux/internal/query"
 	"github.com/lugvitc/whats4linux/internal/wa"
-	_ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3"
 	"go.mau.fi/whatsmeow"
 )
 

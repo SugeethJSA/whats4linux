@@ -13,7 +13,7 @@ import (
 	"time"
 
 	query "github.com/lugvitc/whats4linux/internal/query"
-	_ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type ImageCache struct {

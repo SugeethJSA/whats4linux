@@ -13,7 +13,7 @@ var ConfigDir = defaultConfigDir()
 
 func GetSQLiteAddress(dbName string) string {
 	path := filepath.Join(ConfigDir, dbName)
-	return fmt.Sprintf("file:%s?_pragma=foreign_keys(1)", path)
+	return fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_busy_timeout=5000", path)
 }
 
 func defaultConfigDir() string {

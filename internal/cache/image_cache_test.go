@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/lugvitc/whats4linux/internal/query"
-	_ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func TestImageCacheEvictsOldFilesToSizeLimit(t *testing.T) {
