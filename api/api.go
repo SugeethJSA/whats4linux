@@ -770,7 +770,7 @@ func (a *Api) handleGroupInfoEvent(v *events.GroupInfo) {
 		msgID := fmt.Sprintf("system_%s_%d", groupJID, now+seq)
 		seq++
 		if err := a.messageStore.InsertSystemMessage(groupJID, msgID, text, ts); err != nil {
-			a.logcatLog(logcat.LevelWarn, "groups", "Failed to store system message: %v", err)
+			slog.Warn(fmt.Sprintf("Failed to store system message: %v", err), "source", "groups")
 		}
 		changed = true
 	}
@@ -873,7 +873,7 @@ func (a *Api) handlePollVoteEvent(v *events.Message) {
 	text := "[system]🗳️ " + senderName + " voted"
 	msgID := fmt.Sprintf("pollvote_%s_%s", chat, v.Info.ID)
 	if err := a.messageStore.InsertSystemMessage(chat, msgID, text, v.Info.Timestamp.Unix()); err != nil {
-		a.logcatLog(logcat.LevelWarn, "polls", "Failed to store poll vote system message: %v", err)
+		slog.Warn(fmt.Sprintf("Failed to store poll vote system message: %v", err), "source", "polls")
 	}
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 }
@@ -932,6 +932,6 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 		"processedMessages":     stored,
 		"done":                  true,
 	})
-	a.logcatLog(logcat.LevelInfo, "history", "Stored %d messages from %d conversations", stored, len(conversations))
+	slog.Info(fmt.Sprintf("Stored %d messages from %d conversations", stored, len(conversations)), "source", "history")
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 }

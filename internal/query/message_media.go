@@ -30,10 +30,16 @@ const (
 	ALTER TABLE message_media ADD COLUMN thumbnail BLOB;
 	`
 
+	AddPTAColumns = `
+	ALTER TABLE message_media ADD COLUMN ptt INTEGER DEFAULT 0;
+	ALTER TABLE message_media ADD COLUMN seconds INTEGER DEFAULT 0;
+	ALTER TABLE message_media ADD COLUMN waveform BLOB;
+	`
+
 	InsertMessageMedia = `
 	INSERT OR REPLACE INTO message_media
-	(message_id, type, url, mimetype, direct_path, media_key, file_sha256, file_enc_sha256, width, height, file_name, gif_playback, thumbnail)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+	(message_id, type, url, mimetype, direct_path, media_key, file_sha256, file_enc_sha256, width, height, file_name, gif_playback, thumbnail, ptt, seconds, waveform)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 	`
 
 	SelectGifPlaybackByMessageID = `

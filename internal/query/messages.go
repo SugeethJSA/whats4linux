@@ -166,4 +166,11 @@ const (
 	SET chat_jid = ?
 	WHERE chat_jid = ?;
 	`
+
+	SearchMessagesSelect = `
+	SELECT m.chat_jid, m.message_id, m.sender_jid, m.timestamp, m.text, m.is_from_me, m.has_media, COALESCE(mm.type, 0), m.edited, m.forwarded
+	FROM messages m
+	LEFT JOIN message_media mm ON mm.message_id = m.message_id
+	WHERE COALESCE(m.text, '') LIKE '%' || ? || '%'
+	`
 )
