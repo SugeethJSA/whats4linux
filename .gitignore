@@ -15,4 +15,5 @@ result
 .pkg-config-wrapped
 .wails-wrapped
 *.AppImage
+*.exe
 whats4linux.exe

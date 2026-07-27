@@ -1930,6 +1930,11 @@ func (ms *MessageStore) GetArchivedChats() map[string]int64 {
 
 // MarkMessageDeleted replaces a revoked message's content with a deleted
 // marker, mirroring WhatsApp's "This message was deleted".
+func (ms *MessageStore) DeleteChatMessages(chatJID string) error {
+	_, err := ms.db.Exec(`DELETE FROM messages WHERE chat_jid = ?`, chatJID)
+	return err
+}
+
 func (ms *MessageStore) MarkMessageDeleted(messageID string) error {
 	_, err := ms.db.Exec(
 		`UPDATE messages SET text = ?, has_media = 0 WHERE message_id = ?`,
