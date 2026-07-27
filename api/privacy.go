@@ -3,9 +3,9 @@ package api
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"time"
 
-	"github.com/lugvitc/whats4linux/internal/logcat"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
@@ -56,11 +56,10 @@ func (a *Api) SetPrivacySetting(settingType, value string) error {
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "privacy", "Set %s → %s", settingType, value)
+	slog.Info(fmt.Sprintf("Set %s → %s", settingType, value), "source", "privacy")
 	return nil
 }
 
-// GetBlockList returns all blocked contacts.
 func (a *Api) GetBlockList() ([]BlockedContact, error) {
 	if a.waClient.Store.ID == nil {
 		return nil, fmt.Errorf("not logged in")
@@ -84,8 +83,6 @@ func (a *Api) GetBlockList() ([]BlockedContact, error) {
 	return result, nil
 }
 
-// BlockContact blocks a contact by JID. The change is synced to other
-// devices via IQ.
 func (a *Api) BlockContact(jidStr string) error {
 	if a.waClient.Store.ID == nil {
 		return fmt.Errorf("not logged in")
@@ -98,11 +95,10 @@ func (a *Api) BlockContact(jidStr string) error {
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "contacts", "Blocked %s", jid)
+	slog.Info(fmt.Sprintf("Blocked %s", jid), "source", "contacts")
 	return nil
 }
 
-// UnblockContact unblocks a previously blocked contact.
 func (a *Api) UnblockContact(jidStr string) error {
 	if a.waClient.Store.ID == nil {
 		return fmt.Errorf("not logged in")
@@ -115,12 +111,10 @@ func (a *Api) UnblockContact(jidStr string) error {
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "contacts", "Unblocked %s", jid)
+	slog.Info(fmt.Sprintf("Unblocked %s", jid), "source", "contacts")
 	return nil
 }
 
-// SetDisappearingTimer sets the disappearing-message timer for a chat.
-// timer: 0 (off), 86400 (24h), 604800 (7d), 7776000 (90d)
 func (a *Api) SetDisappearingTimer(chatJID string, timerSeconds int64) error {
 	if a.waClient.Store.ID == nil {
 		return fmt.Errorf("not logged in")
@@ -134,7 +128,7 @@ func (a *Api) SetDisappearingTimer(chatJID string, timerSeconds int64) error {
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "chats", "Set disappearing timer for %s to %ds", chatJID, timerSeconds)
+	slog.Info(fmt.Sprintf("Set disappearing timer for %s to %ds", chatJID, timerSeconds), "source", "chats")
 	return nil
 }
 

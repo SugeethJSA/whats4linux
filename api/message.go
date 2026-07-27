@@ -4,10 +4,10 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"log/slog"
 	"strings"
 	"time"
 
-	"github.com/lugvitc/whats4linux/internal/logcat"
 	"github.com/lugvitc/whats4linux/internal/markdown"
 	"github.com/lugvitc/whats4linux/internal/store"
 	mtypes "github.com/lugvitc/whats4linux/internal/types"
@@ -910,7 +910,7 @@ func (a *Api) SendLocation(chatJID string, latitude, longitude float64, name str
 		return "", err
 	}
 	msgID := resp.ID
-	a.logcatLog(logcat.LevelInfo, "messages", "Sent location to %s (%.4f, %.4f) id=%s", chatJID, latitude, longitude, msgID)
+	slog.Info(fmt.Sprintf("Sent location to %s (%.4f, %.4f) id=%s", chatJID, latitude, longitude, msgID), "source", "messages")
 	return msgID, nil
 }
 

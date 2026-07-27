@@ -3,9 +3,9 @@ package api
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"strings"
 
-	"github.com/lugvitc/whats4linux/internal/logcat"
 	"github.com/lugvitc/whats4linux/internal/wa"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
@@ -121,7 +121,7 @@ func (a *Api) CreateGroup(name string, participantJIDs []string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	a.logcatLog(logcat.LevelInfo, "groups", "Created group %s (%s)", groupInfo.GroupName.Name, groupInfo.JID)
+	slog.Info(fmt.Sprintf("Created group %s (%s)", groupInfo.GroupName.Name, groupInfo.JID), "source", "groups")
 	return groupInfo.JID.String(), nil
 }
 
@@ -157,7 +157,7 @@ func (a *Api) updateParticipants(groupJID string, participantJIDs []string, acti
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "groups", "%s %d participants in %s", action, len(jids), groupJID)
+	slog.Info(fmt.Sprintf("%s %d participants in %s", action, len(jids), groupJID), "source", "groups")
 	return nil
 }
 
@@ -182,7 +182,7 @@ func (a *Api) LeaveGroup(groupJID string) error {
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "groups", "Left group %s", groupJID)
+	slog.Info(fmt.Sprintf("Left group %s", groupJID), "source", "groups")
 	return nil
 }
 
