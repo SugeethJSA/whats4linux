@@ -203,7 +203,15 @@ func (a *Api) reconnectLoop() {
 			return
 		}
 		slog.Info(fmt.Sprintf("Attempt %d/8...", i+1), "source", "reconnect")
-		if err := a.waClient.Connect(); err != nil {
+		a.loginMu.Lock()
+		client := a.waClient
+		if client == nil {
+			a.loginMu.Unlock()
+			return
+		}
+		err := client.Connect()
+		a.loginMu.Unlock()
+		if err != nil {
 			slog.Warn(fmt.Sprintf("Attempt %d failed: %v", i+1, err), "source", "reconnect")
 			if backoff < maxBackoff {
 				backoff = time.Duration(float64(backoff) * 1.5)
@@ -348,6 +356,7 @@ func (a *Api) Shutdown(ctx context.Context) {
 
 func (a *Api) closeResources() error {
 	var closeErr error
+	a.cleanupMeowcaller()
 	if a.us != nil {
 		_ = a.us.SendCommand("shutdown")
 		closeErr = errors.Join(closeErr, a.us.Close())
@@ -436,7 +445,11 @@ func (a *Api) Startup(ctx context.Context) {
 		a.failStartup(fmt.Errorf("upgrade WhatsApp session database: %w", err))
 		return
 	}
-	a.waClient = wa.NewClient(ctx, container)
+	a.waClient, err = wa.NewClient(ctx, container)
+	if err != nil {
+		a.failStartup(fmt.Errorf("create WhatsApp client: %w", err))
+		return
+	}
 	a.messageStore, err = store.NewMessageStore()
 	if err != nil {
 		a.failStartup(fmt.Errorf("open message store: %w", err))
@@ -615,6 +628,55 @@ func (a *Api) mainEventHandler(evt any) {
 
 		runtime.EventsEmit(a.ctx, "wa:picture_update", v.JID.String())
 
+	case *events.Blocklist:
+		a.handleBlocklistEvent(v)
+
+	case *events.PrivacySettings:
+		runtime.EventsEmit(a.ctx, "wa:privacy_settings_changed", map[string]any{
+			"groupAddChanged":     v.GroupAddChanged,
+			"lastSeenChanged":     v.LastSeenChanged,
+			"statusChanged":       v.StatusChanged,
+			"profileChanged":      v.ProfileChanged,
+			"readReceiptsChanged": v.ReadReceiptsChanged,
+			"onlineChanged":       v.OnlineChanged,
+			"callAddChanged":      v.CallAddChanged,
+		})
+
+	case *events.JoinedGroup:
+		slog.Info(fmt.Sprintf("Joined group %s (%s)", v.GroupInfo.Name, v.JID), "source", "groups")
+		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+
+	case *events.LabelEdit:
+		runtime.EventsEmit(a.ctx, "wa:label_edit", map[string]any{
+			"labelId": v.LabelID,
+		})
+
+	case *events.LabelAssociationChat:
+		runtime.EventsEmit(a.ctx, "wa:label_chat", map[string]any{
+			"jid":     v.JID.String(),
+			"labelId": v.LabelID,
+		})
+
+	case *events.LabelAssociationMessage:
+		runtime.EventsEmit(a.ctx, "wa:label_message", map[string]any{
+			"jid":       v.JID.String(),
+			"labelId":   v.LabelID,
+			"messageId": v.MessageID,
+		})
+
+	case *events.NewsletterJoin:
+		runtime.EventsEmit(a.ctx, "wa:newsletter_joined", v.ID.String())
+		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+
+	case *events.NewsletterLeave:
+		runtime.EventsEmit(a.ctx, "wa:newsletter_left", v.ID.String())
+		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+
+	case *events.NewsletterLiveUpdate:
+		runtime.EventsEmit(a.ctx, "wa:newsletter_update", map[string]any{
+			"jid": v.JID.String(),
+		})
+
 	case *events.Mute:
 		// Emitted for mutes set on other devices (e.g. the phone), including
 		// during app-state full sync. Persist so notifications stay quiet.
@@ -668,7 +730,6 @@ func (a *Api) mainEventHandler(evt any) {
 		}
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 	case *events.Disconnected:
-		a.waClient.SendPresence(a.ctx, types.PresenceUnavailable)
 		if !a.isShuttingDown() {
 			a.emitError("Disconnected from WhatsApp — reconnecting...")
 			a.startBackground(a.reconnectLoop)
@@ -757,13 +818,12 @@ func formatEphemeralTimer(secs uint32) string {
 func (a *Api) handleGroupInfoEvent(v *events.GroupInfo) {
 	groupJID := v.JID.String()
 	ts := v.Timestamp.Unix()
-	now := time.Now().UnixMilli()
-	seq := int64(0)
+	now := time.Now().UnixNano()
 	changed := false
 
 	ins := func(text string) {
-		msgID := fmt.Sprintf("system_%s_%d", groupJID, now+seq)
-		seq++
+		msgID := fmt.Sprintf("system_%s_%d", groupJID, now)
+		now++
 		if err := a.messageStore.InsertSystemMessage(groupJID, msgID, text, ts); err != nil {
 			slog.Warn(fmt.Sprintf("Failed to store system message: %v", err), "source", "groups")
 		}
@@ -859,18 +919,6 @@ func (a *Api) handleGroupInfoEvent(v *events.GroupInfo) {
 	if changed {
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 	}
-}
-
-// handlePollVoteEvent creates a system message when someone votes in a poll.
-func (a *Api) handlePollVoteEvent(v *events.Message) {
-	chat := v.Info.Chat.String()
-	senderName := a.contactNameForJID(v.Info.Sender)
-	text := "[system]🗳️ " + senderName + " voted"
-	msgID := fmt.Sprintf("pollvote_%s_%s", chat, v.Info.ID)
-	if err := a.messageStore.InsertSystemMessage(chat, msgID, text, v.Info.Timestamp.Unix()); err != nil {
-		slog.Warn(fmt.Sprintf("Failed to store poll vote system message: %v", err), "source", "polls")
-	}
-	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 }
 
 // processHistorySync stores the messages contained in a whatsmeow HistorySync

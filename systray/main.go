@@ -14,6 +14,10 @@ import (
 var conn net.Conn
 var mu sync.Mutex
 
+// quitCh is closed when the systray should shut down, signalling all
+// background goroutines to exit cleanly.
+var quitCh = make(chan struct{})
+
 // notifStateCh carries notification-switch states pushed by the main app so
 // the checkbox can be updated once the menu is ready. Buffered so states
 // received before the menu exists aren't lost.
@@ -83,6 +87,9 @@ func pushNotifState(enabled bool) {
 func sendCommand(cmd string) {
 	mu.Lock()
 	defer mu.Unlock()
+	if conn == nil {
+		return
+	}
 	_, err := conn.Write([]byte(cmd + "\n"))
 	if err != nil {
 		fmt.Println("Error sending command to Whats4Linux:", err)
@@ -98,14 +105,19 @@ func main() {
 			os.Exit(0)
 			return
 		}
-		// Ask for the current notification switch so the checkbox starts in
-		// the right state.
 		sendCommand("get_notifications_state")
-		if err := readCommands(); err != nil {
-			fmt.Println("Error reading commands from Whats4Linux:", err)
-			os.Exit(0)
-			return
+		done := make(chan struct{})
+		go func() {
+			if err := readCommands(); err != nil {
+				fmt.Println("Error reading commands from Whats4Linux:", err)
+			}
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-quitCh:
 		}
+		os.Exit(0)
 	}()
 	systray.Run(func() {
 		systray.SetTemplateIcon(icon, icon)
@@ -113,9 +125,13 @@ func main() {
 		systray.SetTooltip("Lantern")
 		mQuitOrig := systray.AddMenuItem("Quit", "Quit the whole app")
 		go func() {
-			<-mQuitOrig.ClickedCh
-			fmt.Println("Requesting quit")
-			sendCommand("quit")
+			select {
+			case <-mQuitOrig.ClickedCh:
+				fmt.Println("Requesting quit")
+				sendCommand("quit")
+			case <-quitCh:
+				return
+			}
 			systray.Quit()
 			fmt.Println("Finished quitting")
 		}()
@@ -125,32 +141,46 @@ func main() {
 		mHide = systray.AddMenuItem("Hide", "Hide whats4linux window")
 		go func() {
 			for {
-				<-mHide.ClickedCh
-				mShow.Show()
-				mHide.Hide()
-				sendCommand("hide")
+				select {
+				case <-mHide.ClickedCh:
+					mShow.Show()
+					mHide.Hide()
+					sendCommand("hide")
+				case <-quitCh:
+					return
+				}
 			}
 		}()
 		go func() {
 			for {
-				<-mShow.ClickedCh
-				mHide.Show()
-				mShow.Hide()
-				sendCommand("show")
+				select {
+				case <-mShow.ClickedCh:
+					mHide.Show()
+					mShow.Hide()
+					sendCommand("show")
+				case <-quitCh:
+					return
+				}
 			}
 		}()
-		// Checkbox mirroring the app's global notification switch. The app is
-		// authoritative: clicking sends a toggle and the app replies with the
-		// new state, which checks/unchecks the item.
 		mNotifs := systray.AddMenuItemCheckbox("Notifications", "Enable or disable desktop notifications", true)
 		go func() {
 			for {
-				<-mNotifs.ClickedCh
-				sendCommand("toggle_notifications")
+				select {
+				case <-mNotifs.ClickedCh:
+					sendCommand("toggle_notifications")
+				case <-quitCh:
+					return
+				}
 			}
 		}()
 		go func() {
 			for enabled := range notifStateCh {
+				select {
+				case <-quitCh:
+					return
+				default:
+				}
 				if enabled {
 					mNotifs.Check()
 				} else {
@@ -158,5 +188,8 @@ func main() {
 				}
 			}
 		}()
-	}, func() {})
+	}, func() {
+		sendCommand("shutdown")
+		close(quitCh)
+	})
 }

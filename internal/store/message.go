@@ -269,12 +269,9 @@ func (ms *MessageStore) runWriter() {
 			}()
 			tx, err := ms.db.BeginTx(context.Background(), nil)
 		if err == nil {
+			defer tx.Rollback()
 			err = req.job(tx)
-			if err != nil {
-				if rollbackErr := tx.Rollback(); rollbackErr != nil {
-					err = errors.Join(err, rollbackErr)
-				}
-			} else {
+			if err == nil {
 				err = tx.Commit()
 			}
 		}

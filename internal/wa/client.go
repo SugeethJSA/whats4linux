@@ -2,6 +2,7 @@ package wa
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/lugvitc/whats4linux/internal/settings"
 	_ "github.com/mattn/go-sqlite3"
@@ -10,16 +11,13 @@ import (
 	waLog "go.mau.fi/whatsmeow/util/log"
 )
 
-func NewClient(ctx context.Context, container *sqlstore.Container) *whatsmeow.Client {
+func NewClient(ctx context.Context, container *sqlstore.Container) (*whatsmeow.Client, error) {
 	deviceStore, err := container.GetFirstDevice(ctx)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("get device store: %w", err)
 	}
 	clientLog := waLog.Stdout("Client", settings.GetLogLevel(), true)
 	cli := whatsmeow.NewClient(deviceStore, clientLog)
-	// Without this, a full app state sync applies patches but dispatches NO
-	// events (whatsmeow drops them unless the flag is set), so archive/pin/
-	// mute state synced from the phone would never reach our handlers.
 	cli.EmitAppStateEventsOnFullSync = true
-	return cli
+	return cli, nil
 }

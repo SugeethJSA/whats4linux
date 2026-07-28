@@ -39,6 +39,8 @@ func (a *Api) PairPhone(phone string) (string, error) {
 }
 
 func (a *Api) Logout() error {
+	a.loginMu.Lock()
+	defer a.loginMu.Unlock()
 	if a.waClient.Store.ID == nil {
 		return fmt.Errorf("not logged in")
 	}
