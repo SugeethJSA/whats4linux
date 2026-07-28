@@ -2,9 +2,9 @@ package api
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
-	"github.com/lugvitc/whats4linux/internal/logcat"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"go.mau.fi/whatsmeow"
 )
@@ -30,29 +30,25 @@ func (a *Api) PairPhone(phone string) (string, error) {
 	}
 	code, err := a.waClient.PairPhone(a.ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Windows)")
 	if err != nil {
-		a.logcatLog(logcat.LevelError, "auth", "PairPhone failed for %s: %v", phone, err)
+		slog.Error(fmt.Sprintf("PairPhone failed for %s: %v", phone, err), "source", "auth")
 		return "", fmt.Errorf("pairing failed: %w", err)
 	}
-	a.logcatLog(logcat.LevelInfo, "auth", "PairPhone code generated for %s", phone)
+	slog.Info(fmt.Sprintf("PairPhone code generated for %s", phone), "source", "auth")
 	runtime.EventsEmit(a.ctx, "wa:status", string(code))
 	return code, nil
 }
 
-// Logout disconnects the client, clears the stored credentials, and
-// disposes the session so a fresh login (QR or pairing) is required.
 func (a *Api) Logout() error {
 	if a.waClient.Store.ID == nil {
 		return fmt.Errorf("not logged in")
 	}
-	a.logcatLog(logcat.LevelInfo, "auth", "Logging out")
-	// Disconnect first so the server sees a clean departure.
+	slog.Info("Logging out", "source", "auth")
 	a.waClient.Disconnect()
-	// Delete the stored session (Store.ID + credentials).
 	if err := a.waClient.Store.Delete(a.ctx); err != nil {
-		a.logcatLog(logcat.LevelError, "auth", "Logout Delete failed: %v", err)
+		slog.Error(fmt.Sprintf("Logout Delete failed: %v", err), "source", "auth")
 		return fmt.Errorf("logout delete failed: %w", err)
 	}
-	a.logcatLog(logcat.LevelInfo, "auth", "Logged out successfully")
+	slog.Info("Logged out successfully", "source", "auth")
 	runtime.EventsEmit(a.ctx, "wa:status", "logged_out")
 	return nil
 }

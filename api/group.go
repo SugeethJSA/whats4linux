@@ -4,9 +4,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"log/slog"
 	"strings"
 
-	"github.com/lugvitc/whats4linux/internal/logcat"
 	"github.com/lugvitc/whats4linux/internal/wa"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
@@ -122,7 +122,7 @@ func (a *Api) CreateGroup(name string, participantJIDs []string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	a.logcatLog(logcat.LevelInfo, "groups", "Created group %s (%s)", groupInfo.GroupName.Name, groupInfo.JID)
+	slog.Info(fmt.Sprintf("Created group %s (%s)", groupInfo.GroupName.Name, groupInfo.JID), "source", "groups")
 	return groupInfo.JID.String(), nil
 }
 
@@ -158,7 +158,7 @@ func (a *Api) updateParticipants(groupJID string, participantJIDs []string, acti
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "groups", "%s %d participants in %s", action, len(jids), groupJID)
+	slog.Info(fmt.Sprintf("%s %d participants in %s", action, len(jids), groupJID), "source", "groups")
 	return nil
 }
 
@@ -183,7 +183,7 @@ func (a *Api) SetGroupPhoto(groupJID, base64Data string) error {
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "groups", "Set group photo for %s", groupJID)
+	slog.Info(fmt.Sprintf("Set group photo for %s", groupJID), "source", "groups")
 	return nil
 }
 
@@ -196,7 +196,7 @@ func (a *Api) LeaveGroup(groupJID string) error {
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "groups", "Left group %s", groupJID)
+	slog.Info(fmt.Sprintf("Left group %s", groupJID), "source", "groups")
 	return nil
 }
 
@@ -209,7 +209,7 @@ func (a *Api) AcceptGroupInviteLink(inviteCode string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("join group with link: %w", err)
 	}
-	a.logcatLog(logcat.LevelInfo, "groups", "Joined group %s (%s)", info.GroupName.Name, jid)
+	slog.Info(fmt.Sprintf("Joined group %s (%s)", info.GroupName.Name, jid), "source", "groups")
 	return jid.String(), nil
 }
 
@@ -256,11 +256,11 @@ func (a *Api) CreateCommunity(name, description string) (string, error) {
 		jid, parseErr := types.ParseJID(groupInfo.JID.String())
 		if parseErr == nil {
 			if descErr := a.waClient.SetGroupDescription(a.ctx, jid, description); descErr != nil {
-				a.logcatLog(logcat.LevelWarn, "communities", "Failed to set community description: %v", descErr)
+				slog.Warn(fmt.Sprintf("Failed to set community description: %v", descErr), "source", "communities")
 			}
 		}
 	}
-	a.logcatLog(logcat.LevelInfo, "communities", "Created community %s (%s)", name, groupInfo.JID)
+	slog.Info(fmt.Sprintf("Created community %s (%s)", name, groupInfo.JID), "source", "communities")
 	return groupInfo.JID.String(), nil
 }
 
@@ -288,6 +288,6 @@ func (a *Api) CreateCommunitySubGroup(parentJID, name string, participantJIDs []
 	if err != nil {
 		return "", err
 	}
-	a.logcatLog(logcat.LevelInfo, "communities", "Created subgroup %s (%s) in %s", name, groupInfo.JID, parentJID)
+	slog.Info(fmt.Sprintf("Created subgroup %s (%s) in %s", name, groupInfo.JID, parentJID), "source", "communities")
 	return groupInfo.JID.String(), nil
 }

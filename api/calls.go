@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"time"
 
-	"github.com/lugvitc/whats4linux/internal/logcat"
 	"github.com/purpshell/meowcaller"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -242,7 +242,7 @@ func (a *Api) insertCallLog(ac *ActiveCall) {
 	chatJID := ac.PeerJID
 
 	if err := a.messageStore.InsertSystemMessage(chatJID, msgID, text, ac.StartTime.Unix()); err != nil {
-		a.logcatLog(logcat.LevelWarn, "calls", "Failed to store call log: %v", err)
+		slog.Warn(fmt.Sprintf("Failed to store call log: %v", err), "source", "calls")
 	}
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 }

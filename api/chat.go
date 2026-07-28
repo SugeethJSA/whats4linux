@@ -3,11 +3,11 @@ package api
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"time"
 
 	"github.com/nyaruka/phonenumbers"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
-	"github.com/lugvitc/whats4linux/internal/logcat"
 	"go.mau.fi/whatsmeow/appstate"
 	"go.mau.fi/whatsmeow/types"
 )
@@ -221,7 +221,7 @@ func (a *Api) SubscribeNewsletter(newsletterJID string) error {
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "channels", "Subscribed to newsletter %s", newsletterJID)
+	slog.Info(fmt.Sprintf("Subscribed to newsletter %s", newsletterJID), "source", "channels")
 	return nil
 }
 
@@ -237,7 +237,7 @@ func (a *Api) UnsubscribeNewsletter(newsletterJID string) error {
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "channels", "Unsubscribed from newsletter %s", newsletterJID)
+	slog.Info(fmt.Sprintf("Unsubscribed from newsletter %s", newsletterJID), "source", "channels")
 	return nil
 }
 

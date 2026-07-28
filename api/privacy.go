@@ -3,9 +3,9 @@ package api
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"time"
 
-	"github.com/lugvitc/whats4linux/internal/logcat"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
@@ -56,7 +56,7 @@ func (a *Api) SetPrivacySetting(settingType, value string) error {
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "privacy", "Set %s → %s", settingType, value)
+	slog.Info(fmt.Sprintf("Set %s → %s", settingType, value), "source", "privacy")
 	return nil
 }
 
@@ -98,7 +98,7 @@ func (a *Api) BlockContact(jidStr string) error {
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "contacts", "Blocked %s", jid)
+	slog.Info(fmt.Sprintf("Blocked %s", jid), "source", "contacts")
 	return nil
 }
 
@@ -115,7 +115,7 @@ func (a *Api) UnblockContact(jidStr string) error {
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "contacts", "Unblocked %s", jid)
+	slog.Info(fmt.Sprintf("Unblocked %s", jid), "source", "contacts")
 	return nil
 }
 
@@ -134,7 +134,7 @@ func (a *Api) SetDisappearingTimer(chatJID string, timerSeconds int64) error {
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "chats", "Set disappearing timer for %s to %ds", chatJID, timerSeconds)
+	slog.Info(fmt.Sprintf("Set disappearing timer for %s to %ds", chatJID, timerSeconds), "source", "chats")
 	return nil
 }
 
@@ -166,7 +166,7 @@ func (a *Api) SetStatusPrivacy(value string) error {
 	if err != nil {
 		return err
 	}
-	a.logcatLog(logcat.LevelInfo, "privacy", "Set status privacy → %s", value)
+	slog.Info(fmt.Sprintf("Set status privacy → %s", value), "source", "privacy")
 	return nil
 }
 
