@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect, useLayoutEffect } from "react"
 import { createPortal } from "react-dom"
 import { ReplyIcon, CopyIcon, ReactIcon, EditIcon, DeleteIcon, MenuArrowIcon, ForwardIcon } from "../../assets/svgs/message_menu_icons"
+import { ToggleMessageLabel } from "../../../wailsjs/go/api/Api"
 
 interface MessageMenuProps {
   messageId: string
+  chatId: string
   isFromMe: boolean
   isPinned?: boolean
   onReply?: () => void
@@ -117,6 +119,27 @@ export function MessageMenu({
     }
   }, [isMenuOpen])
 
+  const [labelOpen, setLabelOpen] = useState(false)
+  const [labelId, setLabelId] = useState("")
+
+  const handleLabel = async () => {
+    if (!labelId.trim()) return
+    try {
+      await ToggleMessageLabel(chatId, messageId, labelId.trim(), true)
+    } catch (err) {
+      console.error("Failed to label message:", err)
+    }
+    setLabelOpen(false)
+    setLabelId("")
+    closeMenu()
+  }
+
+  const labelIcon = () => (
+    <svg viewBox="0 0 24 24" width="18" height="18" className="fill-current">
+      <path d="M17.63 5.84C17.27 5.33 16.67 5 16 5H5C3.9 5 3 5.9 3 7v10c0 1.1.9 2 2 2h11c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z" />
+    </svg>
+  )
+
   const handleMenuItemClick = (callback?: () => void) => {
     callback?.()
     closeMenu()
@@ -196,6 +219,32 @@ export function MessageMenu({
                 <ForwardIcon />
                 <span>Forward</span>
               </button>
+            )}
+            <button
+              onClick={() => { setLabelOpen(!labelOpen); setLabelId("") }}
+              className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
+            >
+              {labelIcon()}
+              <span>Label</span>
+            </button>
+            {labelOpen && (
+              <div className="px-4 pb-2 flex gap-2">
+                <input
+                  autoFocus
+                  className="flex-1 rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-2 py-1 text-xs outline-none focus:border-[#21c063] text-light-text dark:text-dark-text"
+                  value={labelId}
+                  onChange={e => setLabelId(e.target.value)}
+                  placeholder="Label ID"
+                  onKeyDown={e => e.key === "Enter" && handleLabel()}
+                />
+                <button
+                  onClick={handleLabel}
+                  disabled={!labelId.trim()}
+                  className="rounded-lg bg-[#21c063] px-2 py-1 text-xs font-medium text-[#0a1014] disabled:opacity-50"
+                >
+                  Add
+                </button>
+              </div>
             )}
             {onDelete && (
               <button

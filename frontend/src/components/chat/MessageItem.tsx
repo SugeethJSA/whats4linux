@@ -7,6 +7,7 @@ import {
   RevokeMessage,
   DeleteForMe,
   SendReaction,
+  NewsletterSendReaction,
   SetMessagePinned,
   AcceptGroupInviteLink,
 } from "../../../wailsjs/go/api/Api"
@@ -17,6 +18,7 @@ import { LinkPreview } from "./LinkPreview"
 import clsx from "clsx"
 import { MessageMenu } from "./MessageMenu"
 import { ForwardDialog } from "./ForwardDialog"
+import { PollVoteDialog } from "./PollVoteDialog"
 import {
   ClockPendingIcon,
   BlueTickIcon,
@@ -153,12 +155,14 @@ export function MessageItem({
   const myReaction = (reactions as any[]).find(r => isMe(r.sender_id))?.emoji as string | undefined
 
   const sendReaction = (emoji: string) => {
-    // Tapping the emoji you already reacted with removes it (WhatsApp behaviour).
     const finalEmoji = myReaction === emoji ? "" : emoji
-    // For our own messages the reaction key's sender is us (empty -> backend
-    // fills in own JID); for received messages it's the original sender.
-    const senderJID = isFromMe ? "" : message.Info.Sender
-    SendReaction(chatId, senderJID, message.Info.ID, finalEmoji).catch(() => {})
+    if (chatId.endsWith("@newsletter")) {
+      const serverID = parseInt(message.Info.ID, 10) || 0
+      NewsletterSendReaction(chatId, serverID, finalEmoji).catch(() => {})
+    } else {
+      const senderJID = isFromMe ? "" : message.Info.Sender
+      SendReaction(chatId, senderJID, message.Info.ID, finalEmoji).catch(() => {})
+    }
     addReactionToMessage(chatId, message.Info.ID, finalEmoji, "me")
     setShowReactionPicker(false)
     setShowFullEmoji(false)
@@ -200,6 +204,7 @@ export function MessageItem({
 
   const [forwardTarget, setForwardTarget] = useState<string | null>(null)
   const handleForward = () => setForwardTarget(message.Info.ID)
+  const [pollVoteOpen, setPollVoteOpen] = useState(false)
 
   const INVITE_LINK_RE = /chat\.whatsapp\.com\/([A-Za-z0-9_-]+)/
   const [joinBusy, setJoinBusy] = useState(false)
@@ -334,6 +339,25 @@ export function MessageItem({
                 <span className="text-xs text-red-500">{joinError}</span>
               )}
             </div>
+          )}
+          {htmlContent.includes('class="msg-poll"') && (
+            <>
+              <button
+                onClick={() => setPollVoteOpen(true)}
+                className="mt-2 w-full rounded-lg border border-[#21c063] bg-[#21c063]/10 px-3 py-1.5 text-sm font-medium text-[#21c063] hover:bg-[#21c063]/20 transition-colors"
+              >
+                Vote
+              </button>
+              {pollVoteOpen && (
+                <PollVoteDialog
+                  chatId={chatId}
+                  messageId={message.Info.ID}
+                  question={htmlContent.replace(/<[^>]*>/g, "").replace(/📊\s*/, "").split("○")[0].trim()}
+                  options={htmlContent.match(/○\s*([^<]+)/g)?.map((o: string) => o.replace(/○\s*/, "").trim()) || []}
+                  onClose={() => setPollVoteOpen(false)}
+                />
+              )}
+            </>
           )}
           {htmlContent.includes('class="msg-link"') && (
             <LinkPreview messageId={message.Info.ID} preview={message.link_preview ?? null} />
@@ -587,6 +611,7 @@ export function MessageItem({
           {/* Message Menu - positioned at top right corner */}
           <MessageMenu
             messageId={message.Info.ID}
+            chatId={chatId}
             isFromMe={isFromMe}
             isPinned={isPinned}
             onPin={handlePin}

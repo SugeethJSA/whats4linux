@@ -5,6 +5,8 @@ import {
   GetCustomJS,
   SetCustomJS,
   Reinitialize,
+  SetProxy,
+  FetchStickerPack,
 } from "../../../wailsjs/go/api/Api"
 
 import ComponentColorSelector from "../../components/settings/ComponentColorSelector"
@@ -13,6 +15,13 @@ import EaseVisualizer from "../../components/settings/ComponentEaseSelector"
 const AdvancedScreen = () => {
   const [customCSS, setCustomCSS] = useState("")
   const [customJS, setCustomJS] = useState("")
+  const [proxyURL, setProxyURL] = useState("")
+  const [proxyBusy, setProxyBusy] = useState(false)
+  const [proxyResult, setProxyResult] = useState("")
+  const [stickerPackID, setStickerPackID] = useState("")
+  const [stickerBusy, setStickerBusy] = useState(false)
+  const [stickerResult, setStickerResult] = useState("")
+  const [stickerPackData, setStickerPackData] = useState<any>(null)
 
   useEffect(() => {
     GetCustomCSS().then(setCustomCSS)
@@ -92,6 +101,86 @@ const AdvancedScreen = () => {
         onClick={handleReinitialize}
         buttonColor="gray"
       />
+
+      {/* Proxy configuration */}
+      <div className="mb-8 border-t border-gray-200 dark:border-gray-700 pt-6">
+        <h3 className="text-lg font-medium mb-2 text-light-text dark:text-dark-text">Proxy</h3>
+        <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
+          Set a SOCKS5 or HTTP proxy for the WhatsApp connection.
+        </p>
+        <div className="flex gap-2">
+          <input
+            className="flex-1 rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] text-light-text dark:text-dark-text"
+            value={proxyURL}
+            onChange={e => setProxyURL(e.target.value)}
+            placeholder="socks5://127.0.0.1:1080"
+          />
+          <button
+            onClick={async () => {
+              setProxyBusy(true)
+              setProxyResult("")
+              try {
+                await SetProxy(proxyURL)
+                setProxyResult("Proxy set!")
+              } catch (err) {
+                setProxyResult(String(err))
+              } finally {
+                setProxyBusy(false)
+              }
+            }}
+            disabled={proxyBusy || !proxyURL.trim()}
+            className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
+          >
+            {proxyBusy ? "Setting…" : "Set Proxy"}
+          </button>
+        </div>
+        {proxyResult && (
+          <p className={`mt-2 text-xs ${proxyResult === "Proxy set!" ? "text-green-500" : "text-red-500"}`}>
+            {proxyResult}
+          </p>
+        )}
+      </div>
+
+      {/* Sticker Pack Fetch */}
+      <div className="mb-8 border-t border-gray-200 dark:border-gray-700 pt-6">
+        <h3 className="text-lg font-medium mb-2 text-light-text dark:text-dark-text">Sticker Pack</h3>
+        <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
+          Fetch a sticker pack by its ID to download all stickers.
+        </p>
+        <div className="flex gap-2">
+          <input
+            className="flex-1 rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] text-light-text dark:text-dark-text"
+            value={stickerPackID}
+            onChange={e => setStickerPackID(e.target.value)}
+            placeholder="Sticker pack ID"
+          />
+          <button
+            onClick={async () => {
+              setStickerBusy(true)
+              setStickerResult("")
+              setStickerPackData(null)
+              try {
+                const data = await FetchStickerPack(stickerPackID.trim())
+                setStickerPackData(data)
+                setStickerResult(`Fetched pack: ${JSON.stringify(data)}`)
+              } catch (err) {
+                setStickerResult(String(err))
+              } finally {
+                setStickerBusy(false)
+              }
+            }}
+            disabled={stickerBusy || !stickerPackID.trim()}
+            className="rounded-lg bg-purple-500 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600 disabled:opacity-50"
+          >
+            {stickerBusy ? "Fetching…" : "Fetch"}
+          </button>
+        </div>
+        {stickerResult && (
+          <p className={`mt-2 text-xs ${stickerResult.startsWith("Fetched") ? "text-green-500" : "text-red-500"}`}>
+            {stickerResult}
+          </p>
+        )}
+      </div>
     </>
   )
 }

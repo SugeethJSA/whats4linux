@@ -20,6 +20,7 @@ import { useChatMuted } from "../store/useMuteStore"
 import type { ChatItem } from "../store/types"
 import { StatusList, StoryViewer, type StatusGroup } from "../components/chat/Status"
 import { CreateGroupDialog } from "../components/chat/CreateGroupDialog"
+import { CreateChannelDialog } from "../components/chat/CreateChannelDialog"
 import { CommunityList, CommunityHome, CommunitiesWelcome } from "../components/chat/Communities"
 import { getAvatarColor, AVATAR_ICON_COLOR, AVATAR_ICON_ON_DARK } from "../lib/utils"
 import { useAppSettingsStore } from "../store/useAppSettingsStore"
@@ -581,6 +582,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   const [showArchived, setShowArchived] = useState(false)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [showSubscribeChannel, setShowSubscribeChannel] = useState(false)
+  const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   // Get filtered chat IDs - only re-renders when IDs or search changes, not on message/timestamp updates
   const filteredChatIds = useFilteredChatIds(showArchived)
@@ -1006,12 +1008,20 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           )}
 
           {view === "channels" && (
-            <button
-              onClick={() => setShowSubscribeChannel(true)}
-              className="mx-3 mt-2 px-4 py-2 bg-[#21c063] text-[#0a1014] rounded-lg text-sm font-medium hover:bg-[#1ea952] transition-colors"
-            >
-              Subscribe to Channel
-            </button>
+            <div className="mx-3 mt-2 flex gap-2">
+              <button
+                onClick={() => setShowSubscribeChannel(true)}
+                className="flex-1 px-4 py-2 bg-[#21c063] text-[#0a1014] rounded-lg text-sm font-medium hover:bg-[#1ea952] transition-colors"
+              >
+                Subscribe
+              </button>
+              <button
+                onClick={() => setShowCreateChannel(true)}
+                className="flex-1 px-4 py-2 bg-white dark:bg-dark-tertiary border border-gray-300 dark:border-dark-border text-light-text dark:text-dark-text rounded-lg text-sm font-medium hover:bg-gray-100 dark:hover:bg-dark-secondary transition-colors"
+              >
+                Create
+              </button>
+            </div>
           )}
 
           {/* Archived entry (main view) / archived header (archived view) */}
@@ -1116,6 +1126,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
       </ResizablePanelGroup>
       {showCreateGroup && <CreateGroupDialog onClose={() => setShowCreateGroup(false)} />}
       {showSubscribeChannel && <SubscribeChannelDialog onClose={() => setShowSubscribeChannel(false)} />}
+      {showCreateChannel && <CreateChannelDialog onClose={() => setShowCreateChannel(false)} />}
     </div>
   )
 }

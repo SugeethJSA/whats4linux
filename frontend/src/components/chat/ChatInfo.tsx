@@ -8,7 +8,7 @@ import {
   DisappearingMessagesIcon,
   ReportIcon,
 } from "../../assets/svgs/chat_info_icons"
-import { GetProfile, GetGroupInfo, IsChatMuted, ToggleChatMute, BlockContact, UnblockContact, LeaveGroup, GetBlockList, SetDisappearingTimer, SetGroupName, GetGroupInviteLink, AddGroupParticipants, ClearChat, GetBusinessProfile, SetGroupPhoto, RemoveGroupParticipants, PromoteGroupParticipants, DemoteGroupParticipants, SetGroupAnnounce, SetGroupLocked, GetMyJID } from "../../../wailsjs/go/api/Api"
+import { GetProfile, GetGroupInfo, IsChatMuted, ToggleChatMute, BlockContact, UnblockContact, LeaveGroup, GetBlockList, SetDisappearingTimer, SetGroupName, GetGroupInviteLink, AddGroupParticipants, ClearChat, GetBusinessProfile, SetGroupPhoto, RemoveGroupParticipants, PromoteGroupParticipants, DemoteGroupParticipants, SetGroupAnnounce, SetGroupLocked, GetMyJID, SetGroupTopic, SetGroupMemberAddMode, SetGroupJoinApprovalMode, GetGroupJoinRequests, ApproveGroupJoinRequest, RejectGroupJoinRequest, LinkGroupToCommunity, UnlinkGroupFromCommunity, SetGroupDescription, GetCommunityList, IsOnWhatsApp, GetUserInfo } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { EventsOn } from "../../../wailsjs/runtime/runtime"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
@@ -54,6 +54,18 @@ export function ChatInfo({
   const [groupLocked, setGroupLocked] = useState(false)
   const [groupAnnounce, setGroupAnnounce] = useState(false)
   const [participantBusy, setParticipantBusy] = useState<string | null>(null)
+  const [topicEdit, setTopicEdit] = useState(false)
+  const [topicDraft, setTopicDraft] = useState("")
+  const [memberAddMode, setMemberAddMode] = useState("all_member_add")
+  const [joinApproval, setJoinApproval] = useState(false)
+  const [joinRequests, setJoinRequests] = useState<any[]>([])
+  const [showJoinRequests, setShowJoinRequests] = useState(false)
+  const [joinReqBusy, setJoinReqBusy] = useState(false)
+  const [communities, setCommunities] = useState<any[]>([])
+  const [showLinkCommunity, setShowLinkCommunity] = useState(false)
+  const [linkBusy, setLinkBusy] = useState(false)
+  const [waCheck, setWaCheck] = useState<{ onWhatsApp: boolean; verifiedName?: string } | null>(null)
+  const [checkBusy, setCheckBusy] = useState(false)
   const MAX_VISIBLE = 10
 
   const DISAPPEAR_OPTIONS = [
@@ -225,6 +237,107 @@ export function ChatInfo({
     }
   }, [groupInfo])
 
+  // Load communities when opening group info (for link/unlink)
+  useEffect(() => {
+    if (!isOpen || chatType !== "group") return
+    GetCommunityList().then(list => setCommunities(list)).catch(() => {})
+  }, [isOpen, chatType])
+
+  const handleSaveTopic = async () => {
+    const text = topicDraft.trim()
+    if (!text) return
+    setActionBusy(true)
+    try {
+      await SetGroupTopic(chatId, text)
+      if (groupInfo) setGroupInfo({ ...groupInfo, group_topic: text })
+      setTopicEdit(false)
+    } catch (e) {
+      console.error("Failed to set group topic:", e)
+    } finally {
+      setActionBusy(false)
+    }
+  }
+
+  const handleToggleMemberAddMode = async () => {
+    const next = memberAddMode === "admin_add" ? "all_member_add" : "admin_add"
+    setMemberAddMode(next)
+    try {
+      await SetGroupMemberAddMode(chatId, next)
+    } catch (e) {
+      console.error("Failed to set member add mode:", e)
+      setMemberAddMode(memberAddMode)
+    }
+  }
+
+  const handleToggleJoinApproval = async () => {
+    const next = !joinApproval
+    setJoinApproval(next)
+    try {
+      await SetGroupJoinApprovalMode(chatId, next)
+    } catch (e) {
+      console.error("Failed to set join approval:", e)
+      setJoinApproval(!next)
+    }
+  }
+
+  const handleLoadJoinRequests = async () => {
+    setJoinReqBusy(true)
+    try {
+      const reqs = await GetGroupJoinRequests(chatId)
+      setJoinRequests(reqs)
+      setShowJoinRequests(true)
+    } catch (e) {
+      console.error("Failed to load join requests:", e)
+    } finally {
+      setJoinReqBusy(false)
+    }
+  }
+
+  const handleApproveJoinRequest = async (requesterJID: string) => {
+    try {
+      await ApproveGroupJoinRequest(chatId, [requesterJID])
+      setJoinRequests(prev => prev.filter(r => r.jid !== requesterJID))
+      loadInfo()
+    } catch (e) {
+      console.error("Failed to approve join request:", e)
+    }
+  }
+
+  const handleRejectJoinRequest = async (requesterJID: string) => {
+    try {
+      await RejectGroupJoinRequest(chatId, [requesterJID])
+      setJoinRequests(prev => prev.filter(r => r.jid !== requesterJID))
+    } catch (e) {
+      console.error("Failed to reject join request:", e)
+    }
+  }
+
+  const handleLinkCommunity = async (parentJID: string) => {
+    setLinkBusy(true)
+    try {
+      await LinkGroupToCommunity(parentJID, chatId)
+      setShowLinkCommunity(false)
+      loadInfo()
+    } catch (e) {
+      console.error("Failed to link community:", e)
+    } finally {
+      setLinkBusy(false)
+    }
+  }
+
+  const handleUnlinkCommunity = async (parentJID: string) => {
+    if (!confirm("Unlink this group from its community?")) return
+    setLinkBusy(true)
+    try {
+      await UnlinkGroupFromCommunity(parentJID, chatId)
+      loadInfo()
+    } catch (e) {
+      console.error("Failed to unlink community:", e)
+    } finally {
+      setLinkBusy(false)
+    }
+  }
+
   const participants = groupInfo?.group_participants ?? []
   const sortedParticipants = participants.sort((a, b) => {
     if (a.is_admin && !b.is_admin) return -1
@@ -362,6 +475,26 @@ export function ChatInfo({
                 <div className="p-4">
                   <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">Phone</p>
                   <p className="text-gray-900 dark:text-gray-100">{contactInfo.phno}</p>
+                  <button
+                    onClick={async () => {
+                      setCheckBusy(true)
+                      setWaCheck(null)
+                      try {
+                        const results = await IsOnWhatsApp([contactInfo.phno])
+                        if (results && results.length > 0) {
+                          setWaCheck({ onWhatsApp: results[0].is_on_whatsapp, verifiedName: results[0].verified_name })
+                        }
+                      } catch (err) {
+                        console.error("IsOnWhatsApp check failed:", err)
+                      } finally {
+                        setCheckBusy(false)
+                      }
+                    }}
+                    disabled={checkBusy}
+                    className="mt-2 rounded-lg border border-gray-300 dark:border-dark-border px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-dark-tertiary disabled:opacity-50 text-gray-600 dark:text-dark-muted"
+                  >
+                    {checkBusy ? "Checking…" : waCheck ? (waCheck.onWhatsApp ? `On WhatsApp${waCheck.verifiedName ? " ✓" : ""}` : "Not on WhatsApp") : "Check WhatsApp"}
+                  </button>
                 </div>
               </div>
             )}
@@ -735,6 +868,181 @@ export function ChatInfo({
                 <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
                   {groupLocked ? "Group info locked by admins" : "Anyone can edit group info"}
                 </p>
+
+                {/* Group description / topic — admin only */}
+                {isAdmin && (
+                  <>
+                    {topicEdit ? (
+                      <div className="p-4 flex flex-col gap-2 border-t border-gray-200 dark:border-dark-tertiary">
+                        <textarea
+                          autoFocus
+                          className="w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:focus:border-[#21c063] text-light-text dark:text-dark-text resize-none"
+                          rows={3}
+                          value={topicDraft}
+                          onChange={e => setTopicDraft(e.target.value)}
+                          placeholder="Group description"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => setTopicEdit(false)}
+                            className="rounded-md px-3 py-1 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-white/5"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleSaveTopic}
+                            disabled={actionBusy || !topicDraft.trim()}
+                            className="rounded-md bg-[#21c063] px-3 py-1 text-sm font-medium text-[#0a1014] disabled:opacity-50"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setTopicDraft(groupInfo?.group_topic || "")
+                          setTopicEdit(true)
+                        }}
+                        className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors border-t border-gray-200 dark:border-dark-tertiary"
+                      >
+                        <span className="text-gray-900 dark:text-gray-100">Edit description</span>
+                      </button>
+                    )}
+                  </>
+                )}
+
+                {/* Member add mode — admin only */}
+                {isAdmin && (
+                  <>
+                    <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors">
+                      <span className="text-sm text-gray-900 dark:text-gray-100">Member Add Mode</span>
+                      <button
+                        onClick={handleToggleMemberAddMode}
+                        className={`relative w-10 h-5 rounded-full transition-colors ${
+                          memberAddMode === "admin_add" ? "bg-[#21c063]" : "bg-gray-300 dark:bg-gray-600"
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                            memberAddMode === "admin_add" ? "translate-x-5" : ""
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
+                      {memberAddMode === "admin_add" ? "Only admins can add members" : "All participants can add members"}
+                    </p>
+                  </>
+                )}
+
+                {/* Join approval mode — admin only */}
+                {isAdmin && (
+                  <>
+                    <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors">
+                      <span className="text-sm text-gray-900 dark:text-gray-100">Join Approval</span>
+                      <button
+                        onClick={handleToggleJoinApproval}
+                        className={`relative w-10 h-5 rounded-full transition-colors ${
+                          joinApproval ? "bg-[#21c063]" : "bg-gray-300 dark:bg-gray-600"
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                            joinApproval ? "translate-x-5" : ""
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
+                      {joinApproval ? "Join requests require admin approval" : "Anyone can join freely"}
+                    </p>
+                  </>
+                )}
+
+                {/* Join requests — admin only */}
+                {isAdmin && (
+                  <div className="border-t border-gray-200 dark:border-dark-tertiary">
+                    <button
+                      onClick={handleLoadJoinRequests}
+                      disabled={joinReqBusy}
+                      className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors disabled:opacity-50"
+                    >
+                      <span className="text-gray-900 dark:text-gray-100">
+                        {joinReqBusy ? "Loading…" : `Join Requests (${joinRequests.length})`}
+                      </span>
+                    </button>
+                    {showJoinRequests && joinRequests.length > 0 && (
+                      <div className="mx-4 mb-3 rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-secondary overflow-hidden">
+                        {joinRequests.map(req => (
+                          <div key={req.jid} className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-dark-tertiary last:border-0">
+                            <span className="text-sm text-gray-900 dark:text-gray-100 truncate flex-1">
+                              {req.requester}
+                            </span>
+                            <div className="flex gap-2 shrink-0">
+                              <button
+                                onClick={() => handleApproveJoinRequest(req.jid)}
+                                className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleRejectJoinRequest(req.jid)}
+                                className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {showJoinRequests && joinRequests.length === 0 && !joinReqBusy && (
+                      <p className="px-4 pb-3 text-xs text-gray-500 dark:text-dark-muted">No pending requests</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Link / Unlink community — admin only */}
+                {isAdmin && (
+                  <div className="border-t border-gray-200 dark:border-dark-tertiary">
+                    {groupInfo?.parent_jid ? (
+                      <button
+                        onClick={() => handleUnlinkCommunity(groupInfo!.parent_jid)}
+                        disabled={linkBusy}
+                        className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-orange-600 dark:text-orange-400 disabled:opacity-50"
+                      >
+                        <span>Unlink from community</span>
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => setShowLinkCommunity(!showLinkCommunity)}
+                          className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors"
+                        >
+                          <span className="text-gray-900 dark:text-gray-100">Link to community</span>
+                        </button>
+                        {showLinkCommunity && (
+                          <div className="mx-4 mb-3 rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-secondary max-h-40 overflow-y-auto">
+                            {communities.length === 0 && (
+                              <p className="p-3 text-sm text-gray-500 dark:text-dark-muted">No communities available</p>
+                            )}
+                            {communities.map(c => (
+                              <button
+                                key={c.jid}
+                                onClick={() => handleLinkCommunity(c.jid)}
+                                disabled={linkBusy}
+                                className="w-full px-3 py-2 text-left text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-dark-tertiary disabled:opacity-50 border-b border-gray-100 dark:border-dark-tertiary last:border-0"
+                              >
+                                {c.name || "Community"}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
