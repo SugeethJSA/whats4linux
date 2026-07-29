@@ -270,20 +270,20 @@ func (ms *MessageStore) runWriter() {
 				}
 			}()
 			tx, err := ms.db.BeginTx(context.Background(), nil)
-		if err == nil {
-			defer tx.Rollback()
-			err = req.job(tx)
 			if err == nil {
-				err = tx.Commit()
+				defer tx.Rollback()
+				err = req.job(tx)
+				if err == nil {
+					err = tx.Commit()
+				}
 			}
-		}
 
-		if req.done != nil {
-			req.done <- err
-			close(req.done)
-		} else if err != nil {
-			log.Println("asynchronous message-store write failed:", err)
-		}
+			if req.done != nil {
+				req.done <- err
+				close(req.done)
+			} else if err != nil {
+				log.Println("asynchronous message-store write failed:", err)
+			}
 		}()
 	}
 }
@@ -785,15 +785,15 @@ func (ms *MessageStore) InsertSystemMessage(chatJID, messageID, text string, tim
 		_, err := tx.Stmt(ms.stmtInsertMessage).Exec(
 			messageID,
 			chatJID,
-			"",      // sender_jid – empty for system
+			"", // sender_jid – empty for system
 			timestamp,
-			false,   // is_from_me
-			text,    // text — starts with "[system]" for frontend detection
-			false,   // has_media
-			"",      // reply_to_message_id
-			false,   // edited
-			false,   // forwarded
-			0,       // type – MediaTypeNone
+			false, // is_from_me
+			text,  // text — starts with "[system]" for frontend detection
+			false, // has_media
+			"",    // reply_to_message_id
+			false, // edited
+			false, // forwarded
+			0,     // type – MediaTypeNone
 		)
 		return err
 	})

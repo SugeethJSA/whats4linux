@@ -9,7 +9,13 @@ interface PollVoteDialogProps {
   onClose: () => void
 }
 
-export function PollVoteDialog({ chatId, messageId, question, options, onClose }: PollVoteDialogProps) {
+export function PollVoteDialog({
+  chatId,
+  messageId,
+  question,
+  options,
+  onClose,
+}: PollVoteDialogProps) {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [sending, setSending] = useState(false)
   const [error, setError] = useState("")
@@ -40,8 +46,14 @@ export function PollVoteDialog({ chatId, messageId, question, options, onClose }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="w-[360px] max-w-[90vw] rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary" onClick={e => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
+      <div
+        className="w-[360px] max-w-[90vw] rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
+        onClick={e => e.stopPropagation()}
+      >
         <h3 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">Vote</h3>
         <p className="text-sm text-gray-900 dark:text-gray-100 mb-3 font-medium">{question}</p>
         {done ? (
@@ -65,7 +77,10 @@ export function PollVoteDialog({ chatId, messageId, question, options, onClose }
         )}
         {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-white/5">
+          <button
+            onClick={onClose}
+            className="rounded-lg px-4 py-2 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-white/5"
+          >
             {done ? "Close" : "Cancel"}
           </button>
           {!done && (

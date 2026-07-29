@@ -59,9 +59,18 @@ export function StatusList({ onOpen }: { onOpen: (g: StatusGroup) => void }) {
     }
   }, [getContactName])
 
-  if (loading) return <div className="p-6 text-center text-sm text-light-muted dark:text-dark-muted">Loading status…</div>
+  if (loading)
+    return (
+      <div className="p-6 text-center text-sm text-light-muted dark:text-dark-muted">
+        Loading status…
+      </div>
+    )
   if (groups.length === 0)
-    return <div className="p-6 text-center text-sm text-light-muted dark:text-dark-muted">No recent status updates</div>
+    return (
+      <div className="p-6 text-center text-sm text-light-muted dark:text-dark-muted">
+        No recent status updates
+      </div>
+    )
 
   return (
     <div>

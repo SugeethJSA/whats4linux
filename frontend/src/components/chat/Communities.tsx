@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import clsx from "clsx"
 import { createPortal } from "react-dom"
-import { GetCommunityList, GetCommunityDetails, GetCachedAvatar, CreateCommunity, CreateCommunitySubGroup } from "../../../wailsjs/go/api/Api"
+import {
+  GetCommunityList,
+  GetCommunityDetails,
+  GetCachedAvatar,
+  CreateCommunity,
+  CreateCommunitySubGroup,
+} from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
 import { getAvatarColor, AVATAR_ICON_COLOR } from "../../lib/utils"
@@ -135,7 +141,11 @@ export function CommunityList({ searchTerm, selectedJid, onSelect }: CommunityLi
     : communities
 
   if (loading) {
-    return <div className="p-6 text-center text-sm text-light-muted dark:text-dark-muted">Loading communities…</div>
+    return (
+      <div className="p-6 text-center text-sm text-light-muted dark:text-dark-muted">
+        Loading communities…
+      </div>
+    )
   }
 
   if (error) {
@@ -242,9 +252,19 @@ function CreateSubGroupDialog({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-white dark:bg-dark-secondary rounded-2xl w-96 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">New Group in {communityName}</h2>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div
+        className="bg-white dark:bg-dark-secondary rounded-2xl w-96 p-6 shadow-xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          New Group in {communityName}
+        </h2>
         <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
           Creates a linked sub-group within this community.
         </p>
@@ -256,8 +276,17 @@ function CreateSubGroupDialog({
         />
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
         <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg">Cancel</button>
-          <button onClick={handleCreate} disabled={loading || !name.trim()} className="px-4 py-2 text-sm bg-[#21c063] text-white rounded-lg hover:bg-[#1b9a58] disabled:opacity-50">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={loading || !name.trim()}
+            className="px-4 py-2 text-sm bg-[#21c063] text-white rounded-lg hover:bg-[#1b9a58] disabled:opacity-50"
+          >
             {loading ? "Creating..." : "Create"}
           </button>
         </div>
@@ -388,7 +417,11 @@ export function CommunityHome({
           )}
         </div>
 
-        {loading && <div className="p-6 text-center text-sm text-light-muted dark:text-dark-muted">Loading groups…</div>}
+        {loading && (
+          <div className="p-6 text-center text-sm text-light-muted dark:text-dark-muted">
+            Loading groups…
+          </div>
+        )}
 
         {error && (
           <div className="p-6 text-center text-sm text-red-500 dark:text-red-400">{error}</div>
@@ -543,9 +576,19 @@ function CreateCommunityDialog({ onClose }: { onClose: () => void }) {
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-white dark:bg-dark-secondary rounded-2xl w-96 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Create Community</h2>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div
+        className="bg-white dark:bg-dark-secondary rounded-2xl w-96 p-6 shadow-xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          Create Community
+        </h2>
         <input
           value={name}
           onChange={e => setName(e.target.value)}
@@ -561,8 +604,17 @@ function CreateCommunityDialog({ onClose }: { onClose: () => void }) {
         />
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
         <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg">Cancel</button>
-          <button onClick={handleCreate} disabled={loading || !name.trim()} className="px-4 py-2 text-sm bg-[#21c063] text-white rounded-lg hover:bg-[#1b9a58] disabled:opacity-50">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={loading || !name.trim()}
+            className="px-4 py-2 text-sm bg-[#21c063] text-white rounded-lg hover:bg-[#1b9a58] disabled:opacity-50"
+          >
             {loading ? "Creating..." : "Create"}
           </button>
         </div>

@@ -39,11 +39,15 @@ export function ForwardDialog({ sourceJID, messageID, onClose }: ForwardDialogPr
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose()
+      }}
     >
       <div className="bg-white dark:bg-dark-secondary rounded-2xl w-96 max-h-[80vh] flex flex-col shadow-xl">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Forward message</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Forward message
+          </h2>
           <input
             ref={inputRef}
             value={search}

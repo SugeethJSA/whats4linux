@@ -95,7 +95,9 @@ label[for] {
 @variant dark (&:where(.dark, .dark *));
 
 /* ─── Base Reset ─────────────────────────────────────────────────────────── */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -109,7 +111,12 @@ html {
 body {
   background-color: #f0f2f5;
   color: #111b21;
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   font-size: 15px;
   line-height: 1.5;
 }
@@ -221,7 +228,8 @@ body {
 
 /* Presence dot pulse */
 @keyframes presencePulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(33, 192, 99, 0.5);
   }
   50% {
@@ -231,7 +239,8 @@ body {
 
 /* Unread badge glow pulse */
 @keyframes badgeGlow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(33, 192, 99, 0.4);
   }
   50% {
@@ -241,7 +250,8 @@ body {
 
 /* Ambient orb float */
 @keyframes floatOrb {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px) scale(1);
   }
   50% {
@@ -274,8 +284,12 @@ body {
 
 /* Status story progress bar fill */
 @keyframes storyFill {
-  from { width: 0%; }
-  to   { width: 100%; }
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
 }
 
 /* ─── Utility Classes ────────────────────────────────────────────────────── */
@@ -484,7 +498,7 @@ video::-webkit-media-controls-fullscreen-button {
 .login-orb-1 {
   width: 400px;
   height: 400px;
-  background: radial-gradient(circle, rgba(33,192,99,0.18) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(33, 192, 99, 0.18) 0%, transparent 70%);
   top: -120px;
   left: -100px;
   animation-delay: 0s;
@@ -492,7 +506,7 @@ video::-webkit-media-controls-fullscreen-button {
 .login-orb-2 {
   width: 320px;
   height: 320px;
-  background: radial-gradient(circle, rgba(33,192,99,0.10) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(33, 192, 99, 0.1) 0%, transparent 70%);
   bottom: -80px;
   right: -60px;
   animation-delay: -4s;
@@ -500,7 +514,7 @@ video::-webkit-media-controls-fullscreen-button {
 .login-orb-3 {
   width: 200px;
   height: 200px;
-  background: radial-gradient(circle, rgba(27,154,88,0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(27, 154, 88, 0.12) 0%, transparent 70%);
   top: 50%;
   right: 20%;
   animation-delay: -2s;
@@ -561,7 +575,23 @@ video::-webkit-media-controls-fullscreen-button {
   animation: slideUpFade 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   border-left: 3px solid transparent;
 }
-.toast-info    { background: #1f2c34; color: #e9edef; border-left-color: #8696a0; }
-.toast-success { background: #0d2118; color: #d9fdd3; border-left-color: #21c063; }
-.toast-error   { background: #2c1010; color: #fdd3d3; border-left-color: #e74c3c; }
-.toast-warning { background: #2c2110; color: #fdecd3; border-left-color: #f0a500; }
+.toast-info {
+  background: #1f2c34;
+  color: #e9edef;
+  border-left-color: #8696a0;
+}
+.toast-success {
+  background: #0d2118;
+  color: #d9fdd3;
+  border-left-color: #21c063;
+}
+.toast-error {
+  background: #2c1010;
+  color: #fdd3d3;
+  border-left-color: #e74c3c;
+}
+.toast-warning {
+  background: #2c2110;
+  color: #fdecd3;
+  border-left-color: #f0a500;
+}

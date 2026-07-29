@@ -87,7 +87,9 @@ const FilePreview = ({ file, fileType, onRemove }: FilePreviewProps) => (
         {FILE_TYPE_ICONS[fileType as keyof typeof FILE_TYPE_ICONS]}
         <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{file.name}</span>
       </div>
-      <span className="text-xs text-light-muted dark:text-dark-muted">{(file.size / 1024).toFixed(2)} KB</span>
+      <span className="text-xs text-light-muted dark:text-dark-muted">
+        {(file.size / 1024).toFixed(2)} KB
+      </span>
     </div>
     <button onClick={onRemove} className="text-red-500 hover:text-red-600 p-1" title="Remove file">
       ×
@@ -531,9 +533,24 @@ export function ChatInput({
                           setTimeout(() => fileInputRef.current?.click(), 0)
                         },
                       },
-                      { label: "Poll", icon: <PollIcon />, color: "text-purple-500", act: () => setPollOpen(true) },
-                      { label: "Contact", icon: <ContactIcon />, color: "text-yellow-500", act: () => setContactOpen(true) },
-                      { label: "Location", icon: <LocationIcon />, color: "text-red-500", act: () => setLocationOpen(true) },
+                      {
+                        label: "Poll",
+                        icon: <PollIcon />,
+                        color: "text-purple-500",
+                        act: () => setPollOpen(true),
+                      },
+                      {
+                        label: "Contact",
+                        icon: <ContactIcon />,
+                        color: "text-yellow-500",
+                        act: () => setContactOpen(true),
+                      },
+                      {
+                        label: "Location",
+                        icon: <LocationIcon />,
+                        color: "text-red-500",
+                        act: () => setLocationOpen(true),
+                      },
                     ] as const
                   ).map(item => (
                     <button
@@ -593,7 +610,9 @@ export function ChatInput({
             className="w-[360px] rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
             onClick={e => e.stopPropagation()}
           >
-            <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">Send location</h2>
+            <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">
+              Send location
+            </h2>
             <p className="mb-3 text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted">
               Share your current location or enter coordinates.
             </p>

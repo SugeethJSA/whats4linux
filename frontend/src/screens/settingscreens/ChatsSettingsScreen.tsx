@@ -46,7 +46,9 @@ const ChatsSettingsScreen = () => {
       {/* Label management */}
       <div className="rounded-xl border border-gray-200 dark:border-dark-border p-4 space-y-3">
         <h3 className="text-base font-medium text-light-text dark:text-dark-text">Labels</h3>
-        <p className="text-sm text-gray-500 dark:text-dark-muted">Create or delete labels. Use the label ID in chat context menus.</p>
+        <p className="text-sm text-gray-500 dark:text-dark-muted">
+          Create or delete labels. Use the label ID in chat context menus.
+        </p>
 
         <div className="flex gap-2">
           <input
@@ -67,7 +69,9 @@ const ChatsSettingsScreen = () => {
             onChange={e => setLabelColor(Number(e.target.value))}
           >
             {LABEL_COLORS.map(c => (
-              <option key={c} value={c}>Color {c}</option>
+              <option key={c} value={c}>
+                Color {c}
+              </option>
             ))}
           </select>
           <button
@@ -122,9 +126,7 @@ const ChatsSettingsScreen = () => {
           </button>
         </div>
 
-        {labelMsg && (
-          <p className="text-sm text-green-600 dark:text-green-400">{labelMsg}</p>
-        )}
+        {labelMsg && <p className="text-sm text-green-600 dark:text-green-400">{labelMsg}</p>}
       </div>
     </div>
   )

@@ -1,6 +1,14 @@
 import { useState, useRef, useEffect, useLayoutEffect } from "react"
 import { createPortal } from "react-dom"
-import { ReplyIcon, CopyIcon, ReactIcon, EditIcon, DeleteIcon, MenuArrowIcon, ForwardIcon } from "../../assets/svgs/message_menu_icons"
+import {
+  ReplyIcon,
+  CopyIcon,
+  ReactIcon,
+  EditIcon,
+  DeleteIcon,
+  MenuArrowIcon,
+  ForwardIcon,
+} from "../../assets/svgs/message_menu_icons"
 import { ToggleMessageLabel, DeleteMedia } from "../../../wailsjs/go/api/Api"
 
 interface MessageMenuProps {
@@ -101,7 +109,8 @@ export function MessageMenu({
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node
       if (
-        menuRef.current && !menuRef.current.contains(target) &&
+        menuRef.current &&
+        !menuRef.current.contains(target) &&
         (!dropdownRef.current || !dropdownRef.current.contains(target))
       ) {
         closeMenu()
@@ -239,7 +248,10 @@ export function MessageMenu({
               </button>
             )}
             <button
-              onClick={() => { setLabelOpen(!labelOpen); setLabelId("") }}
+              onClick={() => {
+                setLabelOpen(!labelOpen)
+                setLabelId("")
+              }}
               className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
             >
               {labelIcon()}

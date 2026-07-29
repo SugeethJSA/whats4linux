@@ -104,7 +104,12 @@ export function MessageItem({
   const content = message.Content
   const isSticker = !!content?.stickerMessage
   const isPending = (message as any).isPending || false
-  const mediaBody = content?.imageMessage || content?.videoMessage || content?.audioMessage || content?.stickerMessage || undefined
+  const mediaBody =
+    content?.imageMessage ||
+    content?.videoMessage ||
+    content?.audioMessage ||
+    content?.stickerMessage ||
+    undefined
   const isGroup = chatId.endsWith("@g.us")
   // Empty for @lid senders — those JIDs carry no phone number.
   const senderPhone = formatPhone(phoneFromJID(message.Info.Sender))
@@ -198,9 +203,7 @@ export function MessageItem({
 
   const handleDelete = () => {
     const method = isFromMe ? RevokeMessage : DeleteForMe
-    method(chatId, message.Info.ID).catch((e: any) =>
-      console.error("Delete message failed:", e),
-    )
+    method(chatId, message.Info.ID).catch((e: any) => console.error("Delete message failed:", e))
   }
 
   const [forwardTarget, setForwardTarget] = useState<string | null>(null)
@@ -322,10 +325,10 @@ export function MessageItem({
               </button>
             </div>
           ) : (
-          <div className={clsx("[display:flow-root]", emojiOnly && "text-[32px] leading-10")}>
-            <span dangerouslySetInnerHTML={{ __html: htmlContent }} />
-            {timeMeta(true)}
-          </div>
+            <div className={clsx("[display:flow-root]", emojiOnly && "text-[32px] leading-10")}>
+              <span dangerouslySetInnerHTML={{ __html: htmlContent }} />
+              {timeMeta(true)}
+            </div>
           )}
           {hasInviteLink && (
             <div className="mt-2 flex flex-col gap-1">
@@ -336,9 +339,7 @@ export function MessageItem({
               >
                 {joinBusy ? "Joining..." : joinSuccess ? "Joined ✓" : "Accept Invite"}
               </button>
-              {joinError && (
-                <span className="text-xs text-red-500">{joinError}</span>
-              )}
+              {joinError && <span className="text-xs text-red-500">{joinError}</span>}
             </div>
           )}
           {htmlContent.includes('class="msg-poll"') && (
@@ -353,8 +354,16 @@ export function MessageItem({
                 <PollVoteDialog
                   chatId={chatId}
                   messageId={message.Info.ID}
-                  question={htmlContent.replace(/<[^>]*>/g, "").replace(/📊\s*/, "").split("○")[0].trim()}
-                  options={htmlContent.match(/○\s*([^<]+)/g)?.map((o: string) => o.replace(/○\s*/, "").trim()) || []}
+                  question={htmlContent
+                    .replace(/<[^>]*>/g, "")
+                    .replace(/📊\s*/, "")
+                    .split("○")[0]
+                    .trim()}
+                  options={
+                    htmlContent
+                      .match(/○\s*([^<]+)/g)
+                      ?.map((o: string) => o.replace(/○\s*/, "").trim()) || []
+                  }
                   onClose={() => setPollVoteOpen(false)}
                 />
               )}
@@ -500,7 +509,8 @@ export function MessageItem({
         {/* Sender avatar column (group chats, received): avatar on the first
             message of a run, an equally wide spacer on the rest.
             Hidden in announcement groups — all messages are centered. */}
-        {!isAnnounceGroup && !isFromMe &&
+        {!isAnnounceGroup &&
+          !isFromMe &&
           isGroup &&
           (firstInGroup ? (
             <SenderAvatar jid={message.Info.Sender} />

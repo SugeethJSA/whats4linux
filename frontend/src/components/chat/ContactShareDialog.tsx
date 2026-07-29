@@ -46,7 +46,10 @@ export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClos
         console.error("SearchContacts failed:", err)
       }
     }, 200)
-    return () => { cancelled = true; clearTimeout(timer) }
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
   }, [search])
 
   // Capture-phase ESC so the chat's own ESC handler doesn't fire too.

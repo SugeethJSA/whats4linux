@@ -27,10 +27,20 @@ export function CreateChannelDialog({ onClose }: CreateChannelDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="w-[400px] max-w-[90vw] rounded-2xl bg-white p-6 shadow-xl dark:bg-dark-secondary" onClick={e => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Create Channel</h2>
-        <p className="text-sm text-gray-500 dark:text-dark-muted mb-4">Start a new WhatsApp channel.</p>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
+      <div
+        className="w-[400px] max-w-[90vw] rounded-2xl bg-white p-6 shadow-xl dark:bg-dark-secondary"
+        onClick={e => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          Create Channel
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-dark-muted mb-4">
+          Start a new WhatsApp channel.
+        </p>
 
         <input
           autoFocus
@@ -51,7 +61,10 @@ export function CreateChannelDialog({ onClose }: CreateChannelDialogProps) {
         {success && <p className="mt-2 text-xs text-green-500">{success}</p>}
 
         <div className="mt-4 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-white/5">
+          <button
+            onClick={onClose}
+            className="rounded-lg px-4 py-2 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-white/5"
+          >
             {success ? "Close" : "Cancel"}
           </button>
           {!success && (

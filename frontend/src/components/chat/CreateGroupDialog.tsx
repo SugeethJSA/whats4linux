@@ -28,7 +28,9 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
         setError("Failed to load contacts")
       })
       .finally(() => !cancelled && setLoading(false))
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -45,7 +47,8 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
   const toggle = (jid: string) => {
     setSelected(prev => {
       const next = new Set(prev)
-      if (next.has(jid)) next.delete(jid); else next.add(jid)
+      if (next.has(jid)) next.delete(jid)
+      else next.add(jid)
       return next
     })
   }
@@ -85,9 +88,7 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
         className="flex max-h-[80vh] w-[420px] max-w-[90vw] flex-col rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
         onClick={e => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">
-          New group
-        </h2>
+        <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">New group</h2>
 
         <input
           autoFocus
@@ -145,7 +146,9 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
                     <div className="truncate text-sm text-light-text dark:text-dark-text">
                       {c.full_name || c.push_name || c.phno}
                     </div>
-                    <div className="truncate text-xs text-gray-500 dark:text-[#8696a0]">{c.phno}</div>
+                    <div className="truncate text-xs text-gray-500 dark:text-[#8696a0]">
+                      {c.phno}
+                    </div>
                   </div>
                 </label>
               )

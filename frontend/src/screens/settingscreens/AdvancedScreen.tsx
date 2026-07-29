@@ -22,7 +22,6 @@ const AdvancedScreen = () => {
   const [stickerBusy, setStickerBusy] = useState(false)
   const [stickerResult, setStickerResult] = useState("")
 
-
   useEffect(() => {
     GetCustomCSS().then(setCustomCSS)
     GetCustomJS().then(setCustomJS)
@@ -135,7 +134,9 @@ const AdvancedScreen = () => {
           </button>
         </div>
         {proxyResult && (
-          <p className={`mt-2 text-xs ${proxyResult === "Proxy set!" ? "text-green-500" : "text-red-500"}`}>
+          <p
+            className={`mt-2 text-xs ${proxyResult === "Proxy set!" ? "text-green-500" : "text-red-500"}`}
+          >
             {proxyResult}
           </p>
         )}
@@ -143,7 +144,9 @@ const AdvancedScreen = () => {
 
       {/* Sticker Pack Fetch */}
       <div className="mb-8 border-t border-gray-200 dark:border-gray-700 pt-6">
-        <h3 className="text-lg font-medium mb-2 text-light-text dark:text-dark-text">Sticker Pack</h3>
+        <h3 className="text-lg font-medium mb-2 text-light-text dark:text-dark-text">
+          Sticker Pack
+        </h3>
         <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
           Fetch a sticker pack by its ID to download all stickers.
         </p>
@@ -174,7 +177,9 @@ const AdvancedScreen = () => {
           </button>
         </div>
         {stickerResult && (
-          <p className={`mt-2 text-xs ${stickerResult.startsWith("Fetched") ? "text-green-500" : "text-red-500"}`}>
+          <p
+            className={`mt-2 text-xs ${stickerResult.startsWith("Fetched") ? "text-green-500" : "text-red-500"}`}
+          >
             {stickerResult}
           </p>
         )}
@@ -224,7 +229,9 @@ function Section({
   return (
     <div className="mb-8 border-t border-gray-200 dark:border-gray-700 pt-6">
       <h3 className="text-lg font-medium mb-2 text-light-text dark:text-dark-text">{title}</h3>
-      <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">{description}</p>
+      <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
+        {description}
+      </p>
       <button
         onClick={onClick}
         className={`px-4 py-2 rounded transition-colors ${colors[buttonColor]}`}

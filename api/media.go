@@ -331,7 +331,7 @@ func (a *Api) GetSelfAvatar(recache bool) (string, error) {
 // getFileExtension returns file extension for mime type
 func getFileExtension(mimeType string) string {
 	mimeType = strings.Split(mimeType, ";")[0]
-	
+
 	switch mimeType {
 	case "image/png":
 		return ".png"

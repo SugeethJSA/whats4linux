@@ -191,13 +191,24 @@ function App() {
         </div>
       )}
       <Lightbox />
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div
+        className="fixed bottom-4 right-4 z-50 flex flex-col gap-2"
+        style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+      >
         {notifications.map(n => {
           const msg = n.message.toLowerCase()
-          const isSuccess = msg.includes("downloaded") || msg.includes("logged_in") || msg.includes("success")
-          const isError = msg.includes("error") || msg.includes("failed") || msg.includes("disconnect")
+          const isSuccess =
+            msg.includes("downloaded") || msg.includes("logged_in") || msg.includes("success")
+          const isError =
+            msg.includes("error") || msg.includes("failed") || msg.includes("disconnect")
           const isWarning = msg.includes("reconnect")
-          const cls = isSuccess ? "toast-success" : isError ? "toast-error" : isWarning ? "toast-warning" : "toast-info"
+          const cls = isSuccess
+            ? "toast-success"
+            : isError
+              ? "toast-error"
+              : isWarning
+                ? "toast-warning"
+                : "toast-info"
           const icon = isSuccess ? "✓" : isError ? "✕" : isWarning ? "⚠" : "ℹ"
           return (
             <div key={n.id} className={`toast-base ${cls}`}>

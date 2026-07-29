@@ -9,10 +9,10 @@ import (
 )
 
 type OnWhatsAppResult struct {
-	Query         string  `json:"query"`
-	JID           string  `json:"jid"`
-	IsOnWhatsApp  bool    `json:"is_on_whatsapp"`
-	VerifiedName  string  `json:"verified_name,omitempty"`
+	Query        string `json:"query"`
+	JID          string `json:"jid"`
+	IsOnWhatsApp bool   `json:"is_on_whatsapp"`
+	VerifiedName string `json:"verified_name,omitempty"`
 }
 
 type UserInfoResult struct {

@@ -22,6 +22,7 @@ import (
 	"github.com/lugvitc/whats4linux/internal/store"
 	"github.com/lugvitc/whats4linux/internal/wa"
 	"github.com/lugvitc/whats4linux/shared/socket"
+	"github.com/purpshell/meowcaller"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"go.mau.fi/whatsmeow"
@@ -31,7 +32,6 @@ import (
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
-	"github.com/purpshell/meowcaller"
 )
 
 // Api struct
@@ -460,7 +460,7 @@ func (a *Api) Startup(ctx context.Context) {
 		a.failStartup(fmt.Errorf("open image cache: %w", err))
 		return
 	}
-	
+
 	// Initialize VoIP extension
 	a.initMeowcaller()
 }
@@ -935,11 +935,11 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 	stored := 0
 	totalConvs := len(conversations)
 	runtime.EventsEmit(a.ctx, "wa:history_progress", map[string]any{
-		"type":                  v.Data.GetSyncType().String(),
-		"totalConversations":    totalConvs,
+		"type":                   v.Data.GetSyncType().String(),
+		"totalConversations":     totalConvs,
 		"processedConversations": 0,
-		"totalMessages":         0,
-		"processedMessages":     0,
+		"totalMessages":          0,
+		"processedMessages":      0,
 	})
 	for _, conv := range conversations {
 		chatJID, err := types.ParseJID(conv.GetID())
@@ -968,12 +968,12 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 		}
 	}
 	runtime.EventsEmit(a.ctx, "wa:history_progress", map[string]any{
-		"type":                  v.Data.GetSyncType().String(),
-		"totalConversations":    totalConvs,
+		"type":                   v.Data.GetSyncType().String(),
+		"totalConversations":     totalConvs,
 		"processedConversations": totalConvs,
-		"totalMessages":         0,
-		"processedMessages":     stored,
-		"done":                  true,
+		"totalMessages":          0,
+		"processedMessages":      stored,
+		"done":                   true,
 	})
 	slog.Info(fmt.Sprintf("Stored %d messages from %d conversations", stored, len(conversations)), "source", "history")
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
