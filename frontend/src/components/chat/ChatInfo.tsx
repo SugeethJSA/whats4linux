@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { UserAvatar } from "../../assets/svgs/chat_icons"
 import {
   Mediaicon,
@@ -8,7 +8,7 @@ import {
   DisappearingMessagesIcon,
   ReportIcon,
 } from "../../assets/svgs/chat_info_icons"
-import { GetProfile, GetGroupInfo, IsChatMuted, ToggleChatMute, BlockContact, UnblockContact, LeaveGroup, GetBlockList, SetDisappearingTimer, SetGroupName, GetGroupInviteLink, AddGroupParticipants, ClearChat, GetBusinessProfile, SetGroupPhoto, RemoveGroupParticipants, PromoteGroupParticipants, DemoteGroupParticipants, SetGroupAnnounce, SetGroupLocked, GetMyJID, SetGroupTopic, SetGroupMemberAddMode, SetGroupJoinApprovalMode, GetGroupJoinRequests, ApproveGroupJoinRequest, RejectGroupJoinRequest, LinkGroupToCommunity, UnlinkGroupFromCommunity, SetGroupDescription, GetCommunityList, IsOnWhatsApp, GetUserInfo } from "../../../wailsjs/go/api/Api"
+import { GetProfile, GetGroupInfo, IsChatMuted, ToggleChatMute, BlockContact, UnblockContact, LeaveGroup, GetBlockList, SetDisappearingTimer, SetGroupName, GetGroupInviteLink, ClearChat, GetBusinessProfile, SetGroupPhoto, RemoveGroupParticipants, PromoteGroupParticipants, DemoteGroupParticipants, SetGroupAnnounce, SetGroupLocked, GetMyJID, SetGroupTopic, SetGroupMemberAddMode, SetGroupJoinApprovalMode, GetGroupJoinRequests, ApproveGroupJoinRequest, RejectGroupJoinRequest, LinkGroupToCommunity, UnlinkGroupFromCommunity, GetCommunityList, IsOnWhatsApp, AddGroupParticipants, FetchContacts, GetDisappearingTimer, GetUserInfo } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { EventsOn } from "../../../wailsjs/runtime/runtime"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
@@ -66,6 +66,13 @@ export function ChatInfo({
   const [linkBusy, setLinkBusy] = useState(false)
   const [waCheck, setWaCheck] = useState<{ onWhatsApp: boolean; verifiedName?: string } | null>(null)
   const [checkBusy, setCheckBusy] = useState(false)
+  const [userInfo, setUserInfo] = useState<{ jid: string; status?: string; picture_id?: string; devices?: string[]; verified_name?: string } | null>(null)
+  const [userInfoBusy, setUserInfoBusy] = useState(false)
+  const [linkError, setLinkError] = useState("")
+  const [showAddParticipant, setShowAddParticipant] = useState(false)
+  const [addSearch, setAddSearch] = useState("")
+  const [addResults, setAddResults] = useState<any[]>([])
+  const [addBusy, setAddBusy] = useState(false)
   const MAX_VISIBLE = 10
 
   const DISAPPEAR_OPTIONS = [
@@ -123,6 +130,14 @@ export function ChatInfo({
     }
   }, [isOpen, chatId])
 
+  // Load disappearing timer value when panel opens
+  useEffect(() => {
+    if (!isOpen) return
+    GetDisappearingTimer(chatId).then(seconds => {
+      setDisappearTimer(seconds)
+    }).catch(() => {})
+  }, [isOpen, chatId])
+
   const handleToggleMute = useCallback(async () => {
     if (muteBusy) return
     const next = !muted
@@ -178,7 +193,7 @@ export function ChatInfo({
     setActionBusy(true)
     try {
       await SetGroupName(chatId, name)
-      if (groupInfo) setGroupInfo({ ...groupInfo, group_name: name })
+      if (groupInfo) setGroupInfo({ ...groupInfo, group_name: name } as api.Group)
       setSubjectEdit(false)
     } catch (e) {
       console.error("Failed to set group name:", e)
@@ -187,11 +202,9 @@ export function ChatInfo({
     }
   }
 
-  const loadInfo = useCallback(async () => {
-    // Don't re-fetch if we already have the data for this chat
-    if (chatType === "group" && groupInfo?.group_name) return
-    if (chatType === "contact" && contactInfo?.jid === chatId) return
+  const initialLoadDone = useRef(false)
 
+  const loadInfo = useCallback(async () => {
     setLoading(true)
     try {
       if (chatType === "group") {
@@ -211,8 +224,9 @@ export function ChatInfo({
       console.error("Failed to load chat info:", err)
     } finally {
       setLoading(false)
+      initialLoadDone.current = true
     }
-  }, [chatId, chatType, groupInfo, contactInfo])
+  }, [chatId, chatType])
 
   useEffect(() => {
     if (isOpen) {
@@ -234,13 +248,23 @@ export function ChatInfo({
     if (groupInfo) {
       setGroupAnnounce(groupInfo.is_group_announce)
       setGroupLocked(groupInfo.is_group_lock)
+      if (groupInfo.member_add_mode) setMemberAddMode(groupInfo.member_add_mode)
+      if (groupInfo.join_approval !== undefined) setJoinApproval(groupInfo.join_approval)
     }
   }, [groupInfo])
 
   // Load communities when opening group info (for link/unlink)
   useEffect(() => {
     if (!isOpen || chatType !== "group") return
-    GetCommunityList().then(list => setCommunities(list)).catch(() => {})
+    GetCommunityList().then(list => {
+      setCommunities(prev => {
+        const prevMap = new Map(prev.map(c => [c.jid, c]))
+        return list.map(c => ({
+          ...c,
+          avatar_url: prevMap.get(c.jid)?.avatar_url || c.avatar_url,
+        }))
+      })
+    }).catch(() => {})
   }, [isOpen, chatType])
 
   const handleSaveTopic = async () => {
@@ -249,7 +273,7 @@ export function ChatInfo({
     setActionBusy(true)
     try {
       await SetGroupTopic(chatId, text)
-      if (groupInfo) setGroupInfo({ ...groupInfo, group_topic: text })
+      if (groupInfo) setGroupInfo({ ...groupInfo, group_topic: text } as api.Group)
       setTopicEdit(false)
     } catch (e) {
       console.error("Failed to set group topic:", e)
@@ -314,12 +338,15 @@ export function ChatInfo({
 
   const handleLinkCommunity = async (parentJID: string) => {
     setLinkBusy(true)
+    setLinkError("")
     try {
       await LinkGroupToCommunity(parentJID, chatId)
       setShowLinkCommunity(false)
+      setGroupInfo(null)
       loadInfo()
+      GetCommunityList().then(setCommunities).catch(() => {})
     } catch (e) {
-      console.error("Failed to link community:", e)
+      setLinkError(String(e))
     } finally {
       setLinkBusy(false)
     }
@@ -328,11 +355,13 @@ export function ChatInfo({
   const handleUnlinkCommunity = async (parentJID: string) => {
     if (!confirm("Unlink this group from its community?")) return
     setLinkBusy(true)
+    setLinkError("")
     try {
       await UnlinkGroupFromCommunity(parentJID, chatId)
+      setGroupInfo(null)
       loadInfo()
     } catch (e) {
-      console.error("Failed to unlink community:", e)
+      setLinkError(String(e))
     } finally {
       setLinkBusy(false)
     }
@@ -464,7 +493,46 @@ export function ChatInfo({
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4">
                   <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">About</p>
-                  <p className="text-gray-900 dark:text-gray-100">{"No about info"}</p>
+                  <p className="text-gray-900 dark:text-gray-100">{contactInfo.status || "No about info"}</p>
+                </div>
+              </div>
+            )}
+
+            {/* User Info from server */}
+            {chatType === "contact" && contactInfo && (
+              <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
+                <div className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">Info</p>
+                    {userInfo ? (
+                      <p className="text-gray-900 dark:text-gray-100 text-sm">
+                        {userInfo.status ? `"${userInfo.status}"` : "No status"}
+                        {userInfo.devices?.length ? ` · ${userInfo.devices.length} device${userInfo.devices.length !== 1 ? "s" : ""}` : ""}
+                      </p>
+                    ) : userInfoBusy ? (
+                      <p className="text-sm text-gray-500">Loading…</p>
+                    ) : (
+                      <p className="text-sm text-gray-500">Unknown</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setUserInfoBusy(true)
+                      try {
+                        const results = await GetUserInfo([contactInfo.phno])
+                        const info = results?.[0]
+                        setUserInfo(info)
+                      } catch (e) {
+                        console.error("GetUserInfo failed:", e)
+                      } finally {
+                        setUserInfoBusy(false)
+                      }
+                    }}
+                    disabled={userInfoBusy}
+                    className="rounded-lg border border-gray-300 dark:border-dark-border px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-dark-tertiary disabled:opacity-50 text-gray-600 dark:text-dark-muted"
+                  >
+                    {userInfoBusy ? "Fetching…" : "Fetch"}
+                  </button>
                 </div>
               </div>
             )}
@@ -723,6 +791,75 @@ export function ChatInfo({
                     </button>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Add Participants */}
+            {chatType === "group" && isAdmin && (
+              <div className="border-b border-gray-200 dark:border-dark-tertiary">
+                <button
+                  onClick={async () => {
+                    setShowAddParticipant(!showAddParticipant)
+                    if (!showAddParticipant) {
+                      try {
+                        const contacts = await FetchContacts()
+                        setAddResults(contacts)
+                      } catch { /* ignore */ }
+                    }
+                  }}
+                  className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors"
+                >
+                  <span className="text-gray-900 dark:text-gray-100 font-medium">Add members</span>
+                </button>
+                {showAddParticipant && (
+                  <div className="mx-4 mb-3">
+                    <input
+                      autoFocus
+                      className="w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] text-light-text dark:text-dark-text mb-2"
+                      value={addSearch}
+                      onChange={e => {
+                        const q = e.target.value
+                        setAddSearch(q)
+                        FetchContacts().then(all => {
+                          const filtered = all.filter((c: any) =>
+                            c.jid && !groupInfo?.group_participants?.some((p: any) => p.contact.jid === c.jid) &&
+                            (c.full_name || c.push_name || c.phno || "").toLowerCase().includes(q.toLowerCase())
+                          )
+                          setAddResults(filtered)
+                        }).catch(() => {})
+                      }}
+                      placeholder="Search contacts..."
+                    />
+                    <div className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 dark:border-dark-border">
+                      {addResults.length === 0 && (
+                        <p className="p-3 text-sm text-gray-500 dark:text-dark-muted">No contacts to add</p>
+                      )}
+                      {addResults.map((c: any) => (
+                        <button
+                          key={c.jid}
+                          onClick={async () => {
+                            setAddBusy(true)
+                            try {
+                              await AddGroupParticipants(chatId, [c.jid])
+                              setGroupInfo(null)
+                              loadInfo()
+                              setShowAddParticipant(false)
+                              setAddSearch("")
+                            } catch (e) {
+                              console.error("Failed to add participant:", e)
+                            } finally {
+                              setAddBusy(false)
+                            }
+                          }}
+                          disabled={addBusy}
+                          className="w-full px-3 py-2 text-left text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-dark-tertiary disabled:opacity-50 border-b border-gray-100 dark:border-dark-tertiary last:border-0"
+                        >
+                          {c.full_name || c.push_name || c.phno || c.jid}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {/* Block/Report (for contacts) */}
@@ -1007,17 +1144,25 @@ export function ChatInfo({
                 {isAdmin && (
                   <div className="border-t border-gray-200 dark:border-dark-tertiary">
                     {groupInfo?.parent_jid ? (
-                      <button
-                        onClick={() => handleUnlinkCommunity(groupInfo!.parent_jid)}
-                        disabled={linkBusy}
-                        className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-orange-600 dark:text-orange-400 disabled:opacity-50"
-                      >
-                        <span>Unlink from community</span>
-                      </button>
-                    ) : (
-                      <>
+                      <div>
                         <button
-                          onClick={() => setShowLinkCommunity(!showLinkCommunity)}
+                          onClick={() => handleUnlinkCommunity(groupInfo!.parent_jid!)}
+                          disabled={linkBusy}
+                          className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-orange-600 dark:text-orange-400 disabled:opacity-50"
+                        >
+                          <span>Unlink from community</span>
+                        </button>
+                        {linkError && <p className="px-4 pb-2 text-xs text-red-500">{linkError}</p>}
+                      </div>
+                    ) : (
+                      <div>
+                        <button
+                          onClick={() => {
+                            setShowLinkCommunity(!showLinkCommunity)
+                            if (!showLinkCommunity) {
+                              GetCommunityList().then(setCommunities).catch(() => {})
+                            }
+                          }}
                           className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors"
                         >
                           <span className="text-gray-900 dark:text-gray-100">Link to community</span>
@@ -1039,7 +1184,8 @@ export function ChatInfo({
                             ))}
                           </div>
                         )}
-                      </>
+                        {linkError && <p className="px-4 pb-2 text-xs text-red-500">{linkError}</p>}
+                      </div>
                     )}
                   </div>
                 )}

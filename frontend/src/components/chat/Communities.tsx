@@ -85,7 +85,13 @@ export function CommunityList({ searchTerm, selectedJid, onSelect }: CommunityLi
     try {
       const list = (await GetCommunityList()) || []
       if (generation !== loadGeneration.current) return
-      setCommunities(list)
+      setCommunities(prev => {
+        const prevMap = new Map(prev.map(c => [c.jid, c]))
+        return list.map(c => ({
+          ...c,
+          avatar_url: prevMap.get(c.jid)?.avatar_url || c.avatar_url,
+        }))
+      })
       setLoading(false)
 
       // Render the list first, then hydrate avatars with bounded concurrency.

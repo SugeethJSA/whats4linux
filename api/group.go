@@ -17,6 +17,9 @@ type Group struct {
 	GroupTopic       string             `json:"group_topic,omitempty"`
 	IsGroupLock      bool               `json:"is_group_lock"`
 	IsGroupAnnounce  bool               `json:"is_group_announce"`
+	MemberAddMode    string             `json:"member_add_mode"`
+	JoinApproval     bool               `json:"join_approval"`
+	ParentJID        string             `json:"parent_jid,omitempty"`
 	GroupOwner       Contact            `json:"group_owner"`
 	GroupCreatedAt   string             `json:"group_created_at"`
 	ParticipantCount int                `json:"participant_count"`
@@ -87,6 +90,10 @@ func (a *Api) GetGroupInfo(jidStr string) (Group, error) {
 			IsAdmin: p.IsAdmin,
 		})
 	}
+		parentJID := ""
+	if !GroupInfo.LinkedParentJID.IsEmpty() {
+		parentJID = GroupInfo.LinkedParentJID.String()
+	}
 	owner, err := a.GetContact(GroupInfo.OwnerJID)
 	if err != nil {
 		return Group{}, fmt.Errorf("Error fetching owner: %w", err)
@@ -96,6 +103,9 @@ func (a *Api) GetGroupInfo(jidStr string) (Group, error) {
 		GroupTopic:       GroupInfo.GroupTopic.Topic,
 		IsGroupLock:      GroupInfo.GroupLocked.IsLocked,
 		IsGroupAnnounce:  GroupInfo.GroupAnnounce.IsAnnounce,
+		MemberAddMode:    string(GroupInfo.MemberAddMode),
+		JoinApproval:     GroupInfo.GroupMembershipApprovalMode.IsJoinApprovalRequired,
+		ParentJID:        parentJID,
 		GroupOwner:       *owner,
 		GroupCreatedAt:   GroupInfo.GroupCreated.Format("2006-01-02 15:04:05"),
 		ParticipantCount: GroupInfo.ParticipantCount,

@@ -18,15 +18,27 @@ func (a *Api) SendPollVote(chatJID, pollMessageID string, selectedOptions []stri
 	if err != nil {
 		return "", err
 	}
+	original, err := a.messageStore.GetDecodedMessage(chatJID, pollMessageID)
+	if err != nil {
+		return "", fmt.Errorf("poll message not found: %w", err)
+	}
+	senderJID, err := types.ParseJID(original.Info.Sender)
+	if err != nil {
+		return "", fmt.Errorf("invalid poll sender JID: %w", err)
+	}
+	pollTS, err := time.Parse(time.RFC3339, original.Info.Timestamp)
+	if err != nil {
+		pollTS = time.Now()
+	}
 	pollInfo := &types.MessageInfo{
 		MessageSource: types.MessageSource{
 			Chat:     chat,
-			Sender:   chat.ToNonAD(),
-			IsFromMe: false,
+			Sender:   senderJID.ToNonAD(),
+			IsFromMe: original.Info.IsFromMe,
 		},
 		ID:        types.MessageID(pollMessageID),
 		PushName:  "",
-		Timestamp: time.Now(),
+		Timestamp: pollTS,
 	}
 	voteMsg, err := a.waClient.BuildPollVote(a.ctx, pollInfo, selectedOptions)
 	if err != nil {
@@ -37,6 +49,11 @@ func (a *Api) SendPollVote(chatJID, pollMessageID string, selectedOptions []stri
 		return "", err
 	}
 	slog.Info(fmt.Sprintf("Voted in poll %s in %s (%d options selected)", pollMessageID, chatJID, len(selectedOptions)), "source", "messages")
+	runtime.EventsEmit(a.ctx, "wa:poll_vote_submitted", map[string]any{
+		"chatId":    chatJID,
+		"messageID": pollMessageID,
+		"options":   selectedOptions,
+	})
 	runtime.EventsEmit(a.ctx, "wa:new_message", map[string]any{
 		"chatId":    chatJID,
 		"pollVote":  true,

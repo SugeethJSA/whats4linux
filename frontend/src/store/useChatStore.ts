@@ -45,13 +45,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const newChatsById = new Map<string, ChatItem>()
 
       for (const chat of chats) {
-        // Preserve unread counts across a full refetch; the rebuilt items from
-        // the backend don't carry unread state.
         const prev = state.chatsById.get(chat.id)
-        newChatsById.set(
-          chat.id,
-          prev?.unreadCount ? { ...chat, unreadCount: prev.unreadCount } : chat,
-        )
+        if (prev) {
+          newChatsById.set(chat.id, {
+            ...chat,
+            unreadCount: prev.unreadCount || 0,
+            avatar: prev.avatar,
+            communityAvatar: prev.communityAvatar,
+          })
+        } else {
+          newChatsById.set(chat.id, chat)
+        }
       }
 
       const newChatIds = sortChatItems([...newChatsById.values()]).map(c => c.id)

@@ -21,7 +21,7 @@ const AdvancedScreen = () => {
   const [stickerPackID, setStickerPackID] = useState("")
   const [stickerBusy, setStickerBusy] = useState(false)
   const [stickerResult, setStickerResult] = useState("")
-  const [stickerPackData, setStickerPackData] = useState<any>(null)
+
 
   useEffect(() => {
     GetCustomCSS().then(setCustomCSS)
@@ -158,11 +158,9 @@ const AdvancedScreen = () => {
             onClick={async () => {
               setStickerBusy(true)
               setStickerResult("")
-              setStickerPackData(null)
               try {
-                const data = await FetchStickerPack(stickerPackID.trim())
-                setStickerPackData(data)
-                setStickerResult(`Fetched pack: ${JSON.stringify(data)}`)
+                await FetchStickerPack(stickerPackID.trim())
+                setStickerResult(`Fetched pack successfully`)
               } catch (err) {
                 setStickerResult(String(err))
               } finally {
