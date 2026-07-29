@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { GetPrivacySettings, SetPrivacySetting } from "../../../wailsjs/go/api/Api"
+import { GetPrivacySettings, SetPrivacySetting, GetStatusPrivacy, SetStatusPrivacy } from "../../../wailsjs/go/api/Api"
 
 type PrivacyValue = "all" | "contacts" | "contact_blacklist" | "none" | "match_last_seen" | "known"
 
@@ -98,6 +98,7 @@ const PrivacySettingsScreen = () => {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState("")
+  const [statusBlacklist, setStatusBlacklist] = useState<string[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -119,6 +120,16 @@ const PrivacySettingsScreen = () => {
         setError("Failed to load privacy settings")
       })
       .finally(() => !cancelled && setLoading(false))
+
+    GetStatusPrivacy().then(entries => {
+      if (cancelled) return
+      for (const e of entries) {
+        if (e.type === "contact_blacklist") {
+          setStatusBlacklist(e.jids || [])
+        }
+      }
+    }).catch(() => {})
+
     return () => { cancelled = true }
   }, [])
 
@@ -126,7 +137,11 @@ const PrivacySettingsScreen = () => {
     setBusy(key)
     setError("")
     try {
-      await SetPrivacySetting(key, value)
+      if (key === "status") {
+        await SetStatusPrivacy(value)
+      } else {
+        await SetPrivacySetting(key, value)
+      }
       setValues(prev => ({ ...prev, [key]: value }))
     } catch (err) {
       console.error(`Failed to set ${key}:`, err)
@@ -156,21 +171,28 @@ const PrivacySettingsScreen = () => {
       )}
 
       {!loading && SETTINGS.map(s => (
-        <div key={s.key} className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 bg-white p-4 dark:border-white/5 dark:bg-dark-secondary">
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-light-text dark:text-dark-text">{s.label}</div>
-            <div className="mt-0.5 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">{s.description}</div>
+        <div key={s.key}>
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 bg-white p-4 dark:border-white/5 dark:bg-dark-secondary">
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-light-text dark:text-dark-text">{s.label}</div>
+              <div className="mt-0.5 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">{s.description}</div>
+            </div>
+            <select
+              value={values[s.key] || ""}
+              onChange={e => handleChange(s.key, e.target.value)}
+              disabled={busy === s.key}
+              className={selectCls + (busy === s.key ? " opacity-50" : "")}
+            >
+              {s.options.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </div>
-          <select
-            value={values[s.key] || ""}
-            onChange={e => handleChange(s.key, e.target.value)}
-            disabled={busy === s.key}
-            className={selectCls + (busy === s.key ? " opacity-50" : "")}
-          >
-            {s.options.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+          {s.key === "status" && values[s.key] === "contact_blacklist" && statusBlacklist.length > 0 && (
+            <div className="mt-1 ml-4 text-xs text-gray-500 dark:text-dark-muted">
+              Excluded: {statusBlacklist.join(", ")}
+            </div>
+          )}
         </div>
       ))}
     </div>

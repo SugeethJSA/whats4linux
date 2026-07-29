@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect, useLayoutEffect } from "react"
 import { createPortal } from "react-dom"
 import { ReplyIcon, CopyIcon, ReactIcon, EditIcon, DeleteIcon, MenuArrowIcon, ForwardIcon } from "../../assets/svgs/message_menu_icons"
-import { ToggleMessageLabel } from "../../../wailsjs/go/api/Api"
+import { ToggleMessageLabel, DeleteMedia } from "../../../wailsjs/go/api/Api"
 
 interface MessageMenuProps {
   messageId: string
   chatId: string
   isFromMe: boolean
   isPinned?: boolean
+  messageBody?: { directPath?: string; fileEncSHA256?: string }
   onReply?: () => void
   onCopy?: () => void
   onReact?: () => void
@@ -26,8 +27,10 @@ const PinMenuIcon = () => (
 
 export function MessageMenu({
   messageId,
+  chatId,
   isFromMe,
   isPinned,
+  messageBody,
   onReply,
   onCopy,
   onReact,
@@ -218,6 +221,21 @@ export function MessageMenu({
               >
                 <ForwardIcon />
                 <span>Forward</span>
+              </button>
+            )}
+            {messageBody?.directPath && (
+              <button
+                onClick={async () => {
+                  try {
+                    await DeleteMedia(messageBody.directPath!, "", messageBody.fileEncSHA256!, "")
+                  } catch (e) {
+                    console.error("DeleteMedia failed:", e)
+                  }
+                  closeMenu()
+                }}
+                className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-500 dark:text-red-400 text-sm"
+              >
+                <span>Delete media from server</span>
               </button>
             )}
             <button

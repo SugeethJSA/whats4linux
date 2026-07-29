@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import SimpleIconTitle from "../../components/settings/SimpleIconTitle"
 import SecurityNotificationsScreen from "./account/SecurityNotificationsScreen"
-import { SetStatusMessage, GetContactQRLink, SetPushName } from "../../../wailsjs/go/api/Api"
+import { SetStatusMessage, GetContactQRLink, SetPushName, ResolveContactQRLink } from "../../../wailsjs/go/api/Api"
 import type { ReactNode } from "react"
 
 const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode) => void }) => {
@@ -11,6 +11,9 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
   const [qrBusy, setQrBusy] = useState(false)
   const [pushName, setPushNameState] = useState("")
   const [pushNameSaved, setPushNameSaved] = useState(false)
+  const [resolveCode, setResolveCode] = useState("")
+  const [resolveResult, setResolveResult] = useState<string | null>(null)
+  const [resolveBusy, setResolveBusy] = useState(false)
 
   const handleSaveStatus = async () => {
     try {
@@ -98,6 +101,41 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
         >
           {qrBusy ? "Loading…" : qrLink ? "Copied to clipboard!" : "Get My Contact Link"}
         </button>
+      </div>
+
+      {/* Resolve contact QR code */}
+      <div className="rounded-xl border border-gray-200 dark:border-dark-border p-4">
+        <h3 className="text-base font-medium text-light-text dark:text-dark-text mb-2">Resolve Contact QR</h3>
+        <p className="text-sm text-gray-500 dark:text-dark-muted mb-2">Scan or paste a WhatsApp contact QR code link</p>
+        <div className="flex gap-2">
+          <input
+            className="flex-1 rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] text-light-text dark:text-dark-text"
+            value={resolveCode}
+            onChange={e => setResolveCode(e.target.value)}
+            placeholder="https://wa.me/qr/..."
+          />
+          <button
+            onClick={async () => {
+              setResolveBusy(true)
+              setResolveResult(null)
+              try {
+                const result = await ResolveContactQRLink(resolveCode.trim())
+                setResolveResult(`JID: ${result.jid}${result.push_name ? ` · ${result.push_name}` : ""}`)
+              } catch (err) {
+                setResolveResult("Failed to resolve QR code")
+              } finally {
+                setResolveBusy(false)
+              }
+            }}
+            disabled={resolveBusy || !resolveCode.trim()}
+            className="rounded-lg bg-[#21c063] px-4 py-2 text-sm font-medium text-[#0a1014] hover:bg-[#1ea952] disabled:opacity-50"
+          >
+            {resolveBusy ? "Resolving…" : "Resolve"}
+          </button>
+        </div>
+        {resolveResult && (
+          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{resolveResult}</p>
+        )}
       </div>
 
       <SimpleIconTitle

@@ -10,6 +10,7 @@ import {
   GetSelfAvatar,
   ToggleChatPin,
   ToggleChatArchive,
+  ToggleChatLabel,
 } from "../../wailsjs/go/api/Api"
 import { api } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
@@ -805,6 +806,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
     }
   }, [chatMenu])
 
+  const [chatLabelId, setChatLabelId] = useState("")
   const [storyGroup, setStoryGroup] = useState<StatusGroup | null>(null)
   const viewRef = useRef(view)
   viewRef.current = view
@@ -957,6 +959,33 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           >
             {chatMenu.chat.archived ? "Unarchive chat" : "Archive chat"}
           </button>
+          <div className="border-t border-gray-200 dark:border-dark-border" />
+          <div className="px-4 py-2">
+            <div className="flex gap-1">
+              <input
+                className="flex-1 rounded border border-gray-300 dark:border-dark-border bg-transparent px-2 py-1 text-xs outline-none focus:border-[#21c063] text-light-text dark:text-dark-text"
+                value={chatLabelId}
+                onChange={e => setChatLabelId(e.target.value)}
+                placeholder="Label ID"
+                onClick={e => e.stopPropagation()}
+              />
+              <button
+                onClick={async () => {
+                  if (!chatLabelId.trim() || !chatMenu) return
+                  try {
+                    await ToggleChatLabel(chatMenu.chat.id, chatLabelId.trim(), true)
+                  } catch (e) {
+                    console.error("Failed to label chat:", e)
+                  }
+                  setChatLabelId("")
+                  setChatMenu(null)
+                }}
+                className="rounded bg-[#21c063] px-2 py-1 text-xs font-medium text-[#0a1014]"
+              >
+                Label
+              </button>
+            </div>
+          </div>
         </div>
       )}
       <ResizablePanelGroup className="h-full">

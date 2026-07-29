@@ -8,7 +8,7 @@ import {
   DisappearingMessagesIcon,
   ReportIcon,
 } from "../../assets/svgs/chat_info_icons"
-import { GetProfile, GetGroupInfo, IsChatMuted, ToggleChatMute, BlockContact, UnblockContact, LeaveGroup, GetBlockList, SetDisappearingTimer, SetGroupName, GetGroupInviteLink, ClearChat, GetBusinessProfile, SetGroupPhoto, RemoveGroupParticipants, PromoteGroupParticipants, DemoteGroupParticipants, SetGroupAnnounce, SetGroupLocked, GetMyJID, SetGroupTopic, SetGroupMemberAddMode, SetGroupJoinApprovalMode, GetGroupJoinRequests, ApproveGroupJoinRequest, RejectGroupJoinRequest, LinkGroupToCommunity, UnlinkGroupFromCommunity, GetCommunityList, IsOnWhatsApp, AddGroupParticipants, FetchContacts, GetDisappearingTimer, GetUserInfo } from "../../../wailsjs/go/api/Api"
+import { GetProfile, GetGroupInfo, IsChatMuted, ToggleChatMute, BlockContact, UnblockContact, LeaveGroup, GetBlockList, SetDisappearingTimer, SetGroupName, GetGroupInviteLink, ClearChat, GetBusinessProfile, SetGroupPhoto, RemoveGroupParticipants, PromoteGroupParticipants, DemoteGroupParticipants, SetGroupAnnounce, SetGroupLocked, GetMyJID, SetGroupTopic, SetGroupMemberAddMode, SetGroupJoinApprovalMode, GetGroupJoinRequests, ApproveGroupJoinRequest, RejectGroupJoinRequest, LinkGroupToCommunity, UnlinkGroupFromCommunity, GetCommunityList, IsOnWhatsApp, AddGroupParticipants, FetchContacts, GetDisappearingTimer, GetUserInfo, GetNewsletterInfo, NewsletterToggleMute } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { EventsOn } from "../../../wailsjs/runtime/runtime"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
@@ -73,6 +73,8 @@ export function ChatInfo({
   const [addSearch, setAddSearch] = useState("")
   const [addResults, setAddResults] = useState<any[]>([])
   const [addBusy, setAddBusy] = useState(false)
+  const [newsletterInfo, setNewsletterInfo] = useState<{ name?: string; description?: string; subscriber_count?: number; mute?: string } | null>(null)
+  const [newsletterMuted, setNewsletterMuted] = useState(false)
   const MAX_VISIBLE = 10
 
   const DISAPPEAR_OPTIONS = [
@@ -136,6 +138,18 @@ export function ChatInfo({
     GetDisappearingTimer(chatId).then(seconds => {
       setDisappearTimer(seconds)
     }).catch(() => {})
+  }, [isOpen, chatId])
+
+  // Load newsletter info for newsletter chats
+  useEffect(() => {
+    if (!isOpen || !chatId.endsWith("@newsletter")) return
+    let cancelled = false
+    GetNewsletterInfo(chatId).then(info => {
+      if (cancelled) return
+      setNewsletterInfo(info)
+      setNewsletterMuted(info?.mute === "on")
+    }).catch(() => {})
+    return () => { cancelled = true }
   }, [isOpen, chatId])
 
   const handleToggleMute = useCallback(async () => {
@@ -862,6 +876,34 @@ export function ChatInfo({
                 )}
               </div>
             )}
+            {/* Newsletter Info */}
+            {chatId.endsWith("@newsletter") && newsletterInfo && (
+              <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
+                <div className="p-4 space-y-3">
+                  <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">Channel Info</p>
+                  {newsletterInfo.description && (
+                    <p className="text-gray-900 dark:text-gray-100 text-sm">{newsletterInfo.description}</p>
+                  )}
+                  {newsletterInfo.subscriber_count !== undefined && (
+                    <p className="text-sm text-gray-500 dark:text-dark-muted">{newsletterInfo.subscriber_count} subscribers</p>
+                  )}
+                  <button
+                    onClick={async () => {
+                      try {
+                        await NewsletterToggleMute(chatId, !newsletterMuted)
+                        setNewsletterMuted(!newsletterMuted)
+                      } catch (e) {
+                        console.error("Failed to toggle newsletter mute:", e)
+                      }
+                    }}
+                    className="text-sm text-blue-600 dark:text-green hover:underline"
+                  >
+                    {newsletterMuted ? "Unmute notifications" : "Mute notifications"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Block/Report (for contacts) */}
             {chatType === "contact" && (
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">

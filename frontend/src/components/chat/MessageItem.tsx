@@ -104,6 +104,7 @@ export function MessageItem({
   const content = message.Content
   const isSticker = !!content?.stickerMessage
   const isPending = (message as any).isPending || false
+  const mediaBody = content?.imageMessage || content?.videoMessage || content?.audioMessage || content?.stickerMessage || undefined
   const isGroup = chatId.endsWith("@g.us")
   // Empty for @lid senders — those JIDs carry no phone number.
   const senderPhone = formatPhone(phoneFromJID(message.Info.Sender))
@@ -614,6 +615,7 @@ export function MessageItem({
             chatId={chatId}
             isFromMe={isFromMe}
             isPinned={isPinned}
+            messageBody={mediaBody}
             onPin={handlePin}
             onReply={handleReply}
             onCopy={handleCopy}

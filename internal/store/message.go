@@ -93,15 +93,17 @@ type ExtendedTextContent struct {
 }
 
 type MediaMessageContent struct {
-	Caption     string       `json:"caption,omitempty"`
-	Mimetype    string       `json:"mimetype,omitempty"`
-	GifPlayback bool         `json:"gifPlayback,omitempty"`
-	Width       int          `json:"width,omitempty"`
-	Height      int          `json:"height,omitempty"`
-	PTT         bool         `json:"ptt,omitempty"`
-	Seconds     uint32       `json:"seconds,omitempty"`
-	Waveform    []byte       `json:"waveform,omitempty"`
-	ContextInfo *ContextInfo `json:"contextInfo,omitempty"`
+	Caption       string       `json:"caption,omitempty"`
+	Mimetype      string       `json:"mimetype,omitempty"`
+	GifPlayback   bool         `json:"gifPlayback,omitempty"`
+	Width         int          `json:"width,omitempty"`
+	Height        int          `json:"height,omitempty"`
+	PTT           bool         `json:"ptt,omitempty"`
+	Seconds       uint32       `json:"seconds,omitempty"`
+	Waveform      []byte       `json:"waveform,omitempty"`
+	DirectPath    string       `json:"directPath,omitempty"`
+	FileEncSHA256 string       `json:"fileEncSHA256,omitempty"`
+	ContextInfo   *ContextInfo `json:"contextInfo,omitempty"`
 }
 
 type DocumentMessageContent struct {
@@ -1677,6 +1679,37 @@ func (ms *MessageStore) applyPTT(messageID string, content *DecodedMessageConten
 	}
 }
 
+// applyMediaMeta enriches media messages with direct_path and file_enc_sha256
+// so the frontend can call DeleteMedia on WhatsApp servers.
+func (ms *MessageStore) applyMediaMeta(messageID string, content *DecodedMessageContent) {
+	if messageID == "" || content == nil {
+		return
+	}
+	var directPath, fileEncSHA256 sql.NullString
+	if err := ms.db.QueryRow(query.SelectMediaMetaByMessageID, messageID).Scan(&directPath, &fileEncSHA256); err != nil {
+		return
+	}
+	if content.ImageMessage != nil {
+		content.ImageMessage.DirectPath = directPath.String
+		content.ImageMessage.FileEncSHA256 = fileEncSHA256.String
+	}
+	if content.VideoMessage != nil {
+		content.VideoMessage.DirectPath = directPath.String
+		content.VideoMessage.FileEncSHA256 = fileEncSHA256.String
+	}
+	if content.StickerMessage != nil {
+		content.StickerMessage.DirectPath = directPath.String
+		content.StickerMessage.FileEncSHA256 = fileEncSHA256.String
+	}
+	if content.AudioMessage != nil {
+		content.AudioMessage.DirectPath = directPath.String
+		content.AudioMessage.FileEncSHA256 = fileEncSHA256.String
+	}
+	if content.DocumentMessage != nil {
+		// Document messages store media metadata differently; skip for now.
+	}
+}
+
 // mediaDimensions returns the stored intrinsic width/height for a media
 // message so the frontend can reserve the final layout box before the media
 // loads (prevents scroll jumps in the virtualized list). Returns zeros when
@@ -1859,6 +1892,7 @@ func (ms *MessageStore) GetDecodedMessage(chatJID string, messageID string) (*De
 		contextInfo,
 	)
 	ms.applyPTT(messageID, msg.Content)
+	ms.applyMediaMeta(messageID, msg.Content)
 
 	return &msg, nil
 }
