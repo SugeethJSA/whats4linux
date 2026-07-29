@@ -1,0 +1,177 @@
+name: Rolling Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+         - os: ubuntu-latest
+           platform: linux/amd64
+           binary: Whats4Linux-Linux-x86_64.AppImage
+           artifact: whats4linux-linux-amd64
+           webkit: true
+
+         - os: windows-latest
+           platform: windows/amd64
+           binary: whats4linux-windows-x86_64.exe
+           artifact: whats4linux-windows-amd64
+           webkit: false
+
+         - os: macos-latest
+           platform: darwin/amd64
+           binary: whats4linux-darwin-x86_64
+           artifact: whats4linux-macos-amd64
+           webkit: false
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Linux dependencies
+        if: matrix.webkit
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            pkg-config
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Install Wails
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - name: Build version info
+        id: version
+        shell: bash
+        run: |
+          VERSION="v$(date -u +'%Y.%m.%d')-$(git rev-parse --short HEAD)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      - name: Build binaries (Linux / macOS)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          cd systray
+          go build -o ../build/bin/whats4linux_tray .
+          cd ..
+          wails build \
+            -o ${{ matrix.binary }} \
+            ${{ matrix.webkit && '-tags webkit2_41' || '' }} \
+            -ldflags "-s -w -X main.version=${{ steps.version.outputs.version }} -X main.commit=${{ steps.version.outputs.commit }} -X main.date=${{ steps.version.outputs.date }} -X main.buildType=release"
+
+      - name: Build binaries (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          cd systray
+          go build -o ../build/bin/whats4linux_tray.exe .
+          cd ..
+          wails build \
+            -o ${{ matrix.binary }} \
+            -ldflags "-s -w -X main.version=${{ steps.version.outputs.version }} -X main.commit=${{ steps.version.outputs.commit }} -X main.date=${{ steps.version.outputs.date }} -X main.buildType=release"
+
+      - name: Download appimagetool
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          wget -q https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+
+      - name: Build AppImage
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mv systray/whats4linux_tray packaging/AppImage/AppDir/usr/bin/
+          mv "build/bin/${{matrix.binary}}" packaging/AppImage/AppDir/usr/bin/whats4linux
+          chmod +x packaging/AppImage/AppDir/usr/bin/*
+          ./appimagetool-x86_64.AppImage packaging/AppImage/AppDir
+          mv Whats4Linux-x86_64.AppImage "build/bin/${{matrix.binary}}"
+
+      - name: Bundle macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          mv systray/whats4linux_tray build/bin/whats4linux.app/Contents/MacOS/whats4linux_tray
+          cd build/bin
+          ditto -c -k --sequesterRsrc --keepParent \
+            whats4linux.app \
+            "${{ matrix.binary }}.zip"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: build/bin/${{ matrix.binary }}*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compute version
+        id: version
+        shell: bash
+        run: |
+          VERSION="v$(date -u +'%Y.%m.%d')-$(git rev-parse --short HEAD)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: List artifacts
+        shell: bash
+        run: find dist -type f | sort
+
+      - name: Create rolling release tag
+        shell: bash
+        run: |
+          git tag -f ${{ steps.version.outputs.version }}
+          git push -f origin ${{ steps.version.outputs.version }}
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: "Release ${{ steps.version.outputs.version }}"
+          body: |
+            Rolling release built from commit ${{ github.sha }}.
+
+            ## Downloads
+            - **Linux**: `Whats4Linux-Linux-x86_64.AppImage`
+            - **Windows**: `whats4linux-windows-x86_64.exe`
+            - **macOS**: `whats4linux-darwin-x86_64.zip`
+          files: dist/**/*
