@@ -90,7 +90,7 @@ func (a *Api) GetGroupInfo(jidStr string) (Group, error) {
 			IsAdmin: p.IsAdmin,
 		})
 	}
-		parentJID := ""
+	parentJID := ""
 	if !GroupInfo.LinkedParentJID.IsEmpty() {
 		parentJID = GroupInfo.LinkedParentJID.String()
 	}
@@ -256,7 +256,7 @@ func (a *Api) CreateCommunity(name, description string) (string, error) {
 		return "", fmt.Errorf("not logged in")
 	}
 	groupInfo, err := a.waClient.CreateGroup(a.ctx, whatsmeow.ReqCreateGroup{
-		Name:       name,
+		Name:        name,
 		GroupParent: types.GroupParent{IsParent: true},
 	})
 	if err != nil {

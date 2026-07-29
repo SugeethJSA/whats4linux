@@ -14,18 +14,18 @@ import (
 
 // CallStats holds diagnostic info about an active call for the frontend stats panel.
 type CallStats struct {
-	CallID          string `json:"call_id"`
-	PeerJID         string `json:"peer_jid"`
-	State           string `json:"state"`
-	IsVideo         bool   `json:"is_video"`
-	IsSendingVideo  bool   `json:"is_sending_video"`
-	IsReceivingVideo bool  `json:"is_receiving_video"`
-	Codec           string `json:"codec"`            // "MLow" (WhatsApp default)
-	SampleRate      int    `json:"sample_rate"`      // 16000
-	FrameSize       int    `json:"frame_size"`       // 960 samples (60ms)
-	RelayEnabled    bool   `json:"relay_enabled"`    // always true for WhatsApp calls
-	BridgeActive    bool   `json:"bridge_active"`    // audio bridge live
-	Duration        int64  `json:"duration"`         // call duration in seconds (0 while ringing)
+	CallID           string `json:"call_id"`
+	PeerJID          string `json:"peer_jid"`
+	State            string `json:"state"`
+	IsVideo          bool   `json:"is_video"`
+	IsSendingVideo   bool   `json:"is_sending_video"`
+	IsReceivingVideo bool   `json:"is_receiving_video"`
+	Codec            string `json:"codec"`         // "MLow" (WhatsApp default)
+	SampleRate       int    `json:"sample_rate"`   // 16000
+	FrameSize        int    `json:"frame_size"`    // 960 samples (60ms)
+	RelayEnabled     bool   `json:"relay_enabled"` // always true for WhatsApp calls
+	BridgeActive     bool   `json:"bridge_active"` // audio bridge live
+	Duration         int64  `json:"duration"`      // call duration in seconds (0 while ringing)
 }
 
 type ActiveCall struct {
@@ -39,7 +39,7 @@ type ActiveCall struct {
 }
 
 var (
-	callsMu    sync.Mutex
+	callsMu     sync.Mutex
 	activeCalls = make(map[string]*ActiveCall)
 )
 
@@ -49,7 +49,7 @@ func (a *Api) initMeowcaller() {
 		log.Println("[Calls] WhatsApp client not initialized, skipping meowcaller")
 		return
 	}
-	
+
 	a.callClient = meowcaller.NewClient(a.waClient)
 
 	// Handle incoming calls
@@ -73,7 +73,7 @@ func (a *Api) initMeowcaller() {
 				"isVideo": call.IsVideo(),
 			})
 		}
-		
+
 		call.OnEnd(func(reason string) {
 			log.Printf("[Calls] Call %s ended: %s", call.ID(), reason)
 			callsMu.Lock()
@@ -112,7 +112,7 @@ func (a *Api) AcceptCall(callID string) error {
 		log.Printf("[Calls] Failed to initialize live audio bridge: %v", err)
 		return fmt.Errorf("audio bridge init failed: %v", err)
 	}
-	
+
 	if err := bridge.Start(); err != nil {
 		log.Printf("[Calls] Failed to start audio bridge: %v", err)
 		return fmt.Errorf("audio bridge start failed: %v", err)

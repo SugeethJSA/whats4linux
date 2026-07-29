@@ -18,13 +18,13 @@ type NewsletterInfo struct {
 }
 
 type NewsletterMessageItem struct {
-	ServerID       int               `json:"server_id"`
-	MessageID      string            `json:"message_id"`
-	Type           string            `json:"type"`
-	Timestamp      int64             `json:"timestamp"`
-	ViewsCount     int               `json:"views_count"`
-	ReactionCounts map[string]int    `json:"reaction_counts"`
-	Message        map[string]any    `json:"message,omitempty"`
+	ServerID       int            `json:"server_id"`
+	MessageID      string         `json:"message_id"`
+	Type           string         `json:"type"`
+	Timestamp      int64          `json:"timestamp"`
+	ViewsCount     int            `json:"views_count"`
+	ReactionCounts map[string]int `json:"reaction_counts"`
+	Message        map[string]any `json:"message,omitempty"`
 }
 
 func (a *Api) GetNewsletterInfo(jidStr string) (*NewsletterInfo, error) {

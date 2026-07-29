@@ -545,6 +545,7 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 
 	return resp.ID, nil
 }
+
 // ForwardMessage retrieves the original message from sourceJID/messageID and
 // forwards it to targetJID with the forwarded flag set.
 func (a *Api) ForwardMessage(sourceJID, messageID, targetJID string) error {
@@ -589,64 +590,64 @@ func (a *Api) ForwardMessage(sourceJID, messageID, targetJID string) error {
 		switch msg.Media.GetMediaGeneralType() {
 		case mtypes.MediaTypeImage:
 			img := &waE2E.ImageMessage{
-				Caption:     &caption,
-				Mimetype:    proto.String(msg.Media.GetMimetype()),
-				URL:         &uploaded.URL,
-				DirectPath:  &uploaded.DirectPath,
-				MediaKey:    uploaded.MediaKey,
+				Caption:       &caption,
+				Mimetype:      proto.String(msg.Media.GetMimetype()),
+				URL:           &uploaded.URL,
+				DirectPath:    &uploaded.DirectPath,
+				MediaKey:      uploaded.MediaKey,
 				FileEncSHA256: uploaded.FileEncSHA256,
-				FileSHA256:  uploaded.FileSHA256,
-				FileLength:  &uploaded.FileLength,
-				ContextInfo: contextInfo,
+				FileSHA256:    uploaded.FileSHA256,
+				FileLength:    &uploaded.FileLength,
+				ContextInfo:   contextInfo,
 			}
 			msgContent = &waE2E.Message{ImageMessage: img}
 		case mtypes.MediaTypeVideo:
 			vid := &waE2E.VideoMessage{
-				Caption:     &caption,
-				Mimetype:    proto.String(msg.Media.GetMimetype()),
-				URL:         &uploaded.URL,
-				DirectPath:  &uploaded.DirectPath,
-				MediaKey:    uploaded.MediaKey,
+				Caption:       &caption,
+				Mimetype:      proto.String(msg.Media.GetMimetype()),
+				URL:           &uploaded.URL,
+				DirectPath:    &uploaded.DirectPath,
+				MediaKey:      uploaded.MediaKey,
 				FileEncSHA256: uploaded.FileEncSHA256,
-				FileSHA256:  uploaded.FileSHA256,
-				FileLength:  &uploaded.FileLength,
-				ContextInfo: contextInfo,
+				FileSHA256:    uploaded.FileSHA256,
+				FileLength:    &uploaded.FileLength,
+				ContextInfo:   contextInfo,
 			}
 			msgContent = &waE2E.Message{VideoMessage: vid}
 		case mtypes.MediaTypeAudio:
 			aud := &waE2E.AudioMessage{
-				Mimetype:    proto.String(msg.Media.GetMimetype()),
-				URL:         &uploaded.URL,
-				DirectPath:  &uploaded.DirectPath,
-				MediaKey:    uploaded.MediaKey,
+				Mimetype:      proto.String(msg.Media.GetMimetype()),
+				URL:           &uploaded.URL,
+				DirectPath:    &uploaded.DirectPath,
+				MediaKey:      uploaded.MediaKey,
 				FileEncSHA256: uploaded.FileEncSHA256,
-				FileSHA256:  uploaded.FileSHA256,
-				FileLength:  &uploaded.FileLength,
-				ContextInfo: contextInfo,
+				FileSHA256:    uploaded.FileSHA256,
+				FileLength:    &uploaded.FileLength,
+				ContextInfo:   contextInfo,
 			}
 			msgContent = &waE2E.Message{AudioMessage: aud}
 		case mtypes.MediaTypeDocument:
 			doc := &waE2E.DocumentMessage{
-				Caption:     &caption,
-				Mimetype:    proto.String(msg.Media.GetMimetype()),
-				URL:         &uploaded.URL,
-				DirectPath:  &uploaded.DirectPath,
-				MediaKey:    uploaded.MediaKey,
+				Caption:       &caption,
+				Mimetype:      proto.String(msg.Media.GetMimetype()),
+				URL:           &uploaded.URL,
+				DirectPath:    &uploaded.DirectPath,
+				MediaKey:      uploaded.MediaKey,
 				FileEncSHA256: uploaded.FileEncSHA256,
-				FileSHA256:  uploaded.FileSHA256,
-				FileLength:  &uploaded.FileLength,
-				ContextInfo: contextInfo,
+				FileSHA256:    uploaded.FileSHA256,
+				FileLength:    &uploaded.FileLength,
+				ContextInfo:   contextInfo,
 			}
 			msgContent = &waE2E.Message{DocumentMessage: doc}
 		case mtypes.MediaTypeSticker:
 			sticker := &waE2E.StickerMessage{
-				Mimetype:    proto.String(msg.Media.GetMimetype()),
-				URL:         &uploaded.URL,
-				DirectPath:  &uploaded.DirectPath,
-				MediaKey:    uploaded.MediaKey,
+				Mimetype:      proto.String(msg.Media.GetMimetype()),
+				URL:           &uploaded.URL,
+				DirectPath:    &uploaded.DirectPath,
+				MediaKey:      uploaded.MediaKey,
 				FileEncSHA256: uploaded.FileEncSHA256,
-				FileSHA256:  uploaded.FileSHA256,
-				FileLength:  &uploaded.FileLength,
+				FileSHA256:    uploaded.FileSHA256,
+				FileLength:    &uploaded.FileLength,
 			}
 			msgContent = &waE2E.Message{StickerMessage: sticker}
 		default:

@@ -62,7 +62,7 @@ func NewLiveAudioBridge() (*LiveAudioBridge, error) {
 		if pInputSamples != nil {
 			floatCount := len(pInputSamples) / 4
 			rawSamples := unsafe.Slice((*float32)(unsafe.Pointer(&pInputSamples[0])), floatCount)
-			
+
 			actualChannels := floatCount / int(framecount)
 			if actualChannels == 0 {
 				actualChannels = 1
@@ -97,7 +97,7 @@ func NewLiveAudioBridge() (*LiveAudioBridge, error) {
 		if pOutputSample != nil {
 			floatCount := len(pOutputSample) / 4
 			outSamples := unsafe.Slice((*float32)(unsafe.Pointer(&pOutputSample[0])), floatCount)
-			
+
 			actualChannels := floatCount / int(framecount)
 			if actualChannels == 0 {
 				actualChannels = 1
@@ -206,9 +206,9 @@ func (b *LiveAudioBridge) WriteFrame(frame []float32) error {
 	}
 
 	b.playbackBuf = append(b.playbackBuf, frame...)
-	
+
 	// Prevent buffer bloat if OS speaker isn't consuming fast enough
-	if len(b.playbackBuf) > frameSamples*50 { 
+	if len(b.playbackBuf) > frameSamples*50 {
 		// Drop oldest frames
 		b.playbackBuf = b.playbackBuf[frameSamples*10:]
 	}
