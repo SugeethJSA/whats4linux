@@ -54,8 +54,14 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     addPendingMessage,
     updatePendingMessageToSent,
   } = useMessageStore()
-  const { setTypingIndicator, showEmojiPicker, setShowEmojiPicker, chatInfoOpen, setChatInfoOpen, typingIndicators } =
-    useUIStore()
+  const {
+    setTypingIndicator,
+    showEmojiPicker,
+    setShowEmojiPicker,
+    chatInfoOpen,
+    setChatInfoOpen,
+    typingIndicators,
+  } = useUIStore()
   const { chatsById } = useChatStore()
 
   const chatMessages = messages[chatId] || []
@@ -655,11 +661,14 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
 
     SubscribeContactPresence(chatId).catch(() => {})
 
-    const unsubPresence = EventsOn("wa:chat_presence", (data: { chatId: string; state: string }) => {
-      if (data?.chatId === chatId) {
-        useUIStore.getState().setTypingIndicator(chatId, data.state === "composing")
-      }
-    })
+    const unsubPresence = EventsOn(
+      "wa:chat_presence",
+      (data: { chatId: string; state: string }) => {
+        if (data?.chatId === chatId) {
+          useUIStore.getState().setTypingIndicator(chatId, data.state === "composing")
+        }
+      },
+    )
 
     const unsubOnline = EventsOn("wa:presence", (data: { jid: string; unavailable: boolean }) => {
       if (data?.jid === chatId || data?.jid.split("@")[0] === chatId.split("@")[0]) {

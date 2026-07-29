@@ -146,12 +146,21 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
     if (!selectedCategory) {
       return (
         <div className="flex flex-col items-center gap-3 text-center px-8">
-          <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-2"
-            style={{ background: "rgba(33,192,99,0.08)", border: "1px solid rgba(33,192,99,0.15)" }}>
+          <div
+            className="w-20 h-20 rounded-2xl flex items-center justify-center mb-2"
+            style={{ background: "rgba(33,192,99,0.08)", border: "1px solid rgba(33,192,99,0.15)" }}
+          >
             <SettingsIcon className="w-10 h-10" style={{ color: "#21c063" } as any} />
           </div>
-          <h2 className="text-xl font-semibold text-light-text dark:text-dark-text" style={{ letterSpacing: "-0.02em" }}>Settings</h2>
-          <p className="text-sm" style={{ color: "#8696a0" }}>Select a category to get started</p>
+          <h2
+            className="text-xl font-semibold text-light-text dark:text-dark-text"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Settings
+          </h2>
+          <p className="text-sm" style={{ color: "#8696a0" }}>
+            Select a category to get started
+          </p>
         </div>
       )
     }
@@ -268,12 +277,22 @@ function SearchBar({ value, onChange }: { value: string; onChange: (v: string) =
 
 function ProfileCard({ profile, avatar }: { profile: api.Contact | null; avatar?: string | null }) {
   return (
-    <div className="mx-3 my-2 rounded-xl cursor-pointer overflow-hidden transition-all duration-200 hover:opacity-90"
-      style={{ background: "rgba(33,192,99,0.06)", border: "1px solid rgba(33,192,99,0.12)" }}>
-      <div className="h-10 w-full" style={{ background: "linear-gradient(90deg, rgba(33,192,99,0.15) 0%, transparent 100%)" }} />
+    <div
+      className="mx-3 my-2 rounded-xl cursor-pointer overflow-hidden transition-all duration-200 hover:opacity-90"
+      style={{ background: "rgba(33,192,99,0.06)", border: "1px solid rgba(33,192,99,0.12)" }}
+    >
+      <div
+        className="h-10 w-full"
+        style={{ background: "linear-gradient(90deg, rgba(33,192,99,0.15) 0%, transparent 100%)" }}
+      />
       <div className="flex items-center px-4 pb-3 -mt-6 gap-3">
-        <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-gray-300 dark:bg-gray-600"
-          style={{ border: "3px solid rgba(33,192,99,0.4)", boxShadow: "0 0 12px rgba(33,192,99,0.2)" }}>
+        <div
+          className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-gray-300 dark:bg-gray-600"
+          style={{
+            border: "3px solid rgba(33,192,99,0.4)",
+            boxShadow: "0 0 12px rgba(33,192,99,0.2)",
+          }}
+        >
           {avatar ? (
             <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
           ) : profile?.avatar_url ? (
@@ -283,10 +302,15 @@ function ProfileCard({ profile, avatar }: { profile: api.Contact | null; avatar?
           )}
         </div>
         <div className="pt-6">
-          <h3 className="font-semibold text-sm text-light-text dark:text-dark-text" style={{ letterSpacing: "-0.01em" }}>
+          <h3
+            className="font-semibold text-sm text-light-text dark:text-dark-text"
+            style={{ letterSpacing: "-0.01em" }}
+          >
             {profile?.push_name || "Your Name"}
           </h3>
-          <p className="text-xs mt-0.5" style={{ color: "#8696a0" }}>{profile?.phno}</p>
+          <p className="text-xs mt-0.5" style={{ color: "#8696a0" }}>
+            {profile?.phno}
+          </p>
         </div>
       </div>
     </div>
@@ -311,7 +335,9 @@ function SettingsMenuItem({
           ? "bg-[#21c063]/8 dark:bg-[#21c063]/10"
           : "hover:bg-gray-100/80 dark:hover:bg-dark-tertiary/60",
       )}
-      style={isSelected ? { borderLeft: "3px solid #21c063", paddingLeft: "calc(0.75rem - 3px)" } : {}}
+      style={
+        isSelected ? { borderLeft: "3px solid #21c063", paddingLeft: "calc(0.75rem - 3px)" } : {}
+      }
     >
       <div
         className="settings-icon-wrap mr-4"
@@ -319,8 +345,8 @@ function SettingsMenuItem({
           background: item.danger
             ? "rgba(231,76,60,0.1)"
             : isSelected
-            ? "rgba(33,192,99,0.15)"
-            : "rgba(134,150,160,0.1)",
+              ? "rgba(33,192,99,0.15)"
+              : "rgba(134,150,160,0.1)",
           color: item.danger ? "#e74c3c" : isSelected ? "#21c063" : "#8696a0",
         }}
       >
@@ -328,7 +354,10 @@ function SettingsMenuItem({
       </div>
       <div className="flex-1 min-w-0">
         <h3
-          className={clsx("font-medium text-sm", !item.danger && !isSelected && "text-light-text dark:text-dark-text")}
+          className={clsx(
+            "font-medium text-sm",
+            !item.danger && !isSelected && "text-light-text dark:text-dark-text",
+          )}
           style={{
             color: item.danger ? "#e74c3c" : isSelected ? "#21c063" : undefined,
             letterSpacing: "-0.01em",
@@ -337,7 +366,9 @@ function SettingsMenuItem({
           {item.label}
         </h3>
         {item.description && (
-          <p className="text-xs mt-0.5" style={{ color: "#8696a0" }}>{item.description}</p>
+          <p className="text-xs mt-0.5" style={{ color: "#8696a0" }}>
+            {item.description}
+          </p>
         )}
       </div>
     </div>

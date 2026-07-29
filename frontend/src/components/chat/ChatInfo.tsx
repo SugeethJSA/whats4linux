@@ -8,7 +8,44 @@ import {
   DisappearingMessagesIcon,
   ReportIcon,
 } from "../../assets/svgs/chat_info_icons"
-import { GetProfile, GetGroupInfo, IsChatMuted, ToggleChatMute, BlockContact, UnblockContact, LeaveGroup, GetBlockList, SetDisappearingTimer, SetGroupName, GetGroupInviteLink, ClearChat, GetBusinessProfile, SetGroupPhoto, RemoveGroupParticipants, PromoteGroupParticipants, DemoteGroupParticipants, SetGroupAnnounce, SetGroupLocked, GetMyJID, SetGroupTopic, SetGroupMemberAddMode, SetGroupJoinApprovalMode, GetGroupJoinRequests, ApproveGroupJoinRequest, RejectGroupJoinRequest, LinkGroupToCommunity, UnlinkGroupFromCommunity, GetCommunityList, IsOnWhatsApp, AddGroupParticipants, FetchContacts, GetDisappearingTimer, GetUserInfo, GetNewsletterInfo, NewsletterToggleMute } from "../../../wailsjs/go/api/Api"
+import {
+  GetProfile,
+  GetGroupInfo,
+  IsChatMuted,
+  ToggleChatMute,
+  BlockContact,
+  UnblockContact,
+  LeaveGroup,
+  GetBlockList,
+  SetDisappearingTimer,
+  SetGroupName,
+  GetGroupInviteLink,
+  ClearChat,
+  GetBusinessProfile,
+  SetGroupPhoto,
+  RemoveGroupParticipants,
+  PromoteGroupParticipants,
+  DemoteGroupParticipants,
+  SetGroupAnnounce,
+  SetGroupLocked,
+  GetMyJID,
+  SetGroupTopic,
+  SetGroupMemberAddMode,
+  SetGroupJoinApprovalMode,
+  GetGroupJoinRequests,
+  ApproveGroupJoinRequest,
+  RejectGroupJoinRequest,
+  LinkGroupToCommunity,
+  UnlinkGroupFromCommunity,
+  GetCommunityList,
+  IsOnWhatsApp,
+  AddGroupParticipants,
+  FetchContacts,
+  GetDisappearingTimer,
+  GetUserInfo,
+  GetNewsletterInfo,
+  NewsletterToggleMute,
+} from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { EventsOn } from "../../../wailsjs/runtime/runtime"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
@@ -64,16 +101,29 @@ export function ChatInfo({
   const [communities, setCommunities] = useState<any[]>([])
   const [showLinkCommunity, setShowLinkCommunity] = useState(false)
   const [linkBusy, setLinkBusy] = useState(false)
-  const [waCheck, setWaCheck] = useState<{ onWhatsApp: boolean; verifiedName?: string } | null>(null)
+  const [waCheck, setWaCheck] = useState<{ onWhatsApp: boolean; verifiedName?: string } | null>(
+    null,
+  )
   const [checkBusy, setCheckBusy] = useState(false)
-  const [userInfo, setUserInfo] = useState<{ jid: string; status?: string; picture_id?: string; devices?: string[]; verified_name?: string } | null>(null)
+  const [userInfo, setUserInfo] = useState<{
+    jid: string
+    status?: string
+    picture_id?: string
+    devices?: string[]
+    verified_name?: string
+  } | null>(null)
   const [userInfoBusy, setUserInfoBusy] = useState(false)
   const [linkError, setLinkError] = useState("")
   const [showAddParticipant, setShowAddParticipant] = useState(false)
   const [addSearch, setAddSearch] = useState("")
   const [addResults, setAddResults] = useState<any[]>([])
   const [addBusy, setAddBusy] = useState(false)
-  const [newsletterInfo, setNewsletterInfo] = useState<{ name?: string; description?: string; subscriber_count?: number; mute?: string } | null>(null)
+  const [newsletterInfo, setNewsletterInfo] = useState<{
+    name?: string
+    description?: string
+    subscriber_count?: number
+    mute?: string
+  } | null>(null)
   const [newsletterMuted, setNewsletterMuted] = useState(false)
   const MAX_VISIBLE = 10
 
@@ -95,10 +145,12 @@ export function ChatInfo({
     if (isOpen) {
       setShowAllParticipants(false)
       if (chatType === "contact") {
-        GetBlockList().then(list => {
-          const isBlocked = list?.some((b: any) => b.jid === chatId) ?? false
-          setBlocked(isBlocked)
-        }).catch(() => {})
+        GetBlockList()
+          .then(list => {
+            const isBlocked = list?.some((b: any) => b.jid === chatId) ?? false
+            setBlocked(isBlocked)
+          })
+          .catch(() => {})
       }
     }
   }, [isOpen, chatId, chatType])
@@ -135,21 +187,27 @@ export function ChatInfo({
   // Load disappearing timer value when panel opens
   useEffect(() => {
     if (!isOpen) return
-    GetDisappearingTimer(chatId).then(seconds => {
-      setDisappearTimer(seconds)
-    }).catch(() => {})
+    GetDisappearingTimer(chatId)
+      .then(seconds => {
+        setDisappearTimer(seconds)
+      })
+      .catch(() => {})
   }, [isOpen, chatId])
 
   // Load newsletter info for newsletter chats
   useEffect(() => {
     if (!isOpen || !chatId.endsWith("@newsletter")) return
     let cancelled = false
-    GetNewsletterInfo(chatId).then(info => {
-      if (cancelled) return
-      setNewsletterInfo(info)
-      setNewsletterMuted(info?.mute === "on")
-    }).catch(() => {})
-    return () => { cancelled = true }
+    GetNewsletterInfo(chatId)
+      .then(info => {
+        if (cancelled) return
+        setNewsletterInfo(info)
+        setNewsletterMuted(info?.mute === "on")
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
   }, [isOpen, chatId])
 
   const handleToggleMute = useCallback(async () => {
@@ -249,7 +307,9 @@ export function ChatInfo({
   }, [isOpen, loadInfo])
 
   useEffect(() => {
-    GetMyJID().then(setMyJid).catch(() => {})
+    GetMyJID()
+      .then(setMyJid)
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -270,15 +330,17 @@ export function ChatInfo({
   // Load communities when opening group info (for link/unlink)
   useEffect(() => {
     if (!isOpen || chatType !== "group") return
-    GetCommunityList().then(list => {
-      setCommunities(prev => {
-        const prevMap = new Map(prev.map(c => [c.jid, c]))
-        return list.map(c => ({
-          ...c,
-          avatar_url: prevMap.get(c.jid)?.avatar_url || c.avatar_url,
-        }))
+    GetCommunityList()
+      .then(list => {
+        setCommunities(prev => {
+          const prevMap = new Map(prev.map(c => [c.jid, c]))
+          return list.map(c => ({
+            ...c,
+            avatar_url: prevMap.get(c.jid)?.avatar_url || c.avatar_url,
+          }))
+        })
       })
-    }).catch(() => {})
+      .catch(() => {})
   }, [isOpen, chatType])
 
   const handleSaveTopic = async () => {
@@ -358,7 +420,9 @@ export function ChatInfo({
       setShowLinkCommunity(false)
       setGroupInfo(null)
       loadInfo()
-      GetCommunityList().then(setCommunities).catch(() => {})
+      GetCommunityList()
+        .then(setCommunities)
+        .catch(() => {})
     } catch (e) {
       setLinkError(String(e))
     } finally {
@@ -471,7 +535,9 @@ export function ChatInfo({
                   : contactInfo?.full_name || "~ " + contactInfo?.push_name || chatName}
               </h3>
               {chatType === "contact" && contactInfo && (
-                <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">{contactInfo.phno}</p>
+                <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">
+                  {contactInfo.phno}
+                </p>
               )}
               {chatType === "group" && groupInfo && (
                 <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">
@@ -506,8 +572,12 @@ export function ChatInfo({
             {chatType === "contact" && contactInfo && (
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4">
-                  <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">About</p>
-                  <p className="text-gray-900 dark:text-gray-100">{contactInfo.status || "No about info"}</p>
+                  <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">
+                    About
+                  </p>
+                  <p className="text-gray-900 dark:text-gray-100">
+                    {contactInfo.status || "No about info"}
+                  </p>
                 </div>
               </div>
             )}
@@ -517,11 +587,15 @@ export function ChatInfo({
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4 flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">Info</p>
+                    <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">
+                      Info
+                    </p>
                     {userInfo ? (
                       <p className="text-gray-900 dark:text-gray-100 text-sm">
                         {userInfo.status ? `"${userInfo.status}"` : "No status"}
-                        {userInfo.devices?.length ? ` · ${userInfo.devices.length} device${userInfo.devices.length !== 1 ? "s" : ""}` : ""}
+                        {userInfo.devices?.length
+                          ? ` · ${userInfo.devices.length} device${userInfo.devices.length !== 1 ? "s" : ""}`
+                          : ""}
                       </p>
                     ) : userInfoBusy ? (
                       <p className="text-sm text-gray-500">Loading…</p>
@@ -555,7 +629,9 @@ export function ChatInfo({
             {chatType === "contact" && contactInfo && (
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4">
-                  <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">Phone</p>
+                  <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">
+                    Phone
+                  </p>
                   <p className="text-gray-900 dark:text-gray-100">{contactInfo.phno}</p>
                   <button
                     onClick={async () => {
@@ -564,7 +640,10 @@ export function ChatInfo({
                       try {
                         const results = await IsOnWhatsApp([contactInfo.phno])
                         if (results && results.length > 0) {
-                          setWaCheck({ onWhatsApp: results[0].is_on_whatsapp, verifiedName: results[0].verified_name })
+                          setWaCheck({
+                            onWhatsApp: results[0].is_on_whatsapp,
+                            verifiedName: results[0].verified_name,
+                          })
                         }
                       } catch (err) {
                         console.error("IsOnWhatsApp check failed:", err)
@@ -575,7 +654,13 @@ export function ChatInfo({
                     disabled={checkBusy}
                     className="mt-2 rounded-lg border border-gray-300 dark:border-dark-border px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-dark-tertiary disabled:opacity-50 text-gray-600 dark:text-dark-muted"
                   >
-                    {checkBusy ? "Checking…" : waCheck ? (waCheck.onWhatsApp ? `On WhatsApp${waCheck.verifiedName ? " ✓" : ""}` : "Not on WhatsApp") : "Check WhatsApp"}
+                    {checkBusy
+                      ? "Checking…"
+                      : waCheck
+                        ? waCheck.onWhatsApp
+                          ? `On WhatsApp${waCheck.verifiedName ? " ✓" : ""}`
+                          : "Not on WhatsApp"
+                        : "Check WhatsApp"}
                   </button>
                 </div>
               </div>
@@ -585,21 +670,31 @@ export function ChatInfo({
             {chatType === "contact" && businessInfo && (
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4">
-                  <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-2">Business</p>
+                  <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-2">
+                    Business
+                  </p>
                   {businessInfo.description && (
-                    <p className="text-sm text-gray-900 dark:text-gray-100 mb-1">{businessInfo.description}</p>
+                    <p className="text-sm text-gray-900 dark:text-gray-100 mb-1">
+                      {businessInfo.description}
+                    </p>
                   )}
                   {businessInfo.website && (
                     <p className="text-sm text-blue-500 mb-1">{businessInfo.website}</p>
                   )}
                   {businessInfo.email && (
-                    <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">{businessInfo.email}</p>
+                    <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">
+                      {businessInfo.email}
+                    </p>
                   )}
                   {businessInfo.category && (
-                    <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">{businessInfo.category}</p>
+                    <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">
+                      {businessInfo.category}
+                    </p>
                   )}
                   {businessInfo.address && (
-                    <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">{businessInfo.address}</p>
+                    <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">
+                      {businessInfo.address}
+                    </p>
                   )}
                 </div>
               </div>
@@ -758,7 +853,9 @@ export function ChatInfo({
                                 onClick={async () => {
                                   setParticipantBusy(participant.contact.jid)
                                   try {
-                                    await PromoteGroupParticipants(chatId, [participant.contact.jid])
+                                    await PromoteGroupParticipants(chatId, [
+                                      participant.contact.jid,
+                                    ])
                                     loadInfo()
                                   } catch (e) {
                                     console.error("Failed to promote:", e)
@@ -773,7 +870,12 @@ export function ChatInfo({
                               </button>
                               <button
                                 onClick={async () => {
-                                  if (!confirm(`Remove ${participant.contact.full_name || participant.contact.push_name} from the group?`)) return
+                                  if (
+                                    !confirm(
+                                      `Remove ${participant.contact.full_name || participant.contact.push_name} from the group?`,
+                                    )
+                                  )
+                                    return
                                   setParticipantBusy(participant.contact.jid)
                                   try {
                                     await RemoveGroupParticipants(chatId, [participant.contact.jid])
@@ -818,7 +920,9 @@ export function ChatInfo({
                       try {
                         const contacts = await FetchContacts()
                         setAddResults(contacts)
-                      } catch { /* ignore */ }
+                      } catch {
+                        /* ignore */
+                      }
                     }
                   }}
                   className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors"
@@ -834,19 +938,29 @@ export function ChatInfo({
                       onChange={e => {
                         const q = e.target.value
                         setAddSearch(q)
-                        FetchContacts().then(all => {
-                          const filtered = all.filter((c: any) =>
-                            c.jid && !groupInfo?.group_participants?.some((p: any) => p.contact.jid === c.jid) &&
-                            (c.full_name || c.push_name || c.phno || "").toLowerCase().includes(q.toLowerCase())
-                          )
-                          setAddResults(filtered)
-                        }).catch(() => {})
+                        FetchContacts()
+                          .then(all => {
+                            const filtered = all.filter(
+                              (c: any) =>
+                                c.jid &&
+                                !groupInfo?.group_participants?.some(
+                                  (p: any) => p.contact.jid === c.jid,
+                                ) &&
+                                (c.full_name || c.push_name || c.phno || "")
+                                  .toLowerCase()
+                                  .includes(q.toLowerCase()),
+                            )
+                            setAddResults(filtered)
+                          })
+                          .catch(() => {})
                       }}
                       placeholder="Search contacts..."
                     />
                     <div className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 dark:border-dark-border">
                       {addResults.length === 0 && (
-                        <p className="p-3 text-sm text-gray-500 dark:text-dark-muted">No contacts to add</p>
+                        <p className="p-3 text-sm text-gray-500 dark:text-dark-muted">
+                          No contacts to add
+                        </p>
                       )}
                       {addResults.map((c: any) => (
                         <button
@@ -880,12 +994,18 @@ export function ChatInfo({
             {chatId.endsWith("@newsletter") && newsletterInfo && (
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4 space-y-3">
-                  <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">Channel Info</p>
+                  <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">
+                    Channel Info
+                  </p>
                   {newsletterInfo.description && (
-                    <p className="text-gray-900 dark:text-gray-100 text-sm">{newsletterInfo.description}</p>
+                    <p className="text-gray-900 dark:text-gray-100 text-sm">
+                      {newsletterInfo.description}
+                    </p>
                   )}
                   {newsletterInfo.subscriber_count !== undefined && (
-                    <p className="text-sm text-gray-500 dark:text-dark-muted">{newsletterInfo.subscriber_count} subscribers</p>
+                    <p className="text-sm text-gray-500 dark:text-dark-muted">
+                      {newsletterInfo.subscriber_count} subscribers
+                    </p>
                   )}
                   <button
                     onClick={async () => {
@@ -927,7 +1047,10 @@ export function ChatInfo({
                   className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-600 dark:text-red-400 disabled:opacity-50"
                 >
                   <BlockIcon />
-                  <span>{blocked ? "Unblock" : "Block"} {contactInfo?.full_name || contactInfo?.phno || "contact"}</span>
+                  <span>
+                    {blocked ? "Unblock" : "Block"}{" "}
+                    {contactInfo?.full_name || contactInfo?.phno || "contact"}
+                  </span>
                 </button>
                 <button className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-600 dark:text-red-400">
                   <ReportIcon />
@@ -984,7 +1107,11 @@ export function ChatInfo({
                   className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors disabled:opacity-50"
                 >
                   <span className="text-gray-900 dark:text-gray-100">
-                    {inviteBusy ? "Loading…" : inviteLink ? "Invite link copied!" : "Get invite link"}
+                    {inviteBusy
+                      ? "Loading…"
+                      : inviteLink
+                        ? "Invite link copied!"
+                        : "Get invite link"}
                   </span>
                 </button>
 
@@ -1015,7 +1142,9 @@ export function ChatInfo({
                   </button>
                 </div>
                 <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
-                  {groupAnnounce ? "Only admins can send messages" : "All participants can send messages"}
+                  {groupAnnounce
+                    ? "Only admins can send messages"
+                    : "All participants can send messages"}
                 </p>
 
                 {/* Group locked toggle */}
@@ -1095,11 +1224,15 @@ export function ChatInfo({
                 {isAdmin && (
                   <>
                     <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors">
-                      <span className="text-sm text-gray-900 dark:text-gray-100">Member Add Mode</span>
+                      <span className="text-sm text-gray-900 dark:text-gray-100">
+                        Member Add Mode
+                      </span>
                       <button
                         onClick={handleToggleMemberAddMode}
                         className={`relative w-10 h-5 rounded-full transition-colors ${
-                          memberAddMode === "admin_add" ? "bg-[#21c063]" : "bg-gray-300 dark:bg-gray-600"
+                          memberAddMode === "admin_add"
+                            ? "bg-[#21c063]"
+                            : "bg-gray-300 dark:bg-gray-600"
                         }`}
                       >
                         <span
@@ -1110,7 +1243,9 @@ export function ChatInfo({
                       </button>
                     </div>
                     <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
-                      {memberAddMode === "admin_add" ? "Only admins can add members" : "All participants can add members"}
+                      {memberAddMode === "admin_add"
+                        ? "Only admins can add members"
+                        : "All participants can add members"}
                     </p>
                   </>
                 )}
@@ -1119,7 +1254,9 @@ export function ChatInfo({
                 {isAdmin && (
                   <>
                     <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors">
-                      <span className="text-sm text-gray-900 dark:text-gray-100">Join Approval</span>
+                      <span className="text-sm text-gray-900 dark:text-gray-100">
+                        Join Approval
+                      </span>
                       <button
                         onClick={handleToggleJoinApproval}
                         className={`relative w-10 h-5 rounded-full transition-colors ${
@@ -1134,7 +1271,9 @@ export function ChatInfo({
                       </button>
                     </div>
                     <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
-                      {joinApproval ? "Join requests require admin approval" : "Anyone can join freely"}
+                      {joinApproval
+                        ? "Join requests require admin approval"
+                        : "Anyone can join freely"}
                     </p>
                   </>
                 )}
@@ -1154,7 +1293,10 @@ export function ChatInfo({
                     {showJoinRequests && joinRequests.length > 0 && (
                       <div className="mx-4 mb-3 rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-secondary overflow-hidden">
                         {joinRequests.map(req => (
-                          <div key={req.jid} className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-dark-tertiary last:border-0">
+                          <div
+                            key={req.jid}
+                            className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-dark-tertiary last:border-0"
+                          >
                             <span className="text-sm text-gray-900 dark:text-gray-100 truncate flex-1">
                               {req.requester}
                             </span>
@@ -1177,7 +1319,9 @@ export function ChatInfo({
                       </div>
                     )}
                     {showJoinRequests && joinRequests.length === 0 && !joinReqBusy && (
-                      <p className="px-4 pb-3 text-xs text-gray-500 dark:text-dark-muted">No pending requests</p>
+                      <p className="px-4 pb-3 text-xs text-gray-500 dark:text-dark-muted">
+                        No pending requests
+                      </p>
                     )}
                   </div>
                 )}
@@ -1202,17 +1346,23 @@ export function ChatInfo({
                           onClick={() => {
                             setShowLinkCommunity(!showLinkCommunity)
                             if (!showLinkCommunity) {
-                              GetCommunityList().then(setCommunities).catch(() => {})
+                              GetCommunityList()
+                                .then(setCommunities)
+                                .catch(() => {})
                             }
                           }}
                           className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors"
                         >
-                          <span className="text-gray-900 dark:text-gray-100">Link to community</span>
+                          <span className="text-gray-900 dark:text-gray-100">
+                            Link to community
+                          </span>
                         </button>
                         {showLinkCommunity && (
                           <div className="mx-4 mb-3 rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-secondary max-h-40 overflow-y-auto">
                             {communities.length === 0 && (
-                              <p className="p-3 text-sm text-gray-500 dark:text-dark-muted">No communities available</p>
+                              <p className="p-3 text-sm text-gray-500 dark:text-dark-muted">
+                                No communities available
+                              </p>
                             )}
                             {communities.map(c => (
                               <button

@@ -376,8 +376,10 @@ interface EmptyStateProps {
 
 const EmptyState = ({ hasChats, isLoading, onRefresh }: EmptyStateProps) => (
   <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-light-muted dark:text-dark-muted p-8">
-    <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-      style={{ background: "rgba(33,192,99,0.08)", color: "#21c063" }}>
+    <div
+      className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+      style={{ background: "rgba(33,192,99,0.08)", color: "#21c063" }}
+    >
       <SearchIcon />
     </div>
     <p className="text-center font-medium">
@@ -436,14 +438,20 @@ function SubscribeChannelDialog({ onClose }: { onClose: () => void }) {
 
   // Debounced search
   useEffect(() => {
-    if (!searchQuery.trim() || searchQuery.length < 2) { setSearchResults([]); return }
+    if (!searchQuery.trim() || searchQuery.length < 2) {
+      setSearchResults([])
+      return
+    }
     const timer = setTimeout(async () => {
       setSearching(true)
       try {
         const results = await SearchNewsletters(searchQuery.trim())
         setSearchResults(results || [])
-      } catch { setSearchResults([]) }
-      finally { setSearching(false) }
+      } catch {
+        setSearchResults([])
+      } finally {
+        setSearching(false)
+      }
     }, 300)
     return () => clearTimeout(timer)
   }, [searchQuery])
@@ -451,18 +459,32 @@ function SubscribeChannelDialog({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose()
+      }}
     >
-      <div className="bg-white dark:bg-dark-secondary rounded-2xl w-96 max-h-[80vh] flex flex-col p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Subscribe to Channel</h2>
+      <div
+        className="bg-white dark:bg-dark-secondary rounded-2xl w-96 max-h-[80vh] flex flex-col p-6 shadow-xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          Subscribe to Channel
+        </h2>
         <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
           Enter a newsletter JID or search for channels.
         </p>
         <input
           autoFocus
           value={input}
-          onChange={e => { setInput(e.target.value); setError(""); setSuccess("") }}
-          onKeyDown={e => { if (e.key === "Enter") handleSubscribe(); if (e.key === "Escape") onClose() }}
+          onChange={e => {
+            setInput(e.target.value)
+            setError("")
+            setSuccess("")
+          }}
+          onKeyDown={e => {
+            if (e.key === "Enter") handleSubscribe()
+            if (e.key === "Escape") onClose()
+          }}
           placeholder="Newsletter JID or invite code"
           className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3"
         />
@@ -480,12 +502,17 @@ function SubscribeChannelDialog({ onClose }: { onClose: () => void }) {
         {searchResults.length > 0 && (
           <div className="flex-1 overflow-y-auto max-h-40 mb-3 border border-gray-200 dark:border-dark-border rounded-lg">
             {searchResults.map(ch => (
-              <div key={ch.jid} className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 dark:hover:bg-white/5">
+              <div
+                key={ch.jid}
+                className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 dark:hover:bg-white/5"
+              >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-light-text dark:text-dark-text truncate">
                     {ch.full_name || ch.push_name || ch.jid}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted truncate">{ch.jid}</p>
+                  <p className="text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted truncate">
+                    {ch.jid}
+                  </p>
                 </div>
                 <div className="flex gap-1 shrink-0 ml-2">
                   <button
@@ -531,26 +558,35 @@ function SubscribeChannelDialog({ onClose }: { onClose: () => void }) {
 }
 
 const WelcomeScreen = () => (
-  <div className="flex-1 flex flex-col items-center justify-center z-10 text-center px-10 relative overflow-hidden"
-    style={{ borderBottom: "6px solid #21c063" }}>
-    
-    <div className="absolute inset-0 pointer-events-none opacity-40 dark:opacity-20"
-      style={{ background: "radial-gradient(circle at center, rgba(33,192,99,0.15) 0%, transparent 60%)" }} />
+  <div
+    className="flex-1 flex flex-col items-center justify-center z-10 text-center px-10 relative overflow-hidden"
+    style={{ borderBottom: "6px solid #21c063" }}
+  >
+    <div
+      className="absolute inset-0 pointer-events-none opacity-40 dark:opacity-20"
+      style={{
+        background: "radial-gradient(circle at center, rgba(33,192,99,0.15) 0%, transparent 60%)",
+      }}
+    />
 
     <div className="mb-8 relative z-10">
-      <div className="w-24 h-24 rounded-3xl flex items-center justify-center shadow-2xl glass-light dark:glass"
+      <div
+        className="w-24 h-24 rounded-3xl flex items-center justify-center shadow-2xl glass-light dark:glass"
         style={{
-          border: "1px solid rgba(255,255,255,0.1)"
-        }}>
+          border: "1px solid rgba(255,255,255,0.1)",
+        }}
+      >
         <EmptyStateIcon />
       </div>
     </div>
-    
-    <h1 className="text-3xl font-semibold mb-4 relative z-10"
-      style={{ color: "var(--color-light-text)", letterSpacing: "-0.02em" }}>
+
+    <h1
+      className="text-3xl font-semibold mb-4 relative z-10"
+      style={{ color: "var(--color-light-text)", letterSpacing: "-0.02em" }}
+    >
       WhatsApp for Linux
     </h1>
-    
+
     <p className="relative z-10 text-sm leading-relaxed" style={{ color: "#8696a0" }}>
       Send and receive messages without keeping your phone online.
       <br />
@@ -658,7 +694,10 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           return {
             id: c.jid || "",
             name: c.full_name || c.push_name || c.short || c.phno || "Unknown",
-            subtitle: (c.latest_message || "").replace(/^\[call\].*?missed.*/, "📞 Missed call").replace(/^\[call\].*/, "📞 Call").replace(/^\[system\]/, ""),
+            subtitle: (c.latest_message || "")
+              .replace(/^\[call\].*?missed.*/, "📞 Missed call")
+              .replace(/^\[call\].*/, "📞 Call")
+              .replace(/^\[system\]/, ""),
             type: isGroup ? "group" : "contact",
             timestamp: c.LatestTS,
             avatar: avatar,
@@ -1005,112 +1044,117 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
             <MessageSearchScreen onClose={() => setShowSearch(false)} />
           ) : (
             <>
-          <Header onOpenSettings={onOpenSettings} onNewChat={() => setShowCreateGroup(true)} onSearch={() => setShowSearch(true)} avatar={selfAvatar} />
-          <div className="flex gap-2 px-3 pb-2 pt-1 overflow-x-auto">
-            {(["chats", "communities", "channels", "status"] as const).map(v => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={clsx(
-                  "rounded-full border px-3 py-1 text-sm capitalize transition-colors shrink-0",
-                  view === v
-                    ? "border-transparent bg-[#d9fdd3] font-medium text-[#0a1014] dark:bg-[#e9edef] dark:text-[#0b141a]"
-                    : "border-gray-300 dark:border-dark-border text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:border-white/10 dark:text-[#8696a0] dark:hover:bg-white/5",
-                )}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-          {view !== "status" && (
-            <SearchBar
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder={
-                view === "communities"
-                  ? "Search communities"
-                  : view === "channels"
-                    ? "Search channels"
-                    : "Search or start new chat"
-              }
-            />
-          )}
-
-          {view === "channels" && (
-            <div className="mx-3 mt-2 flex gap-2">
-              <button
-                onClick={() => setShowSubscribeChannel(true)}
-                className="flex-1 px-4 py-2 bg-[#21c063] text-[#0a1014] rounded-lg text-sm font-medium hover:bg-[#1ea952] transition-colors"
-              >
-                Subscribe
-              </button>
-              <button
-                onClick={() => setShowCreateChannel(true)}
-                className="flex-1 px-4 py-2 bg-white dark:bg-dark-tertiary border border-gray-300 dark:border-dark-border text-light-text dark:text-dark-text rounded-lg text-sm font-medium hover:bg-gray-100 dark:hover:bg-dark-secondary transition-colors"
-              >
-                Create
-              </button>
-            </div>
-          )}
-
-          {/* Archived entry (main view) / archived header (archived view) */}
-          {!showArchived && view === "chats" && archivedCount > 0 && (
-            <button
-              onClick={() => setShowArchived(true)}
-              className="flex w-full items-center gap-4 px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-[#1a1a1a]"
-            >
-              <span className="flex w-12 justify-center text-[#1b9a58] dark:text-[#21c063]">
-                <svg viewBox="0 0 24 24" width="20" height="20" className="fill-current">
-                  <path d="M20.54 5.23 19.15 3.55A1.5 1.5 0 0 0 18 3H6a1.5 1.5 0 0 0-1.16.55L3.46 5.23A2 2 0 0 0 3 6.5V19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.5a2 2 0 0 0-.46-1.27ZM6.24 5h11.52l.81.97H5.44ZM5 19V8h14v11Zm8-5.5V11h-2v2.5H8.5L12 17l3.5-3.5Z" />
-                </svg>
-              </span>
-              <span className="flex-1 font-medium text-light-text dark:text-dark-text">
-                Archived
-              </span>
-              <span className="text-xs text-gray-500 dark:text-[#8696a0]">{archivedCount}</span>
-            </button>
-          )}
-          {showArchived && (
-            <div className="flex items-center gap-4 border-b border-gray-200 dark:border-dark-border px-4 py-3 dark:border-white/5">
-              <button
-                onClick={() => setShowArchived(false)}
-                className="text-light-muted dark:text-dark-muted hover:text-gray-700 dark:text-light-muted dark:text-dark-muted dark:hover:text-gray-200"
-                aria-label="Back to chats"
-              >
-                <GoBackIcon />
-              </button>
-              <span className="font-medium text-light-text dark:text-dark-text">Archived</span>
-            </div>
-          )}
-
-          <div className="flex-1 overflow-y-auto">
-            {view === "status" ? (
-              <StatusList onOpen={setStoryGroup} />
-            ) : view === "communities" ? (
-              <CommunityList
-                searchTerm={searchTerm}
-                selectedJid={selectedCommunity?.jid ?? null}
-                onSelect={handleCommunitySelect}
+              <Header
+                onOpenSettings={onOpenSettings}
+                onNewChat={() => setShowCreateGroup(true)}
+                onSearch={() => setShowSearch(true)}
+                avatar={selfAvatar}
               />
-            ) : filteredChatIds.length === 0 ? (
-              <EmptyState
-                hasChats={totalChats > 0}
-                isLoading={isFetchingRef.current}
-                onRefresh={fetchChats}
-              />
-            ) : (
-              filteredChatIds.map(chatId => (
-                <ChatListItem
-                  key={chatId}
-                  chatId={chatId}
-                  isSelected={selectedChatId === chatId}
-                  onSelect={handleChatSelect}
-                  onContextMenu={handleChatContextMenu}
+              <div className="flex gap-2 px-3 pb-2 pt-1 overflow-x-auto">
+                {(["chats", "communities", "channels", "status"] as const).map(v => (
+                  <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    className={clsx(
+                      "rounded-full border px-3 py-1 text-sm capitalize transition-colors shrink-0",
+                      view === v
+                        ? "border-transparent bg-[#d9fdd3] font-medium text-[#0a1014] dark:bg-[#e9edef] dark:text-[#0b141a]"
+                        : "border-gray-300 dark:border-dark-border text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:border-white/10 dark:text-[#8696a0] dark:hover:bg-white/5",
+                    )}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+              {view !== "status" && (
+                <SearchBar
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder={
+                    view === "communities"
+                      ? "Search communities"
+                      : view === "channels"
+                        ? "Search channels"
+                        : "Search or start new chat"
+                  }
                 />
-              ))
-            )}
-          </div>
-          </>
+              )}
+
+              {view === "channels" && (
+                <div className="mx-3 mt-2 flex gap-2">
+                  <button
+                    onClick={() => setShowSubscribeChannel(true)}
+                    className="flex-1 px-4 py-2 bg-[#21c063] text-[#0a1014] rounded-lg text-sm font-medium hover:bg-[#1ea952] transition-colors"
+                  >
+                    Subscribe
+                  </button>
+                  <button
+                    onClick={() => setShowCreateChannel(true)}
+                    className="flex-1 px-4 py-2 bg-white dark:bg-dark-tertiary border border-gray-300 dark:border-dark-border text-light-text dark:text-dark-text rounded-lg text-sm font-medium hover:bg-gray-100 dark:hover:bg-dark-secondary transition-colors"
+                  >
+                    Create
+                  </button>
+                </div>
+              )}
+
+              {/* Archived entry (main view) / archived header (archived view) */}
+              {!showArchived && view === "chats" && archivedCount > 0 && (
+                <button
+                  onClick={() => setShowArchived(true)}
+                  className="flex w-full items-center gap-4 px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-[#1a1a1a]"
+                >
+                  <span className="flex w-12 justify-center text-[#1b9a58] dark:text-[#21c063]">
+                    <svg viewBox="0 0 24 24" width="20" height="20" className="fill-current">
+                      <path d="M20.54 5.23 19.15 3.55A1.5 1.5 0 0 0 18 3H6a1.5 1.5 0 0 0-1.16.55L3.46 5.23A2 2 0 0 0 3 6.5V19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.5a2 2 0 0 0-.46-1.27ZM6.24 5h11.52l.81.97H5.44ZM5 19V8h14v11Zm8-5.5V11h-2v2.5H8.5L12 17l3.5-3.5Z" />
+                    </svg>
+                  </span>
+                  <span className="flex-1 font-medium text-light-text dark:text-dark-text">
+                    Archived
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-[#8696a0]">{archivedCount}</span>
+                </button>
+              )}
+              {showArchived && (
+                <div className="flex items-center gap-4 border-b border-gray-200 dark:border-dark-border px-4 py-3 dark:border-white/5">
+                  <button
+                    onClick={() => setShowArchived(false)}
+                    className="text-light-muted dark:text-dark-muted hover:text-gray-700 dark:text-light-muted dark:text-dark-muted dark:hover:text-gray-200"
+                    aria-label="Back to chats"
+                  >
+                    <GoBackIcon />
+                  </button>
+                  <span className="font-medium text-light-text dark:text-dark-text">Archived</span>
+                </div>
+              )}
+
+              <div className="flex-1 overflow-y-auto">
+                {view === "status" ? (
+                  <StatusList onOpen={setStoryGroup} />
+                ) : view === "communities" ? (
+                  <CommunityList
+                    searchTerm={searchTerm}
+                    selectedJid={selectedCommunity?.jid ?? null}
+                    onSelect={handleCommunitySelect}
+                  />
+                ) : filteredChatIds.length === 0 ? (
+                  <EmptyState
+                    hasChats={totalChats > 0}
+                    isLoading={isFetchingRef.current}
+                    onRefresh={fetchChats}
+                  />
+                ) : (
+                  filteredChatIds.map(chatId => (
+                    <ChatListItem
+                      key={chatId}
+                      chatId={chatId}
+                      isSelected={selectedChatId === chatId}
+                      onSelect={handleChatSelect}
+                      onContextMenu={handleChatContextMenu}
+                    />
+                  ))
+                )}
+              </div>
+            </>
           )}
         </ResizablePanel>
         {storyGroup && <StoryViewer group={storyGroup} onClose={() => setStoryGroup(null)} />}
@@ -1154,7 +1198,9 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
         </ResizablePanel>
       </ResizablePanelGroup>
       {showCreateGroup && <CreateGroupDialog onClose={() => setShowCreateGroup(false)} />}
-      {showSubscribeChannel && <SubscribeChannelDialog onClose={() => setShowSubscribeChannel(false)} />}
+      {showSubscribeChannel && (
+        <SubscribeChannelDialog onClose={() => setShowSubscribeChannel(false)} />
+      )}
       {showCreateChannel && <CreateChannelDialog onClose={() => setShowCreateChannel(false)} />}
     </div>
   )

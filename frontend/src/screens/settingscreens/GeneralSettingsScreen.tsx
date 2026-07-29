@@ -31,7 +31,9 @@ const GeneralSettingsScreen = () => {
         onToggle={(value: string) => updateSetting("fontSize", value)}
         // selectedValue={fontSize}
       />
-      <div className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted">Use Ctrl + / - to increase or decrease font size</div>
+      <div className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted">
+        Use Ctrl + / - to increase or decrease font size
+      </div>
     </div>
   )
 }

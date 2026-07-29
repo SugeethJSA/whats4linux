@@ -5,7 +5,12 @@ const LogOut = () => {
   const [busy, setBusy] = useState(false)
 
   const handleLogout = async () => {
-    if (!confirm("Are you sure you want to log out? You will need to scan a QR code again to reconnect.")) return
+    if (
+      !confirm(
+        "Are you sure you want to log out? You will need to scan a QR code again to reconnect.",
+      )
+    )
+      return
     setBusy(true)
     try {
       await Logout()
@@ -22,8 +27,8 @@ const LogOut = () => {
     <div className="p-6 max-w-2xl mx-auto">
       <h2 className="text-xl font-bold text-light-text dark:text-dark-text mb-4">Log Out</h2>
       <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-6">
-        Logging out will disconnect your session and require scanning a QR code
-        or entering a pairing code to reconnect.
+        Logging out will disconnect your session and require scanning a QR code or entering a
+        pairing code to reconnect.
       </p>
       <button
         onClick={handleLogout}

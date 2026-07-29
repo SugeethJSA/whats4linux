@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react"
-import { GetPrivacySettings, SetPrivacySetting, GetStatusPrivacy, SetStatusPrivacy } from "../../../wailsjs/go/api/Api"
+import {
+  GetPrivacySettings,
+  SetPrivacySetting,
+  GetStatusPrivacy,
+  SetStatusPrivacy,
+} from "../../../wailsjs/go/api/Api"
 
 type PrivacyValue = "all" | "contacts" | "contact_blacklist" | "none" | "match_last_seen" | "known"
 
@@ -58,7 +63,8 @@ const SETTINGS: Setting[] = [
   {
     key: "readreceipts",
     label: "Read receipts",
-    description: "Who can see when you read their messages. Read receipts are always sent for group chats.",
+    description:
+      "Who can see when you read their messages. Read receipts are always sent for group chats.",
     options: [
       { value: "all", label: "Everyone" },
       { value: "none", label: "Nobody" },
@@ -121,16 +127,20 @@ const PrivacySettingsScreen = () => {
       })
       .finally(() => !cancelled && setLoading(false))
 
-    GetStatusPrivacy().then(entries => {
-      if (cancelled) return
-      for (const e of entries) {
-        if (e.type === "contact_blacklist") {
-          setStatusBlacklist(e.jids || [])
+    GetStatusPrivacy()
+      .then(entries => {
+        if (cancelled) return
+        for (const e of entries) {
+          if (e.type === "contact_blacklist") {
+            setStatusBlacklist(e.jids || [])
+          }
         }
-      }
-    }).catch(() => {})
+      })
+      .catch(() => {})
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const handleChange = async (key: string, value: string) => {
@@ -170,31 +180,40 @@ const PrivacySettingsScreen = () => {
         </div>
       )}
 
-      {!loading && SETTINGS.map(s => (
-        <div key={s.key}>
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 bg-white p-4 dark:border-white/5 dark:bg-dark-secondary">
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-light-text dark:text-dark-text">{s.label}</div>
-              <div className="mt-0.5 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">{s.description}</div>
+      {!loading &&
+        SETTINGS.map(s => (
+          <div key={s.key}>
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 bg-white p-4 dark:border-white/5 dark:bg-dark-secondary">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-light-text dark:text-dark-text">
+                  {s.label}
+                </div>
+                <div className="mt-0.5 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
+                  {s.description}
+                </div>
+              </div>
+              <select
+                value={values[s.key] || ""}
+                onChange={e => handleChange(s.key, e.target.value)}
+                disabled={busy === s.key}
+                className={selectCls + (busy === s.key ? " opacity-50" : "")}
+              >
+                {s.options.map(o => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
             </div>
-            <select
-              value={values[s.key] || ""}
-              onChange={e => handleChange(s.key, e.target.value)}
-              disabled={busy === s.key}
-              className={selectCls + (busy === s.key ? " opacity-50" : "")}
-            >
-              {s.options.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+            {s.key === "status" &&
+              values[s.key] === "contact_blacklist" &&
+              statusBlacklist.length > 0 && (
+                <div className="mt-1 ml-4 text-xs text-gray-500 dark:text-dark-muted">
+                  Excluded: {statusBlacklist.join(", ")}
+                </div>
+              )}
           </div>
-          {s.key === "status" && values[s.key] === "contact_blacklist" && statusBlacklist.length > 0 && (
-            <div className="mt-1 ml-4 text-xs text-gray-500 dark:text-dark-muted">
-              Excluded: {statusBlacklist.join(", ")}
-            </div>
-          )}
-        </div>
-      ))}
+        ))}
     </div>
   )
 }

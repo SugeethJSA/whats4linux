@@ -49,33 +49,36 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>()
   const suggestionRef = useRef<ReturnType<typeof setTimeout>>()
 
-  const doSearch = useCallback(async (q: string, filter: string, sender: string, off: number, append: boolean) => {
-    if (!q.trim()) {
-      setResults([])
-      setHasMore(true)
-      setOffset(0)
-      return
-    }
-    setLoading(true)
-    setError("")
-    try {
-      const res = await SearchMessages({
-        query: q.trim(),
-        type: filter,
-        sender_jid: sender || undefined,
-        limit: PAGE_SIZE,
-        offset: off,
-      })
-      const items: SearchResult[] = res ?? []
-      setResults(prev => append ? [...prev, ...items] : items)
-      setHasMore(items.length >= PAGE_SIZE)
-      setOffset(off + items.length)
-    } catch (e: any) {
-      setError(e?.message || "Search failed")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const doSearch = useCallback(
+    async (q: string, filter: string, sender: string, off: number, append: boolean) => {
+      if (!q.trim()) {
+        setResults([])
+        setHasMore(true)
+        setOffset(0)
+        return
+      }
+      setLoading(true)
+      setError("")
+      try {
+        const res = await SearchMessages({
+          query: q.trim(),
+          type: filter,
+          sender_jid: sender || undefined,
+          limit: PAGE_SIZE,
+          offset: off,
+        })
+        const items: SearchResult[] = res ?? []
+        setResults(prev => (append ? [...prev, ...items] : items))
+        setHasMore(items.length >= PAGE_SIZE)
+        setOffset(off + items.length)
+      } catch (e: any) {
+        setError(e?.message || "Search failed")
+      } finally {
+        setLoading(false)
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -106,7 +109,9 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
         setSuggestions([])
       }
     }, 200)
-    return () => { if (suggestionRef.current) clearTimeout(suggestionRef.current) }
+    return () => {
+      if (suggestionRef.current) clearTimeout(suggestionRef.current)
+    }
   }, [query])
 
   const handleLoadMore = () => {
@@ -148,7 +153,10 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
             {suggestions.map(s => (
               <button
                 key={s}
-                onClick={() => { setQuery(s); setSuggestions([]) }}
+                onClick={() => {
+                  setQuery(s)
+                  setSuggestions([])
+                }}
                 className="w-full px-4 py-2 text-left text-sm text-light-text dark:text-dark-text hover:bg-gray-100 dark:hover:bg-white/5"
               >
                 {s}
@@ -186,9 +194,7 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {error && (
-          <div className="p-4 text-center text-red-500 text-sm">{error}</div>
-        )}
+        {error && <div className="p-4 text-center text-red-500 text-sm">{error}</div>}
         {!loading && !error && query && results.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-light-muted dark:text-dark-muted p-8">
             <p className="text-sm">No messages found</p>
@@ -221,11 +227,14 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
                 {r.is_from_me ? "You" : r.sender_jid.split("@")[0]}
               </span>
               <span className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted truncate">
-                {r.text || (r.media_type === 1 ? "🖼 Image" : r.media_type === 2 ? "🎵 Audio" : "[Media]")}
+                {r.text ||
+                  (r.media_type === 1 ? "🖼 Image" : r.media_type === 2 ? "🎵 Audio" : "[Media]")}
               </span>
             </div>
             {r.edited && (
-              <span className="text-[10px] text-gray-400 dark:text-light-muted dark:text-dark-muted italic mt-0.5">edited</span>
+              <span className="text-[10px] text-gray-400 dark:text-light-muted dark:text-dark-muted italic mt-0.5">
+                edited
+              </span>
             )}
           </button>
         ))}

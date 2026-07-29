@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react"
 import SimpleIconTitle from "../../components/settings/SimpleIconTitle"
 import SecurityNotificationsScreen from "./account/SecurityNotificationsScreen"
-import { SetStatusMessage, GetContactQRLink, SetPushName, ResolveContactQRLink } from "../../../wailsjs/go/api/Api"
+import {
+  SetStatusMessage,
+  GetContactQRLink,
+  SetPushName,
+  ResolveContactQRLink,
+} from "../../../wailsjs/go/api/Api"
 import type { ReactNode } from "react"
 
 const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode) => void }) => {
@@ -53,7 +58,9 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
       {/* Status message */}
       <div className="rounded-xl border border-gray-200 dark:border-dark-border p-4">
         <h3 className="text-base font-medium text-light-text dark:text-dark-text mb-2">Status</h3>
-        <p className="text-sm text-gray-500 dark:text-dark-muted mb-2">Set your profile status message</p>
+        <p className="text-sm text-gray-500 dark:text-dark-muted mb-2">
+          Set your profile status message
+        </p>
         <div className="flex gap-2">
           <input
             className="flex-1 rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] text-light-text dark:text-dark-text"
@@ -72,8 +79,12 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
 
       {/* Push name */}
       <div className="rounded-xl border border-gray-200 dark:border-dark-border p-4">
-        <h3 className="text-base font-medium text-light-text dark:text-dark-text mb-2">Push Name</h3>
-        <p className="text-sm text-gray-500 dark:text-dark-muted mb-2">Name shown to others before they add you</p>
+        <h3 className="text-base font-medium text-light-text dark:text-dark-text mb-2">
+          Push Name
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-dark-muted mb-2">
+          Name shown to others before they add you
+        </p>
         <div className="flex gap-2">
           <input
             className="flex-1 rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] text-light-text dark:text-dark-text"
@@ -92,8 +103,12 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
 
       {/* Contact QR link */}
       <div className="rounded-xl border border-gray-200 dark:border-dark-border p-4">
-        <h3 className="text-base font-medium text-light-text dark:text-dark-text mb-2">Contact QR Link</h3>
-        <p className="text-sm text-gray-500 dark:text-dark-muted mb-2">Share your contact link so others can add you on WhatsApp</p>
+        <h3 className="text-base font-medium text-light-text dark:text-dark-text mb-2">
+          Contact QR Link
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-dark-muted mb-2">
+          Share your contact link so others can add you on WhatsApp
+        </p>
         <button
           onClick={handleGetQRLink}
           disabled={qrBusy}
@@ -105,8 +120,12 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
 
       {/* Resolve contact QR code */}
       <div className="rounded-xl border border-gray-200 dark:border-dark-border p-4">
-        <h3 className="text-base font-medium text-light-text dark:text-dark-text mb-2">Resolve Contact QR</h3>
-        <p className="text-sm text-gray-500 dark:text-dark-muted mb-2">Scan or paste a WhatsApp contact QR code link</p>
+        <h3 className="text-base font-medium text-light-text dark:text-dark-text mb-2">
+          Resolve Contact QR
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-dark-muted mb-2">
+          Scan or paste a WhatsApp contact QR code link
+        </p>
         <div className="flex gap-2">
           <input
             className="flex-1 rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] text-light-text dark:text-dark-text"
@@ -120,7 +139,9 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
               setResolveResult(null)
               try {
                 const result = await ResolveContactQRLink(resolveCode.trim())
-                setResolveResult(`JID: ${result.jid}${result.push_name ? ` · ${result.push_name}` : ""}`)
+                setResolveResult(
+                  `JID: ${result.jid}${result.push_name ? ` · ${result.push_name}` : ""}`,
+                )
               } catch (err) {
                 setResolveResult("Failed to resolve QR code")
               } finally {

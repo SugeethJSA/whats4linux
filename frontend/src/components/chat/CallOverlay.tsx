@@ -1,6 +1,12 @@
 import { useEffect, useState, useRef } from "react"
 import { EventsOn, EventsOff } from "../../../wailsjs/runtime/runtime"
-import { AcceptCall, RejectCall, EndCall, GetCallStats, GetProfile } from "../../../wailsjs/go/api/Api"
+import {
+  AcceptCall,
+  RejectCall,
+  EndCall,
+  GetCallStats,
+  GetProfile,
+} from "../../../wailsjs/go/api/Api"
 import { GetCachedAvatar } from "../../../wailsjs/go/api/Api"
 import type { api } from "../../../wailsjs/go/models"
 
@@ -71,12 +77,12 @@ export function CallOverlay() {
 
     const onAccepted = (data: any) => {
       console.log("[VoIP] Call accepted:", data)
-      setActiveCall((prev) => (prev ? { ...prev, status: "active" } : null))
+      setActiveCall(prev => (prev ? { ...prev, status: "active" } : null))
     }
 
     const onEnded = (data: any) => {
       console.log("[VoIP] Call ended:", data)
-      setActiveCall((prev) => (prev && prev.callID === data.callID ? null : prev))
+      setActiveCall(prev => (prev && prev.callID === data.callID ? null : prev))
       setCallDuration(0)
     }
 
@@ -97,7 +103,7 @@ export function CallOverlay() {
   useEffect(() => {
     if (activeCall?.status === "active") {
       timerRef.current = setInterval(() => {
-        setCallDuration((prev) => prev + 1)
+        setCallDuration(prev => prev + 1)
       }, 1000)
     } else {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -133,7 +139,7 @@ export function CallOverlay() {
   const handleAccept = async () => {
     try {
       await AcceptCall(activeCall.callID)
-      setActiveCall((prev) => (prev ? { ...prev, status: "active" } : null))
+      setActiveCall(prev => (prev ? { ...prev, status: "active" } : null))
     } catch (err) {
       console.error("Failed to accept call", err)
       setActiveCall(null)
@@ -182,7 +188,9 @@ export function CallOverlay() {
               Whats4Linux Call
             </span>
           </div>
-          <span className="text-[11px] text-gray-400">{activeCall.isVideo ? "Video Call" : "Audio Call"}</span>
+          <span className="text-[11px] text-gray-400">
+            {activeCall.isVideo ? "Video Call" : "Audio Call"}
+          </span>
         </div>
 
         {/* Contact Avatar */}
@@ -200,7 +208,10 @@ export function CallOverlay() {
           ) : (
             <div
               className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-xl relative z-10"
-              style={{ background: "linear-gradient(135deg, #1f2c34, #0b141a)", border: "2px solid rgba(33, 192, 99, 0.4)" }}
+              style={{
+                background: "linear-gradient(135deg, #1f2c34, #0b141a)",
+                border: "2px solid rgba(33, 192, 99, 0.4)",
+              }}
             >
               {activeCall.contactName.charAt(0).toUpperCase()}
             </div>
@@ -215,8 +226,8 @@ export function CallOverlay() {
           {activeCall.status === "ringing"
             ? "Incoming Call..."
             : activeCall.status === "calling"
-            ? "Calling..."
-            : formatTimer(callDuration)}
+              ? "Calling..."
+              : formatTimer(callDuration)}
         </p>
 
         {/* Action Buttons */}
