@@ -29,7 +29,7 @@ import {
   SetGroupAnnounce,
   SetGroupLocked,
   GetMyJID,
-  SetGroupTopic,
+  SetGroupDescription,
   SetGroupMemberAddMode,
   SetGroupJoinApprovalMode,
   GetGroupJoinRequests,
@@ -348,7 +348,7 @@ export function ChatInfo({
     if (!text) return
     setActionBusy(true)
     try {
-      await SetGroupTopic(chatId, text)
+      await SetGroupDescription(chatId, text)
       if (groupInfo) setGroupInfo({ ...groupInfo, group_topic: text } as api.Group)
       setTopicEdit(false)
     } catch (e) {

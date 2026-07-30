@@ -392,6 +392,7 @@ func (a *Api) DownloadImageToFile(messageID string) error {
 		return err
 	}
 
+	runtime.EventsEmit(a.ctx, "download:complete", filePath)
 	beeep.Notify("whats4linux", "Downloaded: "+filePath, "")
 	playBeep()
 	return nil
@@ -447,6 +448,7 @@ func (a *Api) DownloadMediaToFile(messageID string) error {
 		return err
 	}
 
+	runtime.EventsEmit(a.ctx, "download:complete", filePath)
 	beeep.Notify("whats4linux", "Downloaded: "+filePath, "")
 	playBeep()
 	return nil

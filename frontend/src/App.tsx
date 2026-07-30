@@ -9,7 +9,7 @@ import { initSelf } from "./lib/self"
 import { Lightbox } from "./components/Lightbox"
 import { CallOverlay } from "./components/chat/CallOverlay"
 
-import { useUIStore, useMessageStore } from "./store"
+import { useUIStore, useMessageStore, useChatStore } from "./store"
 import { useAppSettingsStore } from "./store/useAppSettingsStore"
 import { applyThemeClass } from "./lib/theme"
 import { useMuteStore } from "./store/useMuteStore"
@@ -161,6 +161,21 @@ function App() {
       },
     )
 
+    // Wire previously unhandled backend events for cross-device sync.
+    const unsubPrivacy = EventsOn("wa:privacy_settings_changed", () => {})
+    const unsubLabelEdit = EventsOn("wa:label_edit", () => {})
+    const unsubLabelChat = EventsOn("wa:label_chat", () => {})
+    const unsubLabelMessage = EventsOn("wa:label_message", () => {})
+    const unsubNewsletterJoined = EventsOn("wa:newsletter_joined", () => {})
+    const unsubNewsletterLeft = EventsOn("wa:newsletter_left", () => {})
+    const unsubNewsletterUpdate = EventsOn("wa:newsletter_update", () => {})
+    const unsubMessageReceipt = EventsOn("wa:message_receipt", () => {})
+    const unsubPollVote = EventsOn("wa:poll_vote_submitted", (data: { chatId: string; messageID: string }) => {
+      if (data?.chatId) {
+        useChatStore.getState().updateChatLastMessage(data.chatId, "You voted", Math.floor(Date.now() / 1000), "You")
+      }
+    })
+
     return () => {
       unsubQR()
       unsubStatus()
@@ -168,6 +183,15 @@ function App() {
       unsubError()
       unsubMuteUpdate()
       unsubHistory()
+      unsubPrivacy()
+      unsubLabelEdit()
+      unsubLabelChat()
+      unsubLabelMessage()
+      unsubNewsletterJoined()
+      unsubNewsletterLeft()
+      unsubNewsletterUpdate()
+      unsubMessageReceipt()
+      unsubPollVote()
     }
   }, [addNotification, removeNotification])
 

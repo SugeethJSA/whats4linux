@@ -73,5 +73,29 @@ func (a *Api) handlePollVoteEvent(v *events.Message) {
 	if err := a.messageStore.InsertSystemMessage(chat, msgID, text, v.Info.Timestamp.Unix()); err != nil {
 		slog.Warn(fmt.Sprintf("Failed to store poll vote system message: %v", err), "source", "polls")
 	}
+
+	var msg any
+	if dm, err := a.messageStore.GetDecodedMessage(chat, msgID); err == nil {
+		msg = dm
+	}
+	if msg == nil {
+		// must not be nil — use a generic object as fallback
+		msg = struct {
+			Info struct {
+				ID string `json:"ID"`
+			} `json:"Info"`
+		}{Info: struct {
+			ID string `json:"ID"`
+		}{ID: msgID}}
+	}
+
+	runtime.EventsEmit(a.ctx, "wa:new_message", map[string]any{
+		"chatId":      chat,
+		"message":     msg,
+		"messageText": text,
+		"timestamp":   v.Info.Timestamp.Unix(),
+		"sender":      senderName,
+		"pollVote":    true,
+	})
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 }

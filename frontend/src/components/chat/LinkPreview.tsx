@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { GetLinkPreviewImage } from "../../../wailsjs/go/api/Api"
+import { GetLinkPreviewImage, GetLinkPreview } from "../../../wailsjs/go/api/Api"
 import { BrowserOpenURL } from "../../../wailsjs/runtime/runtime"
 import { LRUCache } from "../../lib/lruCache"
 
@@ -32,11 +32,24 @@ export function LinkPreview({
   messageId: string
   preview?: LinkPreviewData | null
 }) {
+  const [fallbackPreview, setFallbackPreview] = useState<LinkPreviewData | null>(null)
   const [poster, setPoster] = useState<string>(() => posterCache.get(messageId) ?? "")
+
+  // Fallback: fetch preview data from backend when not embedded in the message.
+  useEffect(() => {
+    if (preview || fallbackPreview) return
+    GetLinkPreview(messageId)
+      .then(data => {
+        if (data?.url) setFallbackPreview(data)
+      })
+      .catch(() => {})
+  }, [messageId, preview, fallbackPreview])
+
+  const resolved = preview || fallbackPreview
   const posterAreaRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    if (!preview?.has_poster || preview.thumbnail || posterCache.has(messageId)) return
+    if (!resolved?.has_poster || resolved.thumbnail || posterCache.has(messageId)) return
     const area = posterAreaRef.current
     if (!area) return
     let cancelled = false
@@ -67,23 +80,23 @@ export function LinkPreview({
       observer.disconnect()
       if (timer) clearTimeout(timer)
     }
-  }, [messageId, preview?.has_poster, preview?.thumbnail])
+  }, [messageId, resolved?.has_poster, resolved?.thumbnail])
 
-  if (!preview) return null
+  if (!resolved) return null
 
-  const image = preview.thumbnail || poster
-  const hasImageArea = !!(preview.thumbnail || preview.has_poster)
+  const image = resolved.thumbnail || poster
+  const hasImageArea = !!(resolved.thumbnail || resolved.has_poster)
 
   let domain = ""
   try {
-    domain = new URL(preview.url).hostname.replace(/^www\./, "")
+    domain = new URL(resolved.url).hostname.replace(/^www\./, "")
   } catch {
     /* ignore malformed URL */
   }
 
   return (
     <div
-      onClick={() => preview.url && BrowserOpenURL(preview.url)}
+      onClick={() => resolved.url && BrowserOpenURL(resolved.url)}
       className="mt-1 max-w-72 overflow-hidden rounded-lg bg-black/10 dark:bg-dark-bg/25 cursor-pointer"
     >
       {/* Fixed height: an unconstrained image resizes the card (and the row)
@@ -94,11 +107,11 @@ export function LinkPreview({
         </div>
       )}
       <div className="p-2">
-        {preview.title && (
-          <div className="text-sm font-medium line-clamp-2 leading-snug">{preview.title}</div>
+        {resolved.title && (
+          <div className="text-sm font-medium line-clamp-2 leading-snug">{resolved.title}</div>
         )}
-        {preview.description && (
-          <div className="mt-0.5 text-xs opacity-70 line-clamp-2">{preview.description}</div>
+        {resolved.description && (
+          <div className="mt-0.5 text-xs opacity-70 line-clamp-2">{resolved.description}</div>
         )}
         {domain && (
           <div className="mt-1 text-[10px] uppercase tracking-wide opacity-50">{domain}</div>

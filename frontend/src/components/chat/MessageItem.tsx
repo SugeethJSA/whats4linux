@@ -35,6 +35,8 @@ import { LRUCache } from "../../lib/lruCache"
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
 const EmojiPicker = lazy(() => import("./EmojiPickerLazy"))
 
+const votedPollKeys = new Set<string>()
+
 interface MessageItemProps {
   message: store.DecodedMessage
   chatId: string
@@ -344,12 +346,18 @@ export function MessageItem({
           )}
           {htmlContent.includes('class="msg-poll"') && (
             <>
-              <button
-                onClick={() => setPollVoteOpen(true)}
-                className="mt-2 w-full rounded-lg border border-[#21c063] bg-[#21c063]/10 px-3 py-1.5 text-sm font-medium text-[#21c063] hover:bg-[#21c063]/20 transition-colors"
-              >
-                Vote
-              </button>
+              {votedPollKeys.has(message.Info.ID) ? (
+                <div className="mt-2 w-full rounded-lg border border-green-500/30 bg-green-500/5 px-3 py-1.5 text-sm text-green-600 dark:text-green-400 text-center">
+                  Voted ✓
+                </div>
+              ) : (
+                <button
+                  onClick={() => setPollVoteOpen(true)}
+                  className="mt-2 w-full rounded-lg border border-[#21c063] bg-[#21c063]/10 px-3 py-1.5 text-sm font-medium text-[#21c063] hover:bg-[#21c063]/20 transition-colors"
+                >
+                  Vote
+                </button>
+              )}
               {pollVoteOpen && (
                 <PollVoteDialog
                   chatId={chatId}
@@ -365,6 +373,7 @@ export function MessageItem({
                       ?.map((o: string) => o.replace(/○\s*/, "").trim()) || []
                   }
                   onClose={() => setPollVoteOpen(false)}
+                  onVote={() => votedPollKeys.add(message.Info.ID)}
                 />
               )}
             </>

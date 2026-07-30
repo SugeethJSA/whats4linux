@@ -7,6 +7,7 @@ interface PollVoteDialogProps {
   question: string
   options: string[]
   onClose: () => void
+  onVote?: () => void
 }
 
 export function PollVoteDialog({
@@ -15,6 +16,7 @@ export function PollVoteDialog({
   question,
   options,
   onClose,
+  onVote,
 }: PollVoteDialogProps) {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [sending, setSending] = useState(false)
@@ -38,6 +40,7 @@ export function PollVoteDialog({
       const names = Array.from(selected).map(i => options[i])
       await SendPollVote(chatId, messageId, names)
       setDone(true)
+      onVote?.()
     } catch (err) {
       setError(String(err))
     } finally {

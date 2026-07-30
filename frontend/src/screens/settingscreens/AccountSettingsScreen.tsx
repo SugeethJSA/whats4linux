@@ -6,6 +6,7 @@ import {
   GetContactQRLink,
   SetPushName,
   ResolveContactQRLink,
+  ResolveBusinessMessageLink,
 } from "../../../wailsjs/go/api/Api"
 import type { ReactNode } from "react"
 
@@ -19,6 +20,9 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
   const [resolveCode, setResolveCode] = useState("")
   const [resolveResult, setResolveResult] = useState<string | null>(null)
   const [resolveBusy, setResolveBusy] = useState(false)
+  const [bizLinkCode, setBizLinkCode] = useState("")
+  const [bizLinkResult, setBizLinkResult] = useState<string | null>(null)
+  const [bizLinkBusy, setBizLinkBusy] = useState(false)
 
   const handleSaveStatus = async () => {
     try {
@@ -156,6 +160,47 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
         </div>
         {resolveResult && (
           <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{resolveResult}</p>
+        )}
+      </div>
+
+      {/* Resolve business message link */}
+      <div className="rounded-xl border border-gray-200 dark:border-dark-border p-4">
+        <h3 className="text-base font-medium text-light-text dark:text-dark-text mb-2">
+          Resolve Business Message Link
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-dark-muted mb-2">
+          Paste a business message link to resolve the business info.
+        </p>
+        <div className="flex gap-2">
+          <input
+            className="flex-1 rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] text-light-text dark:text-dark-text"
+            value={bizLinkCode}
+            onChange={e => setBizLinkCode(e.target.value)}
+            placeholder="https://wa.me/message/..."
+          />
+          <button
+            onClick={async () => {
+              setBizLinkBusy(true)
+              setBizLinkResult(null)
+              try {
+                const result = await ResolveBusinessMessageLink(bizLinkCode.trim())
+                setBizLinkResult(
+                  `JID: ${result.jid}${result.push_name ? ` · ${result.push_name}` : ""}${result.verified_name ? ` ✓ ${result.verified_name}` : ""}`,
+                )
+              } catch (err) {
+                setBizLinkResult("Failed to resolve link")
+              } finally {
+                setBizLinkBusy(false)
+              }
+            }}
+            disabled={bizLinkBusy || !bizLinkCode.trim()}
+            className="rounded-lg bg-[#21c063] px-4 py-2 text-sm font-medium text-[#0a1014] hover:bg-[#1ea952] disabled:opacity-50"
+          >
+            {bizLinkBusy ? "Resolving…" : "Resolve"}
+          </button>
+        </div>
+        {bizLinkResult && (
+          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{bizLinkResult}</p>
         )}
       </div>
 

@@ -4,6 +4,7 @@ import {
   SetPrivacySetting,
   GetStatusPrivacy,
   SetStatusPrivacy,
+  SetDisappearingTimerDefault,
 } from "../../../wailsjs/go/api/Api"
 
 type PrivacyValue = "all" | "contacts" | "contact_blacklist" | "none" | "match_last_seen" | "known"
@@ -105,6 +106,8 @@ const PrivacySettingsScreen = () => {
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState("")
   const [statusBlacklist, setStatusBlacklist] = useState<string[]>([])
+  const [defaultTimer, setDefaultTimer] = useState(0)
+  const [timerBusy, setTimerBusy] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -161,6 +164,18 @@ const PrivacySettingsScreen = () => {
     }
   }
 
+  const handleDefaultTimer = async (seconds: number) => {
+    setTimerBusy(true)
+    try {
+      await SetDisappearingTimerDefault(seconds)
+      setDefaultTimer(seconds)
+    } catch (e) {
+      console.error("Failed to set default disappearing timer:", e)
+    } finally {
+      setTimerBusy(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6 p-6 max-w-2xl mx-auto">
       <h2 className="text-xl font-bold text-light-text dark:text-dark-text">Privacy</h2>
@@ -177,6 +192,33 @@ const PrivacySettingsScreen = () => {
       {error && !loading && (
         <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
           {error}
+        </div>
+      )}
+
+      {/* Default disappearing timer */}
+      {!loading && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 bg-white p-4 dark:border-white/5 dark:bg-dark-secondary">
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-light-text dark:text-dark-text">
+                Default disappearing timer
+              </div>
+              <div className="mt-0.5 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
+                Sets the default timer for new chats.
+              </div>
+            </div>
+            <select
+              value={defaultTimer}
+              onChange={e => handleDefaultTimer(Number(e.target.value))}
+              disabled={timerBusy}
+              className={selectCls + (timerBusy ? " opacity-50" : "")}
+            >
+              <option value={0}>Off</option>
+              <option value={86400}>24 hours</option>
+              <option value={604800}>7 days</option>
+              <option value={7776000}>90 days</option>
+            </select>
+          </div>
         </div>
       )}
 

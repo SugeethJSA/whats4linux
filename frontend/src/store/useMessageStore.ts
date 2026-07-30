@@ -157,5 +157,14 @@ export const useMessageStore = create<MessageStore>()(
           }
         }
       }),
+
+    updateMessageReceipt: (chatId, messageId, status) =>
+      set(state => {
+        const msgs = state.messages[chatId]
+        if (!msgs) return
+        const idx = msgs.findIndex((m: any) => m.Info?.ID === messageId)
+        if (idx < 0) return
+        msgs[idx] = { ...msgs[idx], receiptStatus: status }
+      }),
   })),
 )
