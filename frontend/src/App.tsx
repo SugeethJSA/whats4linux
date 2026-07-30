@@ -170,11 +170,16 @@ function App() {
     const unsubNewsletterLeft = EventsOn("wa:newsletter_left", () => {})
     const unsubNewsletterUpdate = EventsOn("wa:newsletter_update", () => {})
     const unsubMessageReceipt = EventsOn("wa:message_receipt", () => {})
-    const unsubPollVote = EventsOn("wa:poll_vote_submitted", (data: { chatId: string; messageID: string }) => {
-      if (data?.chatId) {
-        useChatStore.getState().updateChatLastMessage(data.chatId, "You voted", Math.floor(Date.now() / 1000), "You")
-      }
-    })
+    const unsubPollVote = EventsOn(
+      "wa:poll_vote_submitted",
+      (data: { chatId: string; messageID: string }) => {
+        if (data?.chatId) {
+          useChatStore
+            .getState()
+            .updateChatLastMessage(data.chatId, "You voted", Math.floor(Date.now() / 1000), "You")
+        }
+      },
+    )
 
     return () => {
       unsubQR()
