@@ -29,14 +29,11 @@ export function useWailsEvents() {
     )
 
     // 3. User Online / Offline Presence Events
-    const unsubPresence = EventsOn(
-      "wa:presence",
-      (data: { sender: string; status: string }) => {
-        if (!data?.sender) return
-        const isOnline = data.status === "available"
-        useUIStore.getState().setOnlineStatus(data.sender, isOnline)
-      },
-    )
+    const unsubPresence = EventsOn("wa:presence", (data: { sender: string; status: string }) => {
+      if (!data?.sender) return
+      const isOnline = data.status === "available"
+      useUIStore.getState().setOnlineStatus(data.sender, isOnline)
+    })
 
     // 4. Mute State Updates
     const unsubMuteUpdate = EventsOn(
@@ -54,7 +51,12 @@ export function useWailsEvents() {
         if (data?.chatId) {
           useChatStore
             .getState()
-            .updateChatLastMessage(data.chatId, "Vote submitted", Math.floor(Date.now() / 1000), data.sender || "Someone")
+            .updateChatLastMessage(
+              data.chatId,
+              "Vote submitted",
+              Math.floor(Date.now() / 1000),
+              data.sender || "Someone",
+            )
         }
       },
     )
