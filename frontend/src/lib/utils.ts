@@ -184,3 +184,19 @@ export function getProfileColor(jid: string): string {
 export const AVATAR_ICON_COLOR = "#111b21"
 /** Light icon on the small dark group disc in stacked community logos. */
 export const AVATAR_ICON_ON_DARK = "#ffffff"
+
+/**
+ * Strip HTML tags and convert formatted HTML to clean plain text.
+ */
+export function htmlToPlainText(html: string): string {
+  if (!html) return ""
+  if (!html.includes("<") && !html.includes(">")) return html.trim()
+  const temp = document.createElement("div")
+  const formatted = html
+    .replace(/<br\s*[\/]?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<\/li>/gi, "\n")
+  temp.innerHTML = formatted
+  return (temp.innerText || temp.textContent || "").trim()
+}

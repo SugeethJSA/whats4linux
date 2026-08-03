@@ -30,7 +30,7 @@ import {
 import { useContactStore } from "../../store/useContactStore"
 import { useMessageStore } from "../../store"
 import { isMe } from "../../lib/self"
-import { formatPhone, phoneFromJID } from "../../lib/utils"
+import { formatPhone, phoneFromJID, htmlToPlainText } from "../../lib/utils"
 import { LRUCache } from "../../lib/lruCache"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
@@ -153,9 +153,7 @@ export function MessageItem({
   const handleCopy = () => {
     const textToCopy = content?.conversation || content?.extendedTextMessage?.text || ""
     if (textToCopy) {
-      const div = document.createElement("div")
-      div.innerHTML = textToCopy
-      navigator.clipboard.writeText(div.innerText)
+      navigator.clipboard.writeText(htmlToPlainText(textToCopy))
     }
   }
 
@@ -190,14 +188,15 @@ export function MessageItem({
 
   const handleEdit = () => {
     const text = content?.conversation || content?.extendedTextMessage?.text || ""
-    setEditText(text)
+    setEditText(htmlToPlainText(text))
     setEditing(true)
   }
 
   const handleEditSubmit = async () => {
-    if (!editText.trim()) return
+    const cleanText = htmlToPlainText(editText)
+    if (!cleanText.trim()) return
     try {
-      await EditMessage(chatId, message.Info.ID, editText)
+      await EditMessage(chatId, message.Info.ID, cleanText)
       setEditing(false)
     } catch (e) {
       console.error("EditMessage failed:", e)

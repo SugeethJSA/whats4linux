@@ -586,7 +586,7 @@ func (a *Api) ForwardMessage(sourceJID, messageID, targetJID string) error {
 			return fmt.Errorf("failed to upload media: %v", err)
 		}
 
-		caption := msg.Text
+		caption := markdown.StripHTML(msg.Text)
 		contextInfo := &waE2E.ContextInfo{IsForwarded: forwarded}
 
 		switch msg.Media.GetMediaGeneralType() {
@@ -657,10 +657,11 @@ func (a *Api) ForwardMessage(sourceJID, messageID, targetJID string) error {
 		}
 	} else {
 		// Text-only message
+		plainText := markdown.StripHTML(msg.Text)
 		contextInfo := &waE2E.ContextInfo{IsForwarded: forwarded}
 		msgContent = &waE2E.Message{
 			ExtendedTextMessage: &waE2E.ExtendedTextMessage{
-				Text:        &msg.Text,
+				Text:        &plainText,
 				ContextInfo: contextInfo,
 			},
 		}
@@ -854,14 +855,15 @@ func (a *Api) EditMessage(chatJID, messageID, newText string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	plainText := markdown.StripHTML(newText)
 	msg := a.waClient.BuildEdit(chat, messageID, &waE2E.Message{
-		Conversation: &newText,
+		Conversation: &plainText,
 	})
 	resp, err := a.waClient.SendMessage(a.ctx, chat, msg)
 	if err != nil {
 		return "", err
 	}
-	err = a.messageStore.UpdateMessageContent(messageID, &waE2E.Message{Conversation: &newText}, "")
+	err = a.messageStore.UpdateMessageContent(messageID, &waE2E.Message{Conversation: &plainText}, "")
 	if err != nil {
 		log.Println("EditMessage: failed to persist edit locally:", err)
 	}

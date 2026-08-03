@@ -215,3 +215,43 @@ func MarkdownLinesToHTML(s string) string {
 	closeAll()
 	return out.String()
 }
+
+var (
+	brTagRE    = regexp.MustCompile(`(?i)<br\s*/?>`)
+	pCloseRE   = regexp.MustCompile(`(?i)</p>`)
+	divCloseRE = regexp.MustCompile(`(?i)</div>`)
+	liCloseRE  = regexp.MustCompile(`(?i)</li>`)
+	htmlTagRE  = regexp.MustCompile(`<[^>]*>`)
+)
+
+// StripHTML converts HTML string (like <p>hello <b>world</b></p>) back to clean plain text.
+func StripHTML(s string) string {
+	if s == "" {
+		return ""
+	}
+	if !strings.Contains(s, "<") && !strings.Contains(s, ">") && !strings.Contains(s, "&") {
+		return strings.TrimSpace(s)
+	}
+
+	// Replace line breaking HTML tags with newlines
+	res := brTagRE.ReplaceAllString(s, "\n")
+	res = pCloseRE.ReplaceAllString(res, "\n")
+	res = divCloseRE.ReplaceAllString(res, "\n")
+	res = liCloseRE.ReplaceAllString(res, "\n")
+
+	// Strip all remaining HTML tags
+	res = htmlTagRE.ReplaceAllString(res, "")
+
+	// Unescape HTML entities like &lt; &gt; &amp; &quot; &#39;
+	res = html.UnescapeString(res)
+
+	// Clean up lines while preserving single line breaks
+	lines := strings.Split(res, "\n")
+	var cleaned []string
+	for _, l := range lines {
+		trimmed := strings.TrimRight(l, "\r ")
+		cleaned = append(cleaned, trimmed)
+	}
+
+	return strings.TrimSpace(strings.Join(cleaned, "\n"))
+}
