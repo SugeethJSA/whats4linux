@@ -13,6 +13,7 @@ import { useUIStore, useMessageStore, useChatStore } from "./store"
 import { useAppSettingsStore } from "./store/useAppSettingsStore"
 import { applyThemeClass } from "./lib/theme"
 import { useMuteStore } from "./store/useMuteStore"
+import { useWailsEvents } from "./hooks/useWailsEvents"
 
 type Screen = "login" | "chats" | "settings"
 
@@ -86,6 +87,8 @@ function App() {
     })
   }, [])
 
+  useWailsEvents()
+
   useEffect(() => {
     const unsubQR = EventsOn("wa:qr", async (qr: string) => {
       if (!canvasRef.current) return
@@ -130,16 +133,6 @@ function App() {
       setTimeout(() => removeNotification(nid), 6000)
     })
 
-    // Keep the muted-chats store fresh so chat rows/info panels stay in sync
-    // with mute changes made anywhere (this app, the phone, another device).
-    const unsubMuteUpdate = EventsOn(
-      "wa:chat_mute_update",
-      (data: { chatId: string; muted: boolean }) => {
-        if (!data?.chatId) return
-        useMuteStore.getState().setMuted(data.chatId, !!data.muted)
-      },
-    )
-
     // Register all status listeners before starting login. Existing sessions
     // can complete quickly enough to otherwise lose the "logged_in" event.
     if (!loginStartedRef.current) {
@@ -161,42 +154,13 @@ function App() {
       },
     )
 
-    // Wire previously unhandled backend events for cross-device sync.
-    const unsubPrivacy = EventsOn("wa:privacy_settings_changed", () => {})
-    const unsubLabelEdit = EventsOn("wa:label_edit", () => {})
-    const unsubLabelChat = EventsOn("wa:label_chat", () => {})
-    const unsubLabelMessage = EventsOn("wa:label_message", () => {})
-    const unsubNewsletterJoined = EventsOn("wa:newsletter_joined", () => {})
-    const unsubNewsletterLeft = EventsOn("wa:newsletter_left", () => {})
-    const unsubNewsletterUpdate = EventsOn("wa:newsletter_update", () => {})
-    const unsubMessageReceipt = EventsOn("wa:message_receipt", () => {})
-    const unsubPollVote = EventsOn(
-      "wa:poll_vote_submitted",
-      (data: { chatId: string; messageID: string }) => {
-        if (data?.chatId) {
-          useChatStore
-            .getState()
-            .updateChatLastMessage(data.chatId, "You voted", Math.floor(Date.now() / 1000), "You")
-        }
-      },
-    )
 
     return () => {
       unsubQR()
       unsubStatus()
       unsubDownload()
       unsubError()
-      unsubMuteUpdate()
       unsubHistory()
-      unsubPrivacy()
-      unsubLabelEdit()
-      unsubLabelChat()
-      unsubLabelMessage()
-      unsubNewsletterJoined()
-      unsubNewsletterLeft()
-      unsubNewsletterUpdate()
-      unsubMessageReceipt()
-      unsubPollVote()
     }
   }, [addNotification, removeNotification])
 

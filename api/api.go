@@ -193,7 +193,7 @@ func (a *Api) reconnectLoop() {
 	runtime.EventsEmit(a.ctx, "wa:status", "reconnecting")
 	backoff := 2 * time.Second
 	maxBackoff := 30 * time.Second
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		select {
 		case <-a.ctx.Done():
 			return
@@ -257,7 +257,7 @@ func (a *Api) notifyIncoming(v *events.Message, parsedHTML string) {
 	}
 }
 
-// NewApi creates a new Api application struct
+// New creates a new Api application struct
 func New() *Api {
 	a := &Api{}
 	a.startWorkerPool()
@@ -269,8 +269,8 @@ const workerQueueSize = 256
 
 func (a *Api) startWorkerPool() {
 	a.taskCh = make(chan func(), workerQueueSize)
-	for i := 0; i < workerPoolSize; i++ {
-		a.workerWg.Add(1)
+	a.workerWg.Add(workerPoolSize)
+	for range workerPoolSize {
 		go func() {
 			defer a.workerWg.Done()
 			for task := range a.taskCh {
@@ -309,12 +309,12 @@ func (a *Api) isShuttingDown() bool {
 	return a.shuttingDown
 }
 
-func (a *Api) OnSecondInstanceLaunch(secondInstanceData options.SecondInstanceData) {
+func (a *Api) OnSecondInstanceLaunch(_ options.SecondInstanceData) {
 	runtime.WindowUnminimise(a.ctx)
 	runtime.Show(a.ctx)
 }
 
-func (a *Api) Shutdown(ctx context.Context) {
+func (a *Api) Shutdown(_ context.Context) {
 	a.taskMu.Lock()
 	a.shuttingDown = true
 	a.taskMu.Unlock()
@@ -395,7 +395,7 @@ func (a *Api) failStartup(err error) {
 	}
 }
 
-// startup is called when the app starts. The context is saved
+// Startup is called when the app starts. The context is saved
 // so we can call the runtime methods
 func (a *Api) Startup(ctx context.Context) {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))

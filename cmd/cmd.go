@@ -9,7 +9,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-const APP_NAME = "whats4linux"
+const AppName = "whats4linux"
 
 // BuildArgs contains build-time information passed to the CLI application.
 // These values are typically injected during the build process via ldflags
@@ -25,10 +25,6 @@ type BuildArgs struct {
 	Commit string
 }
 
-var currentBuildArgs BuildArgs
-
-var versionCmdStr string
-
 func GetApp(assets fs.FS, bArgs BuildArgs) *cli.App {
 	// Build the base commands
 	commands := []cli.Command{
@@ -43,19 +39,19 @@ func GetApp(assets fs.FS, bArgs BuildArgs) *cli.App {
 			Aliases:            []string{"v"},
 			Usage:              "prints installed version",
 			UsageText:          " ",
-			CustomHelpTemplate: CMD_HELP_TEMPL,
+			CustomHelpTemplate: CommandHelpTempl,
 			Action:             common.GetVersion,
 		},
 	}
 
 	return &cli.App{
-		Name:                   APP_NAME,
-		HelpName:               APP_NAME,
+		Name:                   AppName,
+		HelpName:               AppName,
 		Usage:                  "An unofficial WhatsApp client.",
 		Version:                fmt.Sprintf("%s-%s", bArgs.Version, bArgs.BuildType),
 		UsageText:              "whats4linux <command> [arguments...]",
 		Description:            DESCRIPTION,
-		CustomAppHelpTemplate:  HELP_TEMPL,
+		CustomAppHelpTemplate:  HelpTempl,
 		OnUsageError:           common.UsageErrorCallback,
 		Commands:               commands,
 		Action:                 run(assets),
@@ -66,9 +62,6 @@ func GetApp(assets fs.FS, bArgs BuildArgs) *cli.App {
 }
 
 func Execute(args []string, assets fs.FS, bArgs BuildArgs) error {
-	// Store build args for use by daemon and other commands
-	currentBuildArgs = bArgs
-
 	// Get the configured CLI application
 	app := GetApp(assets, bArgs)
 

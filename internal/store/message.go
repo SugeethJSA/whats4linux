@@ -271,7 +271,7 @@ func (ms *MessageStore) runWriter() {
 			}()
 			tx, err := ms.db.BeginTx(context.Background(), nil)
 			if err == nil {
-				defer tx.Rollback()
+				defer func() { _ = tx.Rollback() }()
 				err = req.job(tx)
 				if err == nil {
 					err = tx.Commit()
@@ -349,7 +349,7 @@ func openDB() (*sql.DB, error) {
 
 	for _, p := range pragmas {
 		if _, err := db.Exec(p); err != nil {
-			db.Close()
+			_ = db.Close()
 			return nil, err
 		}
 	}
@@ -387,26 +387,26 @@ func UnwrapMessage(m *waE2E.Message) *waE2E.Message {
 func ExtractMessageText(msg *waE2E.Message) string {
 	if msg.GetConversation() != "" {
 		return msg.GetConversation()
-	} else if msg.GetExtendedTextMessage() != nil {
+	}
+	if msg.GetExtendedTextMessage() != nil {
 		return msg.GetExtendedTextMessage().GetText()
-	} else {
-		switch {
-		case msg.GetImageMessage() != nil:
-			return "image"
-		case msg.GetVideoMessage() != nil:
-			return "video"
-		case msg.GetAudioMessage() != nil:
-			return "audio"
-		case msg.GetDocumentMessage() != nil:
-			return "document"
-		case msg.GetStickerMessage() != nil:
-			return "sticker"
-		default:
-			if preview, ok := SpecialPreview(msg); ok {
-				return preview
-			}
-			return "message"
+	}
+	switch {
+	case msg.GetImageMessage() != nil:
+		return "image"
+	case msg.GetVideoMessage() != nil:
+		return "video"
+	case msg.GetAudioMessage() != nil:
+		return "audio"
+	case msg.GetDocumentMessage() != nil:
+		return "document"
+	case msg.GetStickerMessage() != nil:
+		return "sticker"
+	default:
+		if preview, ok := SpecialPreview(msg); ok {
+			return preview
 		}
+		return "message"
 	}
 }
 
@@ -437,13 +437,13 @@ func (ms *MessageStore) MigrateLIDToPN(ctx context.Context, sd store.LIDStore) e
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		stmtUpdate, err := tx.Prepare(query.UpdateMessageJIDs)
 		if err != nil {
 			return err
 		}
-		defer stmtUpdate.Close()
+		defer func() { _ = stmtUpdate.Close() }()
 
 		var (
 			msgID  string
@@ -848,7 +848,7 @@ func (ms *MessageStore) UpdateMessageContent(messageID string, content *waE2E.Me
 	})
 }
 
-// GetMessageWithRaw returns a message with its raw protobuf content for media download
+// GetMessageWithMedia returns a message with its raw protobuf content for media download
 func (ms *MessageStore) GetMessageWithMedia(chatJID string, messageID string) (*ExtendedMessage, error) {
 	var (
 		sender    string
@@ -938,7 +938,7 @@ func (ms *MessageStore) GetMessageWithMedia(chatJID string, messageID string) (*
 	}, nil
 }
 
-// GetMessageWithRaw returns a message with its raw protobuf content for media download
+// GetMessageWithMediaByID returns a message with its raw protobuf content for media download
 func (ms *MessageStore) GetMessageWithMediaByID(messageID string) (*ExtendedMessage, error) {
 	var (
 		chat      string
@@ -1045,7 +1045,7 @@ func (ms *MessageStore) chatListFromQuery(q string) []ChatMessage {
 		log.Println("Failed to query chat list:", err)
 		return []ChatMessage{}
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var chatList []ChatMessage
 
@@ -1135,7 +1135,7 @@ func (ms *MessageStore) GetReactionsByMessageID(messageID string) ([]Reaction, e
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var reactions []Reaction
 	cacheMap := make(map[string][]string)
@@ -1351,7 +1351,7 @@ func (ms *MessageStore) GetDecodedMessagesPaged(chatJID string, beforeTimestamp 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	page := make([]decodedPageRow, 0, limit)
 
@@ -1501,7 +1501,7 @@ func (ms *MessageStore) loadReactionsByMessageIDs(messageIDs []string) (map[stri
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var reaction Reaction
 		if err := rows.Scan(&reaction.ID, &reaction.MessageID, &reaction.SenderID, &reaction.Emoji); err != nil {
@@ -1522,7 +1522,7 @@ func (ms *MessageStore) loadQuotedContents(messageIDs []string) (map[string]quot
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var (
 			messageID     string
@@ -1554,7 +1554,7 @@ func (ms *MessageStore) loadQuotedContents(messageIDs []string) (map[string]quot
 
 // buildDecodedContent creates a DecodedMessageContent from DecodedMessage fields
 func (ms *MessageStore) buildDecodedContent(
-	chatJID, messageID, text, replyToMessageId, fileName string,
+	_ string, messageID, text, replyToMessageId, fileName string,
 	mediaType mtypes.MediaType,
 ) *DecodedMessageContent {
 	var contextInfo *ContextInfo
@@ -1581,7 +1581,7 @@ func buildDecodedContentValues(
 	content := &DecodedMessageContent{}
 
 	// Based on message type, populate the appropriate content field
-	switch mtypes.MediaType(mediaType) {
+	switch mediaType {
 	case mtypes.MediaTypeNone:
 		if contextInfo != nil {
 			content.ExtendedTextMessage = &ExtendedTextContent{
@@ -1904,7 +1904,7 @@ func (ms *MessageStore) GetDecodedChatList() ([]DecodedMessage, error) {
 		log.Println("Failed to query decoded chat list:", err)
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var messages []DecodedMessage
 
@@ -1982,7 +1982,7 @@ func (ms *MessageStore) GetPinnedMessages(chatJID string) ([]PinnedMessage, erro
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var pins []PinnedMessage
 	for rows.Next() {
@@ -2024,7 +2024,7 @@ func (ms *MessageStore) GetPinnedChats() map[string]int64 {
 	if err != nil {
 		return pins
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var jid string
 		var ts int64
@@ -2052,7 +2052,7 @@ func (ms *MessageStore) GetArchivedChats() map[string]int64 {
 	if err != nil {
 		return archived
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var jid string
 		var ts int64
@@ -2135,7 +2135,7 @@ func (ms *MessageStore) SearchMessages(textQuery string, mediaTypeFilter string,
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var results []MessageSearchResult
 	for rows.Next() {
@@ -2167,7 +2167,7 @@ func (ms *MessageStore) SearchSuggestions(query string, limit int) ([]string, er
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var out []string
 	for rows.Next() {

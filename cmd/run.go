@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"io/fs"
+	"log"
 
 	apiPkg "github.com/lugvitc/whats4linux/api"
 	"github.com/lugvitc/whats4linux/internal/misc"
@@ -25,10 +26,14 @@ func run(assets fs.FS) cli.ActionFunc {
 		// (via the deferred CloseSettings) before wails.Run even started,
 		// silently breaking every SaveSettings call.
 		store.LoadSettings()
-		defer store.CloseSettings()
+		defer func() {
+			if err := store.CloseSettings(); err != nil {
+				log.Println("failed to close settings:", err)
+			}
+		}()
 
 		return wails.Run(&options.App{
-			Title:  misc.APP_NAME,
+			Title:  misc.AppName,
 			Width:  1024,
 			Height: 768,
 			AssetServer: &assetserver.Options{
@@ -39,7 +44,7 @@ func run(assets fs.FS) cli.ActionFunc {
 			OnStartup:        api.Startup,
 			OnShutdown:       api.Shutdown,
 			SingleInstanceLock: &options.SingleInstanceLock{
-				UniqueId:               misc.APP_ID,
+				UniqueId:               misc.AppID,
 				OnSecondInstanceLaunch: api.OnSecondInstanceLaunch,
 			},
 			Bind: []any{
@@ -50,7 +55,7 @@ func run(assets fs.FS) cli.ActionFunc {
 				// Software rendering avoids WebKitGTK GPU-process crashes across
 				// mixed Mesa/NVIDIA/Wayland setups.
 				WebviewGpuPolicy: linux.WebviewGpuPolicyNever,
-				ProgramName:      APP_NAME,
+				ProgramName:      AppName,
 			},
 		})
 	}

@@ -52,13 +52,6 @@ const (
 	ORDER BY name COLLATE NOCASE;
 	`
 
-	// Distinct parent communities discovered via child groups (parent may not be stored as is_parent).
-	SelectDistinctParents = `
-	SELECT DISTINCT parent_jid, parent_name
-	FROM whats4linux_groups
-	WHERE parent_jid IS NOT NULL AND parent_jid != '';
-	`
-
 	CountGroupsByParent = `
 	SELECT COUNT(*) FROM whats4linux_groups WHERE parent_jid = ?;
 	`

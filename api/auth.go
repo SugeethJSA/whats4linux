@@ -34,7 +34,7 @@ func (a *Api) PairPhone(phone string) (string, error) {
 		return "", fmt.Errorf("pairing failed: %w", err)
 	}
 	slog.Info(fmt.Sprintf("PairPhone code generated for %s", phone), "source", "auth")
-	runtime.EventsEmit(a.ctx, "wa:status", string(code))
+	runtime.EventsEmit(a.ctx, "wa:status", code)
 	return code, nil
 }
 
@@ -45,10 +45,8 @@ func (a *Api) Logout() error {
 		return fmt.Errorf("not logged in")
 	}
 	slog.Info("Logging out", "source", "auth")
-	a.waClient.Disconnect()
-	if err := a.waClient.Store.Delete(a.ctx); err != nil {
-		slog.Error(fmt.Sprintf("Logout Delete failed: %v", err), "source", "auth")
-		return fmt.Errorf("logout delete failed: %w", err)
+	if err := a.waClient.Logout(a.ctx); err != nil {
+		slog.Error(fmt.Sprintf("Logout request failed: %v", err), "source", "auth")
 	}
 	slog.Info("Logged out successfully", "source", "auth")
 	runtime.EventsEmit(a.ctx, "wa:status", "logged_out")

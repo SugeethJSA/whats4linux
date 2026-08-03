@@ -69,7 +69,7 @@ func (a *Api) GetGroupInfo(jidStr string) (Group, error) {
 	}
 	jid, err := types.ParseJID(jidStr)
 	if err != nil {
-		return Group{}, fmt.Errorf("Invalid JID: %w", err)
+		return Group{}, fmt.Errorf("invalid JID: %w", err)
 	}
 
 	GroupInfo, err := a.waClient.GetGroupInfo(a.ctx, jid)
@@ -82,7 +82,7 @@ func (a *Api) GetGroupInfo(jidStr string) (Group, error) {
 	for _, p := range GroupInfo.Participants {
 		contact, err := a.GetContact(p.JID)
 		if err != nil {
-			return Group{}, fmt.Errorf("Error fetching participant: %w", err)
+			return Group{}, fmt.Errorf("error fetching participant: %w", err)
 		}
 
 		participants = append(participants, GroupParticipant{
@@ -96,7 +96,7 @@ func (a *Api) GetGroupInfo(jidStr string) (Group, error) {
 	}
 	owner, err := a.GetContact(GroupInfo.OwnerJID)
 	if err != nil {
-		return Group{}, fmt.Errorf("Error fetching owner: %w", err)
+		return Group{}, fmt.Errorf("error fetching owner: %w", err)
 	}
 	return Group{
 		GroupName:        GroupInfo.GroupName.Name,

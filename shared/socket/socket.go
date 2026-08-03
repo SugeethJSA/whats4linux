@@ -98,7 +98,7 @@ func (s *UnixSocket) handleConn(conn net.Conn) {
 			s.conn = nil
 		}
 		s.mu.Unlock()
-		conn.Close()
+		_ = conn.Close()
 	}()
 
 	scanner := bufio.NewScanner(conn)
@@ -145,7 +145,7 @@ func (s *UnixSocket) SendCommand(cmd string) error {
 	}
 	_, err := s.conn.Write([]byte(cmd + "\n"))
 	if err != nil {
-		defer s.conn.Close()
+		_ = s.conn.Close()
 		s.conn = nil
 	}
 	return err

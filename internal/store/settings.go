@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"sync"
@@ -88,9 +89,7 @@ func SetNotificationsEnabled(enabled bool) error {
 	// Copy-on-write so concurrent GetSettings readers never observe a map
 	// mutation mid-flight.
 	newData := make(map[string]any, len(settingsInstance.data)+1)
-	for k, v := range settingsInstance.data {
-		newData[k] = v
-	}
+	maps.Copy(newData, settingsInstance.data)
 	newData[notificationsKey] = enabled
 	settingsInstance.data = newData
 

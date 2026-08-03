@@ -3,6 +3,7 @@ package wa
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -106,7 +107,7 @@ func (cw *AppDatabase) FetchAndStoreGroups(client *whatsmeow.Client) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Clear stale rows so left groups / unlinked parents disappear.
 	if _, err := tx.Exec(`DELETE FROM whats4linux_groups`); err != nil {
@@ -117,7 +118,7 @@ func (cw *AppDatabase) FetchAndStoreGroups(client *whatsmeow.Client) error {
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement: %w", err)
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	storedParents := make(map[string]bool)
 
@@ -218,7 +219,7 @@ func (cw *AppDatabase) FetchGroups() ([]Group, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query groups: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var groups []Group
 	for rows.Next() {
@@ -262,7 +263,7 @@ func (cw *AppDatabase) FetchGroup(jid string) (*Group, error) {
 	row := cw.db.QueryRow(query.SelectGroupByJID, jid)
 	g, err := scanGroup(row)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("group with JID %s not found", jid)
 		}
 		return nil, fmt.Errorf("failed to scan group row: %w", err)
@@ -276,7 +277,7 @@ func (cw *AppDatabase) FetchCommunities() ([]Group, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query communities: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var groups []Group
 	for rows.Next() {

@@ -1,6 +1,6 @@
 package cmd
 
-const HELP_TEMPL = `Usage: {{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}
+const HelpTempl = `Usage: {{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}
 {{.Description}}{{if .VisibleCommands}}
 Commands:{{range .VisibleCategories}}{{if .Name}}
 
@@ -12,7 +12,7 @@ Use "{{.HelpName}} help <command>" for more information about any command.
 
 `
 
-const CMD_HELP_TEMPL = `{{if .Description}}{{.Description}}{{else}}{{.HelpName}} - {{.Usage}}
+const CommandHelpTempl = `{{if .Description}}{{.Description}}{{else}}{{.HelpName}} - {{.Usage}}
 
 {{end}}Usage:
         {{.HelpName}} {{if .UsageText}}{{.UsageText}}{{else}}[arguments...]{{end}}{{if .VisibleFlags}}

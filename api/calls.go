@@ -67,7 +67,7 @@ func (a *Api) initMeowcaller() {
 		callsMu.Unlock()
 
 		if a.ctx != nil {
-			runtime.EventsEmit(a.ctx, "call:incoming", map[string]interface{}{
+			runtime.EventsEmit(a.ctx, "call:incoming", map[string]any{
 				"callID":  call.ID(),
 				"peerJID": call.Peer().String(),
 				"isVideo": call.IsVideo(),
@@ -85,7 +85,7 @@ func (a *Api) initMeowcaller() {
 			callsMu.Unlock()
 
 			if a.ctx != nil {
-				runtime.EventsEmit(a.ctx, "call:ended", map[string]interface{}{
+				runtime.EventsEmit(a.ctx, "call:ended", map[string]any{
 					"callID": call.ID(),
 					"reason": reason,
 				})
@@ -103,7 +103,9 @@ func (a *Api) AcceptCall(callID string) error {
 		return fmt.Errorf("call %s not found", callID)
 	}
 
-	callData.Call.Answer()
+	if err := callData.Call.Answer(); err != nil {
+		log.Printf("[Calls] Failed to answer call %s: %v", callID, err)
+	}
 	callData.AnswerTime = time.Now()
 
 	// For Phase 2: Attach Live OS Audio Bridge
@@ -115,6 +117,7 @@ func (a *Api) AcceptCall(callID string) error {
 
 	if err := bridge.Start(); err != nil {
 		log.Printf("[Calls] Failed to start audio bridge: %v", err)
+		bridge.Close()
 		return fmt.Errorf("audio bridge start failed: %v", err)
 	}
 
@@ -153,16 +156,16 @@ func (a *Api) MakeCall(targetJID string) error {
 	bridge, err := NewLiveAudioBridge()
 	if err != nil {
 		log.Printf("[Calls] Failed to initialize live audio bridge for outbound call: %v", err)
-	} else {
-		if err := bridge.Start(); err == nil {
-			callsMu.Lock()
-			if ac, ok := activeCalls[call.ID()]; ok {
-				ac.Bridge = bridge
-			}
-			callsMu.Unlock()
-			call.Play(bridge)
-			call.Receive(bridge)
+	} else if err := bridge.Start(); err == nil {
+		callsMu.Lock()
+		if ac, ok := activeCalls[call.ID()]; ok {
+			ac.Bridge = bridge
 		}
+		callsMu.Unlock()
+		call.Play(bridge)
+		call.Receive(bridge)
+	} else {
+		bridge.Close()
 	}
 
 	call.OnPeerAccept(func() {
@@ -173,7 +176,7 @@ func (a *Api) MakeCall(targetJID string) error {
 		}
 		callsMu.Unlock()
 		if a.ctx != nil {
-			runtime.EventsEmit(a.ctx, "call:accepted", map[string]interface{}{
+			runtime.EventsEmit(a.ctx, "call:accepted", map[string]any{
 				"callID": call.ID(),
 			})
 		}
@@ -185,14 +188,14 @@ func (a *Api) MakeCall(targetJID string) error {
 		ac := activeCalls[call.ID()]
 		if ac != nil {
 			if ac.Bridge != nil {
-				ac.Bridge.Close()
+				_ = ac.Bridge.Close()
 			}
 			a.insertCallLog(ac)
 			delete(activeCalls, call.ID())
 		}
 		callsMu.Unlock()
 		if a.ctx != nil {
-			runtime.EventsEmit(a.ctx, "call:ended", map[string]interface{}{
+			runtime.EventsEmit(a.ctx, "call:ended", map[string]any{
 				"callID": call.ID(),
 				"reason": reason,
 			})
@@ -200,7 +203,7 @@ func (a *Api) MakeCall(targetJID string) error {
 	})
 
 	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, "call:outgoing", map[string]interface{}{
+		runtime.EventsEmit(a.ctx, "call:outgoing", map[string]any{
 			"callID":  call.ID(),
 			"peerJID": targetJID,
 			"isVideo": false,
@@ -222,9 +225,11 @@ func (a *Api) RejectCall(callID string) error {
 	callsMu.Unlock()
 	a.insertCallLog(callData)
 	if callData.Bridge != nil {
-		callData.Bridge.Close()
+		_ = callData.Bridge.Close()
 	}
-	callData.Call.Reject()
+	if err := callData.Call.Reject(); err != nil {
+		log.Printf("[Calls] Failed to reject call %s: %v", callID, err)
+	}
 	return nil
 }
 
@@ -335,8 +340,10 @@ func (a *Api) EndCall(callID string) error {
 	callsMu.Unlock()
 	a.insertCallLog(callData)
 	if callData.Bridge != nil {
-		callData.Bridge.Close()
+		_ = callData.Bridge.Close()
 	}
-	callData.Call.Hangup()
+	if err := callData.Call.Hangup(); err != nil {
+		log.Printf("[Calls] Failed to hangup call %s: %v", callID, err)
+	}
 	return nil
 }

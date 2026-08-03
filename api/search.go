@@ -36,10 +36,7 @@ func (a *Api) SearchMessages(params SearchParams) ([]SearchResult, error) {
 	if limit <= 0 {
 		limit = 50
 	}
-	offset := params.Offset
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max(params.Offset, 0)
 
 	results, err := a.messageStore.SearchMessages(params.Query, params.Type, params.SenderJID, limit, offset)
 	if err != nil {

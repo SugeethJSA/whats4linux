@@ -29,6 +29,7 @@ interface ChatStore {
   incrementUnreadCount: (chatId: string) => void
   clearUnreadCount: (chatId: string) => void
   getChat: (chatId: string) => ChatItem | undefined
+  removeChat: (chatId: string) => void
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -137,6 +138,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }),
 
   getChat: chatId => get().chatsById.get(chatId),
+
+  removeChat: chatId =>
+    set(state => {
+      const newChatsById = new Map(state.chatsById)
+      newChatsById.delete(chatId)
+      const newChatIds = newChatsById.size
+        ? sortChatItems([...newChatsById.values()]).map(c => c.id)
+        : []
+      return { chatsById: newChatsById, chatIds: newChatIds }
+    }),
 }))
 
 // Selector hook to get a single chat by ID - only re-renders when that specific chat changes

@@ -19,12 +19,6 @@ const (
 	(message_id, chat_jid, sender_jid, pinned_at, expiry)
 	VALUES (?, ?, ?, ?, ?) 
 	`
-	GetChatPinnedMessages = `
-	SELECT message_id, chat_jid, sender_jid, pinned_at, expiry
-	FROM pinned_messages
-	WHERE chat_jid = ?
-	ORDER BY pinned_at ASC;
-	`
 	DeletePinnedMessageByMessageId = `
 	DELETE FROM pinned_messages
 	WHERE message_id = ?;

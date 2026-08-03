@@ -10,6 +10,7 @@ import {
   NewsletterSendReaction,
   SetMessagePinned,
   AcceptGroupInviteLink,
+  StarMessage,
 } from "../../../wailsjs/go/api/Api"
 import { MediaContent } from "./MediaContent"
 import { QuotedMessage } from "./QuotedMessage"
@@ -206,6 +207,12 @@ export function MessageItem({
   const handleDelete = () => {
     const method = isFromMe ? RevokeMessage : DeleteForMe
     method(chatId, message.Info.ID).catch((e: any) => console.error("Delete message failed:", e))
+  }
+
+  const handleStar = () => {
+    StarMessage(chatId, message.Info.ID, true).catch((e: any) =>
+      console.error("Star message failed:", e),
+    )
   }
 
   const [forwardTarget, setForwardTarget] = useState<string | null>(null)
@@ -481,7 +488,7 @@ export function MessageItem({
   if (isCallLog) {
     const raw = textContent.replace(/^\[call\]/, "").trim()
     // Format: 📞[status] [mediaType] call[ · duration]
-    const body = raw.replace(/^📞|^📹/, "").trim()
+    const body = raw.replace(/^(📞|📹)/, "").trim()
     const isMissed = body.startsWith("missed")
     const durMatch = body.match(/·\s*(\d+:\d+)/)
     const duration = durMatch ? durMatch[1] : ""
@@ -642,6 +649,7 @@ export function MessageItem({
             onEdit={handleEdit}
             onDelete={handleDelete}
             onForward={handleForward}
+            onStar={handleStar}
           />
           {forwardTarget === message.Info.ID && (
             <ForwardDialog

@@ -263,3 +263,70 @@ func (a *Api) SearchNewsletters(query string) ([]ChatElement, error) {
 	}
 	return out, nil
 }
+
+// StarMessage stars or unstars a message for the current user.
+// The change is synced to other devices via app state.
+func (a *Api) StarMessage(chatJID, messageID string, starred bool) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("not logged in")
+	}
+	chat, err := types.ParseJID(chatJID)
+	if err != nil {
+		return err
+	}
+	msg, err := a.messageStore.GetMessageWithMediaByID(messageID)
+	if err != nil {
+		return err
+	}
+	senderJID := msg.Info.Sender
+	if err := a.waClient.SendAppState(a.ctx, appstate.BuildStar(chat, senderJID, messageID, msg.Info.IsFromMe, starred)); err != nil {
+		log.Println("StarMessage: app state sync failed:", err)
+		return err
+	}
+	slog.Info(fmt.Sprintf("Starred %t for %s", starred, chatJID), "source", "chats")
+	return nil
+}
+
+// DeleteChat deletes a chat and its messages from the device.
+func (a *Api) DeleteChat(chatJID string) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("not logged in")
+	}
+	chat, err := types.ParseJID(chatJID)
+	if err != nil {
+		return err
+	}
+	if err := a.waClient.SendAppState(a.ctx, appstate.BuildDeleteChat(chat, time.Now(), nil, true)); err != nil {
+		log.Println("DeleteChat: app state sync failed:", err)
+		return err
+	}
+	slog.Info(fmt.Sprintf("Deleted chat %s", chatJID), "source", "chats")
+	return nil
+}
+
+// MarkChatAsRead marks a chat as read or unread.
+func (a *Api) MarkChatAsRead(chatJID string, read bool) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("not logged in")
+	}
+	chat, err := types.ParseJID(chatJID)
+	if err != nil {
+		return err
+	}
+	if err := a.waClient.SendAppState(a.ctx, appstate.BuildMarkChatAsRead(chat, read, time.Now(), nil)); err != nil {
+		log.Println("MarkChatAsRead: app state sync failed:", err)
+		return err
+	}
+	slog.Info(fmt.Sprintf("Marked chat %s as read=%t", chatJID, read), "source", "chats")
+	return nil
+}
+
+// MarkNotDirty marks the app state as not dirty, forcing a resync of the
+// specified clean type. This is useful after recovering from a broken
+// hash chain or after a manual state change.
+func (a *Api) MarkNotDirty(cleanType string) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("not logged in")
+	}
+	return a.waClient.MarkNotDirty(a.ctx, cleanType, time.Now())
+}

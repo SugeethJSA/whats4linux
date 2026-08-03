@@ -27,8 +27,8 @@ func init() {
 	_ = json.Unmarshal(b, &s)
 }
 
-func (s *_settings) GetDebug() bool {
-	return s.Debug
+func (c *_settings) GetDebug() bool {
+	return c.Debug
 }
 
 func GetLogLevel() string {

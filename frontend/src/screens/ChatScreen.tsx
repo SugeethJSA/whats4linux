@@ -11,6 +11,8 @@ import {
   ToggleChatPin,
   ToggleChatArchive,
   ToggleChatLabel,
+  DeleteChat,
+  MarkChatAsRead,
 } from "../../wailsjs/go/api/Api"
 import { api } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
@@ -845,6 +847,32 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
     }
   }, [chatMenu])
 
+  const handleDeleteChat = useCallback(async () => {
+    if (!chatMenu) return
+    const { chat } = chatMenu
+    if (!confirm(`Delete ${chat.name || "this chat"}?`)) return
+    setChatMenu(null)
+    const store = useChatStore.getState()
+    try {
+      await DeleteChat(chat.id)
+      store.removeChat(chat.id)
+    } catch (err) {
+      console.error("Failed to delete chat:", err)
+    }
+  }, [chatMenu])
+
+  const handleMarkAsRead = useCallback(async () => {
+    if (!chatMenu) return
+    const { chat } = chatMenu
+    setChatMenu(null)
+    try {
+      await MarkChatAsRead(chat.id, true)
+      useChatStore.getState().clearUnreadCount(chat.id)
+    } catch (err) {
+      console.error("Failed to mark chat as read:", err)
+    }
+  }, [chatMenu])
+
   const [chatLabelId, setChatLabelId] = useState("")
   const [storyGroup, setStoryGroup] = useState<StatusGroup | null>(null)
   const viewRef = useRef(view)
@@ -992,12 +1020,26 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           >
             {chatMenu.chat.pinned ? "Unpin chat" : "Pin chat"}
           </button>
-          <button
-            onClick={handleToggleArchive}
-            className="w-full px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-white/5"
-          >
-            {chatMenu.chat.archived ? "Unarchive chat" : "Archive chat"}
-          </button>
+            <button
+              onClick={handleToggleArchive}
+              className="w-full px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-white/5"
+            >
+              {chatMenu.chat.archived ? "Unarchive chat" : "Archive chat"}
+            </button>
+            {chatMenu.chat.unreadCount > 0 && (
+              <button
+                onClick={handleMarkAsRead}
+                className="w-full px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-white/5"
+              >
+                Mark as read
+              </button>
+            )}
+            <button
+              onClick={handleDeleteChat}
+              className="w-full px-4 py-2 text-left text-sm text-red-500 hover:bg-gray-100 dark:hover:bg-white/5"
+            >
+              Delete chat
+            </button>
           <div className="border-t border-gray-200 dark:border-dark-border" />
           <div className="px-4 py-2">
             <div className="flex gap-1">

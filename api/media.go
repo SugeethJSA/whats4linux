@@ -105,21 +105,21 @@ func (a *Api) DownloadMedia(chatJID string, messageID string) (string, error) {
 		return "", fmt.Errorf("WhatsApp client is not ready")
 	}
 
-	mime := msg.Media.GetMimetype()
+	mimeType := msg.Media.GetMimetype()
 	width, height := msg.Media.GetDimensions()
 
 	mediaType := msg.Media.GetMediaType()
-	if mime == "" {
+	if mimeType == "" {
 		// A correct MIME is required or <video>/<audio> won't play the data URL.
 		switch mediaType {
 		case whatsmeow.MediaImage:
-			mime = "image/jpeg"
+		mimeType = "image/jpeg"
 		case whatsmeow.MediaVideo:
-			mime = "video/mp4"
+		mimeType = "video/mp4"
 		case whatsmeow.MediaAudio:
-			mime = "audio/ogg"
+		mimeType = "audio/ogg"
 		default:
-			mime = "application/octet-stream"
+		mimeType = "application/octet-stream"
 		}
 	}
 	data, err := a.waClient.Download(a.ctx, msg.Media)
@@ -129,17 +129,17 @@ func (a *Api) DownloadMedia(chatJID string, messageID string) (string, error) {
 
 	// Save to cache for images and stickers
 	if mediaType == whatsmeow.MediaImage {
-		_, err = a.imageCache.SaveImage(messageID, data, mime, width, height)
+		_, err = a.imageCache.SaveImage(messageID, data, mimeType, width, height)
 		if err != nil {
 			// Log error but continue
 		}
 	}
 
 	// Return a ready-to-use data URL with the correct MIME.
-	return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data), nil
+	return "data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(data), nil
 }
 
-// downloadMedia downloads media from a message and returns data, mime, width, height
+// downloadMedia downloads media from a message and returns data, mimeType, width, height
 func (a *Api) downloadMedia(msg *store.ExtendedMessage) ([]byte, string, int, int, error) {
 	if msg == nil || msg.Media == nil {
 		return nil, "", 0, 0, fmt.Errorf("message has no downloadable media")
@@ -148,14 +148,14 @@ func (a *Api) downloadMedia(msg *store.ExtendedMessage) ([]byte, string, int, in
 		return nil, "", 0, 0, fmt.Errorf("WhatsApp client is not ready")
 	}
 	data, err := a.waClient.Download(a.ctx, msg.Media)
-	mime := msg.Media.GetMimetype()
+	mimeType := msg.Media.GetMimetype()
 
-	if mime == "" && msg.Media.GetMediaType() == whatsmeow.MediaImage {
-		mime = "image/jpeg"
+	if mimeType == "" && msg.Media.GetMediaType() == whatsmeow.MediaImage {
+	mimeType = "image/jpeg"
 	}
 	width, height := msg.Media.GetDimensions()
 
-	return data, mime, width, height, err
+	return data, mimeType, width, height, err
 }
 
 func (a *Api) GetCachedImage(messageID string) (string, error) {
@@ -163,9 +163,9 @@ func (a *Api) GetCachedImage(messageID string) (string, error) {
 		return "", fmt.Errorf("image cache is not ready")
 	}
 	// Try to read from cache first
-	data, mime, err := a.imageCache.ReadImageByMessageID(messageID)
+	data, mimeType, err := a.imageCache.ReadImageByMessageID(messageID)
 	if err == nil {
-		return fmt.Sprintf("data:%s;base64,%s", mime, base64.StdEncoding.EncodeToString(data)), nil
+		return fmt.Sprintf("data:%s;base64,%s", mimeType, base64.StdEncoding.EncodeToString(data)), nil
 	}
 
 	// Image not in cache, download and cache it
@@ -180,17 +180,17 @@ func (a *Api) GetCachedImage(messageID string) (string, error) {
 		return "", fmt.Errorf("message %s has no downloadable image", messageID)
 	}
 
-	data, mime, width, height, err := a.downloadMedia(msg)
+	data, mimeType, width, height, err := a.downloadMedia(msg)
 	if err != nil {
 		return "", fmt.Errorf("failed to download image: %w", err)
 	}
 
-	_, err = a.imageCache.SaveImage(messageID, data, mime, width, height)
+	_, err = a.imageCache.SaveImage(messageID, data, mimeType, width, height)
 	if err != nil {
 		// Don't fail, still return the data
 	}
 
-	return fmt.Sprintf("data:%s;base64,%s", mime, base64.StdEncoding.EncodeToString(data)), nil
+	return fmt.Sprintf("data:%s;base64,%s", mimeType, base64.StdEncoding.EncodeToString(data)), nil
 }
 
 // GetCachedImages retrieves multiple cached images by message IDs (batch operation)
@@ -207,9 +207,9 @@ func (a *Api) GetCachedImages(messageIDs []string) (map[string]string, error) {
 
 	for msgID, meta := range metas {
 		if meta != nil {
-			data, mime, err := a.imageCache.ReadImageByMessageID(msgID)
+			data, mimeType, err := a.imageCache.ReadImageByMessageID(msgID)
 			if err == nil {
-				result[msgID] = fmt.Sprintf("data:%s;base64,%s", mime, base64.StdEncoding.EncodeToString(data))
+				result[msgID] = fmt.Sprintf("data:%s;base64,%s", mimeType, base64.StdEncoding.EncodeToString(data))
 			}
 		}
 	}
@@ -224,10 +224,10 @@ func (a *Api) GetCachedAvatar(jid string, recache bool) (string, error) {
 	}
 
 	// Try to get cached avatar data first
-	data, mime, err := a.imageCache.ReadAvatarByJID(jid)
+	data, mimeType, err := a.imageCache.ReadAvatarByJID(jid)
 
 	if err == nil && !recache {
-		avatarDataURL := fmt.Sprintf("data:%s;base64,%s", mime, base64.StdEncoding.EncodeToString(data))
+		avatarDataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, base64.StdEncoding.EncodeToString(data))
 		return avatarDataURL, nil
 	}
 
@@ -267,7 +267,11 @@ func (a *Api) downloadAvatarFromURL(jid, url string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to download avatar: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("failed to close avatar response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to download avatar: status %d", resp.StatusCode)
@@ -278,28 +282,28 @@ func (a *Api) downloadAvatarFromURL(jid, url string) (string, error) {
 		return "", fmt.Errorf("failed to read avatar data: %w", err)
 	}
 
-	mime := resp.Header.Get("Content-Type")
-	if mime == "" {
-		mime = "image/jpeg"
+	mimeType := resp.Header.Get("Content-Type")
+	if mimeType == "" {
+	mimeType = "image/jpeg"
 		if len(data) > 3 {
 			switch {
 			case data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47:
-				mime = "image/png"
+			mimeType = "image/png"
 			case data[0] == 0x47 && data[1] == 0x49 && data[2] == 0x46:
-				mime = "image/gif"
+			mimeType = "image/gif"
 			case data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46:
-				mime = "image/webp"
+			mimeType = "image/webp"
 			}
 		}
 	}
 
-	_, err = a.imageCache.SaveAvatar(jid, data, mime)
+	_, err = a.imageCache.SaveAvatar(jid, data, mimeType)
 	if err != nil {
 		log.Printf("[downloadAvatarFromURL] Failed to cache avatar for %s: %v", jid, err)
 		return "", fmt.Errorf("failed to cache avatar: %w", err)
 	}
 
-	return fmt.Sprintf("data:%s;base64,%s", mime, base64.StdEncoding.EncodeToString(data)), nil
+	return fmt.Sprintf("data:%s;base64,%s", mimeType, base64.StdEncoding.EncodeToString(data)), nil
 }
 
 // GetSelfAvatar retrieves the avatar of the logged-in user
@@ -328,7 +332,7 @@ func (a *Api) GetSelfAvatar(recache bool) (string, error) {
 	return avatar, nil
 }
 
-// getFileExtension returns file extension for mime type
+// getFileExtension returns file extension for mimeType
 func getFileExtension(mimeType string) string {
 	mimeType = strings.Split(mimeType, ";")[0]
 
@@ -366,14 +370,14 @@ func getFileExtension(mimeType string) string {
 
 // DownloadImageToFile downloads an image from cache to the Downloads folder
 func (a *Api) DownloadImageToFile(messageID string) error {
-	data, mime, err := a.imageCache.ReadImageByMessageID(messageID)
+	data, mimeType, err := a.imageCache.ReadImageByMessageID(messageID)
 	if err != nil {
 		return err
 	}
 
 	homeDir, _ := os.UserHomeDir()
 	downloadsDir := filepath.Join(homeDir, "Downloads")
-	fileName := messageID + getFileExtension(mime)
+	fileName := messageID + getFileExtension(mimeType)
 	filePath := filepath.Join(downloadsDir, fileName)
 
 	// Check if file exists and prompt for new path
@@ -382,7 +386,7 @@ func (a *Api) DownloadImageToFile(messageID string) error {
 			DefaultDirectory: downloadsDir,
 			DefaultFilename:  fileName,
 			Title:            "File already exists. Save as...",
-			Filters:          []runtime.FileFilter{{DisplayName: "Image Files", Pattern: "*" + getFileExtension(mime)}},
+			Filters:          []runtime.FileFilter{{DisplayName: "Image Files", Pattern: "*" + getFileExtension(mimeType)}},
 		}); err != nil || filePath == "" {
 			return err
 		}
@@ -393,7 +397,7 @@ func (a *Api) DownloadImageToFile(messageID string) error {
 	}
 
 	runtime.EventsEmit(a.ctx, "download:complete", filePath)
-	beeep.Notify("whats4linux", "Downloaded: "+filePath, "")
+	_ = beeep.Notify("whats4linux", "Downloaded: "+filePath, "")
 	playBeep()
 	return nil
 }
@@ -422,14 +426,14 @@ func (a *Api) DownloadMediaToFile(messageID string) error {
 		return fmt.Errorf("message %s has no downloadable media", messageID)
 	}
 
-	data, mime, _, _, err := a.downloadMedia(msg)
+	data, mimeType, _, _, err := a.downloadMedia(msg)
 	if err != nil {
 		return fmt.Errorf("failed to download media: %w", err)
 	}
 
 	homeDir, _ := os.UserHomeDir()
 	downloadsDir := filepath.Join(homeDir, "Downloads")
-	fileName := messageID + getFileExtension(mime)
+	fileName := messageID + getFileExtension(mimeType)
 
 	filePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
 		DefaultDirectory: downloadsDir,
@@ -449,7 +453,7 @@ func (a *Api) DownloadMediaToFile(messageID string) error {
 	}
 
 	runtime.EventsEmit(a.ctx, "download:complete", filePath)
-	beeep.Notify("whats4linux", "Downloaded: "+filePath, "")
+	_ = beeep.Notify("whats4linux", "Downloaded: "+filePath, "")
 	playBeep()
 	return nil
 }

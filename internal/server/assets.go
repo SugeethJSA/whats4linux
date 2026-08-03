@@ -16,8 +16,7 @@ func NewAssetFileServer() *AssetFileServer {
 }
 
 func (h *AssetFileServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	if strings.HasPrefix(req.URL.Path, "/cached-image/") {
-		requestedFilename := strings.TrimPrefix(req.URL.Path, "/cached-image/")
+	if requestedFilename, ok := strings.CutPrefix(req.URL.Path, "/cached-image/"); ok {
 
 		// Security: Prevent directory traversal
 		// We only expect flat filenames (hashes + extension)

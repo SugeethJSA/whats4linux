@@ -86,7 +86,7 @@ func (a *Api) GetNewsletterMessages(jidStr string, count int, beforeServerID int
 		Count: count,
 	}
 	if beforeServerID > 0 {
-		params.Before = types.MessageServerID(beforeServerID)
+		params.Before = beforeServerID
 	}
 	msgs, err := a.waClient.GetNewsletterMessages(a.ctx, jid, params)
 	if err != nil {
@@ -119,7 +119,7 @@ func (a *Api) GetNewsletterMessageUpdates(jidStr string, count int, afterServerI
 		Count: count,
 	}
 	if afterServerID > 0 {
-		params.After = types.MessageServerID(afterServerID)
+		params.After = afterServerID
 	}
 	msgs, err := a.waClient.GetNewsletterMessageUpdates(a.ctx, jid, params)
 	if err != nil {
@@ -128,8 +128,8 @@ func (a *Api) GetNewsletterMessageUpdates(jidStr string, count int, afterServerI
 	out := make([]NewsletterMessageItem, 0, len(msgs))
 	for _, m := range msgs {
 		out = append(out, NewsletterMessageItem{
-			ServerID:       int(m.MessageServerID),
-			MessageID:      string(m.MessageID),
+			ServerID:       m.MessageServerID,
+			MessageID:      m.MessageID,
 			Type:           m.Type,
 			Timestamp:      m.Timestamp.Unix(),
 			ViewsCount:     m.ViewsCount,
@@ -192,7 +192,7 @@ func (a *Api) NewsletterMarkViewed(jidStr string, serverIDs []int) error {
 	}
 	ids := make([]types.MessageServerID, len(serverIDs))
 	for i, id := range serverIDs {
-		ids[i] = types.MessageServerID(id)
+		ids[i] = id
 	}
 	return a.waClient.NewsletterMarkViewed(a.ctx, jid, ids)
 }
@@ -205,7 +205,7 @@ func (a *Api) NewsletterSendReaction(jidStr string, serverID int, reaction strin
 	if err != nil {
 		return err
 	}
-	return a.waClient.NewsletterSendReaction(a.ctx, jid, types.MessageServerID(serverID), reaction, "")
+	return a.waClient.NewsletterSendReaction(a.ctx, jid, serverID, reaction, "")
 }
 
 func (a *Api) NewsletterToggleMute(jidStr string, muted bool) error {

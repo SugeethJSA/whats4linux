@@ -109,7 +109,7 @@ func (a *Api) ResolveContactQRLink(code string) (*ContactQRLinkResult, error) {
 	}, nil
 }
 
-func (a *Api) DeleteMedia(directPath, mediaKey, fileEncSHA256, fileSHA256 string) error {
+func (a *Api) DeleteMedia(directPath, _, fileEncSHA256, _ string) error {
 	if a.waClient.Store.ID == nil {
 		return fmt.Errorf("not logged in")
 	}

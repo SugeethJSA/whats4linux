@@ -67,10 +67,6 @@ const (
 	WHERE message_id = ?;
 	`
 
-	SelectPttByMessageID = `
-	SELECT ptt, seconds, waveform FROM message_media WHERE message_id = ?;
-	`
-
 	SelectMediaMetaByMessageID = `
 	SELECT direct_path, file_enc_sha256 FROM message_media WHERE message_id = ?;
 	`

@@ -170,6 +170,27 @@ func (a *Api) SetStatusPrivacy(value string) error {
 	return nil
 }
 
+// TryFetchPrivacySettings fetches the user's privacy settings, either from
+// the in-memory cache or from the server if ignoreCache is true.
+func (a *Api) TryFetchPrivacySettings(ignoreCache bool) (PrivacySettingsResponse, error) {
+	if a.waClient == nil {
+		return PrivacySettingsResponse{}, fmt.Errorf("WhatsApp client is not ready")
+	}
+	settings, err := a.waClient.TryFetchPrivacySettings(a.ctx, ignoreCache)
+	if err != nil {
+		return PrivacySettingsResponse{}, err
+	}
+	return PrivacySettingsResponse{
+		GroupAdd:     string(settings.GroupAdd),
+		LastSeen:     string(settings.LastSeen),
+		Status:       string(settings.Status),
+		Profile:      string(settings.Profile),
+		ReadReceipts: string(settings.ReadReceipts),
+		Online:       string(settings.Online),
+		CallAdd:      string(settings.CallAdd),
+	}, nil
+}
+
 // handleBlocklistEvent processes a blocklist mutation from app state sync.
 func (a *Api) handleBlocklistEvent(evt *events.Blocklist) {
 	log.Printf("Blocklist changed: %+v", evt)

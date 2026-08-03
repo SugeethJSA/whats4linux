@@ -8,8 +8,9 @@ import {
   DeleteIcon,
   MenuArrowIcon,
   ForwardIcon,
+  StarIcon,
 } from "../../assets/svgs/message_menu_icons"
-import { ToggleMessageLabel, DeleteMedia } from "../../../wailsjs/go/api/Api"
+import { ToggleMessageLabel, DeleteMedia, DownloadMediaToFile } from "../../../wailsjs/go/api/Api"
 
 interface MessageMenuProps {
   messageId: string
@@ -24,6 +25,7 @@ interface MessageMenuProps {
   onEdit?: () => void
   onDelete?: () => void
   onForward?: () => void
+  onStar?: () => void
 }
 
 // Same pin glyph as the chat list, sized for menu rows.
@@ -46,6 +48,7 @@ export function MessageMenu({
   onEdit,
   onDelete,
   onForward,
+  onStar,
 }: MessageMenuProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
@@ -233,19 +236,37 @@ export function MessageMenu({
               </button>
             )}
             {messageBody?.directPath && (
-              <button
-                onClick={async () => {
-                  try {
-                    await DeleteMedia(messageBody.directPath!, "", messageBody.fileEncSHA256!, "")
-                  } catch (e) {
-                    console.error("DeleteMedia failed:", e)
-                  }
-                  closeMenu()
-                }}
-                className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-500 dark:text-red-400 text-sm"
-              >
-                <span>Delete media from server</span>
-              </button>
+              <>
+                <button
+                  onClick={async () => {
+                    try {
+                      await DownloadMediaToFile(messageBody.directPath!)
+                    } catch (e) {
+                      console.error("DownloadMediaToFile failed:", e)
+                    }
+                    closeMenu()
+                  }}
+                  className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+                  </svg>
+                  <span>Save media to disk</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await DeleteMedia(messageBody.directPath!, "", messageBody.fileEncSHA256!, "")
+                    } catch (e) {
+                      console.error("DeleteMedia failed:", e)
+                    }
+                    closeMenu()
+                  }}
+                  className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-500 dark:text-red-400 text-sm"
+                >
+                  <span>Delete media from server</span>
+                </button>
+              </>
             )}
             <button
               onClick={() => {
@@ -276,6 +297,13 @@ export function MessageMenu({
                 </button>
               </div>
             )}
+            <button
+              onClick={() => handleMenuItemClick(onStar)}
+              className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
+            >
+              <StarIcon />
+              <span>Star</span>
+            </button>
             {onDelete && (
               <button
                 onClick={() => handleMenuItemClick(onDelete)}

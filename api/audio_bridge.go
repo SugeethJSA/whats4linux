@@ -119,7 +119,7 @@ func NewLiveAudioBridge() (*LiveAudioBridge, error) {
 			bridge.playbackMu.Unlock()
 
 			// Upmix Mono to whatever the OS Speaker expects (Stereo etc)
-			for i := 0; i < neededFrames; i++ {
+			for i := range neededFrames {
 				for c := 0; c < actualChannels; c++ {
 					outSamples[i*actualChannels+c] = monoFrames[i]
 				}
@@ -175,7 +175,7 @@ func (b *LiveAudioBridge) ReadFrame() ([]float32, error) {
 		// INJECT COMFORT NOISE (Very faint 400Hz sine wave)
 		// This prevents OPUS from entering DTX mode (1-byte packets) on absolute silence,
 		// which causes some WhatsApp clients to stall their jitter buffer and show 'Reconnecting...'
-		for i := 0; i < frameSamples; i++ {
+		for i := range frameSamples {
 			frame[i] = float32(math.Sin(b.phase) * 0.005) // 0.5% volume
 			b.phase += 2.0 * math.Pi * 400.0 / float64(sampleRate)
 		}

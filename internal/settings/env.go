@@ -30,6 +30,8 @@ func (c *_settings) setupEnvVars() {
 		case reflect.Bool:
 			ev, _ := strconv.ParseBool(envVal)
 			val.Field(i).SetBool(ev)
+		default:
+			continue
 		}
 	}
 }

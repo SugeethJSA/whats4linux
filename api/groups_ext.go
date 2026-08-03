@@ -85,7 +85,7 @@ func (a *Api) SetGroupMemberAddMode(groupJID string, mode string) error {
 	case "admin_add":
 		m = types.GroupMemberAddModeAdmin
 	case "all_member_add":
-		m = types.GroupMemberAddMode("all_member_add")
+		m = "all_member_add"
 	default:
 		return fmt.Errorf("invalid member add mode: %s", mode)
 	}

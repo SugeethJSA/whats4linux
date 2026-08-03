@@ -36,7 +36,7 @@ func (a *Api) SendPollVote(chatJID, pollMessageID string, selectedOptions []stri
 			Sender:   senderJID.ToNonAD(),
 			IsFromMe: original.Info.IsFromMe,
 		},
-		ID:        types.MessageID(pollMessageID),
+		ID:        pollMessageID,
 		PushName:  "",
 		Timestamp: pollTS,
 	}

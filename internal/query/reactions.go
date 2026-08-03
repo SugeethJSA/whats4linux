@@ -18,11 +18,6 @@ const (
 	VALUES (?, ?, ?)
 	`
 
-	DeleteReaction = `
-	DELETE FROM reactions
-	WHERE message_id = ? AND sender_id = ? AND emoji = ?
-	`
-
 	DeleteReactionsByMessageIDAndSenderID = `
 	DELETE FROM reactions 
 	WHERE message_id = ? AND sender_id = ?

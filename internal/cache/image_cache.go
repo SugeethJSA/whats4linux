@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -12,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	query "github.com/lugvitc/whats4linux/internal/query"
+	"github.com/lugvitc/whats4linux/internal/query"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -60,20 +61,20 @@ func NewImageCache() (*ImageCache, error) {
 	}
 
 	if _, err := db.Exec(query.CreateImageIndexTable); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to initialize schema: %v", err)
 	}
 
 	getStmt, err := db.Prepare(query.GetImageByID)
 	if err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to prepare get statement: %v", err)
 	}
 
 	saveStmt, err := db.Prepare(query.SaveImageIndex)
 	if err != nil {
-		getStmt.Close()
-		db.Close()
+		_ = getStmt.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to prepare save statement: %v", err)
 	}
 
@@ -210,7 +211,7 @@ func (ic *ImageCache) GetImageByMessageID(messageID string) (*ImageMeta, error) 
 		&meta.Height,
 		&meta.CreatedAt,
 	)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	return &meta, err
@@ -234,7 +235,7 @@ func (ic *ImageCache) GetImagesByMessageIDs(messageIDs []string) (map[string]*Im
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	result := make(map[string]*ImageMeta, len(messageIDs))
 	for rows.Next() {
@@ -340,10 +341,10 @@ func (ic *ImageCache) ReadAvatarByJID(jid string) ([]byte, string, error) {
 // Close closes the database connection and prepared statements
 func (ic *ImageCache) Close() error {
 	if ic.getStmt != nil {
-		ic.getStmt.Close()
+		_ = ic.getStmt.Close()
 	}
 	if ic.saveStmt != nil {
-		ic.saveStmt.Close()
+		_ = ic.saveStmt.Close()
 	}
 	return ic.db.Close()
 }

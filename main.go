@@ -14,10 +14,10 @@ var assets embed.FS
 
 // these variable are set at build time
 var (
-	version   string = "0.0.0"
+	version   = "0.0.0"
 	commit    string
 	date      string
-	buildType string = "unclassified"
+	buildType = "unclassified"
 )
 
 func main() {
@@ -35,7 +35,7 @@ func run(args []string) error {
 
 func runMain(args []string, runFunc func([]string) error) int {
 	if err := runFunc(args); err != nil {
-		fmt.Printf("%s: %s\n", cmd.APP_NAME, err.Error())
+		fmt.Printf("%s: %s\n", cmd.AppName, err.Error())
 		return 1
 	}
 	return 0

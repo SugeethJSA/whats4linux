@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 )
 
-const APP_NAME = "whats4linux"
-const APP_ID = "net.lugvitc.whats4linux"
+const AppName = "whats4linux"
+const AppID = "net.lugvitc.whats4linux"
 
 var ConfigDir = defaultConfigDir()
 
@@ -21,7 +21,7 @@ func defaultConfigDir() string {
 	if err != nil {
 		panic(err)
 	}
-	cdr = filepath.Join(cdr, APP_NAME)
+	cdr = filepath.Join(cdr, AppName)
 	if !dirExists(cdr) {
 		err = os.MkdirAll(cdr, os.ModePerm)
 		if err != nil {

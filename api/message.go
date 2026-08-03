@@ -153,6 +153,8 @@ func buildQuotedMessage(msg *store.ExtendedMessage) *waE2E.Message {
 			FileEncSHA256: msg.Media.GetFileEncSHA256(),
 			DirectPath:    proto.String(msg.Media.GetDirectPath()),
 		}
+	default:
+		break
 	}
 
 	return &quotedMessage
@@ -684,7 +686,7 @@ func (a *Api) MarkRead(chatJID string, messageIDs []string, Type string) error {
 				continue
 			}
 			senderJID := msg.Info.Sender
-			ids := []types.MessageID{types.MessageID(msgID)}
+			ids := []types.MessageID{msgID}
 			err = a.waClient.MarkRead(a.ctx, ids, time.Now(), parsedChatJID, senderJID)
 			if err != nil {
 				log.Printf("MarkRead error for message %s: %v", msgID, err)
@@ -878,7 +880,8 @@ func (a *Api) RevokeMessage(chatJID, messageID string) error {
 	if err != nil {
 		return err
 	}
-	_, err = a.waClient.RevokeMessage(a.ctx, chat, messageID)
+	revokeMsg := a.waClient.BuildRevoke(chat, types.EmptyJID, messageID)
+	_, err = a.waClient.SendMessage(a.ctx, chat, revokeMsg)
 	if err != nil {
 		return err
 	}
@@ -917,7 +920,7 @@ func (a *Api) SendLocation(chatJID string, latitude, longitude float64, name str
 
 // DeleteForMe removes a message from the local database only. The message
 // remains visible to other chat participants.
-func (a *Api) DeleteForMe(chatJID, messageID string) error {
+func (a *Api) DeleteForMe(_ string, messageID string) error {
 	if a.waClient.Store.ID == nil {
 		return fmt.Errorf("not logged in")
 	}

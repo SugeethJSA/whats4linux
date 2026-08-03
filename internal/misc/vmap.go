@@ -50,9 +50,9 @@ func (vm *VMap[kT, vT]) Delete(key kT) {
 	delete(vm.kv, key)
 }
 
-// GetMap returns the internal map with read lock protection.
-func (kv *VMap[kT, vT]) GetMapWithMutex() (map[kT]vT, *sync.RWMutex) {
-	return kv.kv, &kv.mu
+// GetMapWithMutex returns the internal map with read lock protection.
+func (vm *VMap[kT, vT]) GetMapWithMutex() (map[kT]vT, *sync.RWMutex) {
+	return vm.kv, &vm.mu
 }
 
 // Dump returns all keys and values as separate slices with write lock protection.
