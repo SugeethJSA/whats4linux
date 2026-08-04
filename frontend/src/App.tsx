@@ -154,7 +154,6 @@ function App() {
       },
     )
 
-
     return () => {
       unsubQR()
       unsubStatus()

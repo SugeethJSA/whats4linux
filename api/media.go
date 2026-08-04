@@ -113,13 +113,13 @@ func (a *Api) DownloadMedia(chatJID string, messageID string) (string, error) {
 		// A correct MIME is required or <video>/<audio> won't play the data URL.
 		switch mediaType {
 		case whatsmeow.MediaImage:
-		mimeType = "image/jpeg"
+			mimeType = "image/jpeg"
 		case whatsmeow.MediaVideo:
-		mimeType = "video/mp4"
+			mimeType = "video/mp4"
 		case whatsmeow.MediaAudio:
-		mimeType = "audio/ogg"
+			mimeType = "audio/ogg"
 		default:
-		mimeType = "application/octet-stream"
+			mimeType = "application/octet-stream"
 		}
 	}
 	data, err := a.waClient.Download(a.ctx, msg.Media)
@@ -151,7 +151,7 @@ func (a *Api) downloadMedia(msg *store.ExtendedMessage) ([]byte, string, int, in
 	mimeType := msg.Media.GetMimetype()
 
 	if mimeType == "" && msg.Media.GetMediaType() == whatsmeow.MediaImage {
-	mimeType = "image/jpeg"
+		mimeType = "image/jpeg"
 	}
 	width, height := msg.Media.GetDimensions()
 
@@ -284,15 +284,15 @@ func (a *Api) downloadAvatarFromURL(jid, url string) (string, error) {
 
 	mimeType := resp.Header.Get("Content-Type")
 	if mimeType == "" {
-	mimeType = "image/jpeg"
+		mimeType = "image/jpeg"
 		if len(data) > 3 {
 			switch {
 			case data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47:
-			mimeType = "image/png"
+				mimeType = "image/png"
 			case data[0] == 0x47 && data[1] == 0x49 && data[2] == 0x46:
-			mimeType = "image/gif"
+				mimeType = "image/gif"
 			case data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46:
-			mimeType = "image/webp"
+				mimeType = "image/webp"
 			}
 		}
 	}
