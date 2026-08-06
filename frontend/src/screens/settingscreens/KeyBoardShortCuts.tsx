@@ -35,14 +35,29 @@ const shortcuts: Shortcut[] = [
   { name: "Profile and About", shortcut: ["Ctrl", "Alt", "P"], category: "General" },
   // Unsupported: hidden from the list but preserved for future features.
   { name: "Lock app", shortcut: ["Alt", "L"], category: "General", unsupported: true },
-  { name: "Start PTT recording", shortcut: ["Ctrl", "Alt", "Shift", "R"], category: "Messaging", unsupported: true },
+  {
+    name: "Start PTT recording",
+    shortcut: ["Ctrl", "Alt", "Shift", "R"],
+    category: "Messaging",
+    unsupported: true,
+  },
   { name: "Pause PTT recording", shortcut: ["Alt", "P"], category: "Messaging", unsupported: true },
   { name: "Send PTT", shortcut: ["Ctrl", "Enter"], category: "Messaging", unsupported: true },
   { name: "Zoom in", shortcut: ["Ctrl", "+"], category: "General", unsupported: true },
   { name: "Zoom out", shortcut: ["Ctrl", "-"], category: "General", unsupported: true },
   { name: "Zoom reset", shortcut: ["Ctrl", "0"], category: "General", unsupported: true },
-  { name: "Increase speed of selected voice message", shortcut: ["Shift", "."], category: "Messaging", unsupported: true },
-  { name: "Decrease speed of selected voice message", shortcut: ["Shift", ","], category: "Messaging", unsupported: true },
+  {
+    name: "Increase speed of selected voice message",
+    shortcut: ["Shift", "."],
+    category: "Messaging",
+    unsupported: true,
+  },
+  {
+    name: "Decrease speed of selected voice message",
+    shortcut: ["Shift", ","],
+    category: "Messaging",
+    unsupported: true,
+  },
   { name: "GIF panel", shortcut: ["Ctrl", "Alt", "G"], category: "Search", unsupported: true },
   { name: "Sticker panel", shortcut: ["Ctrl", "Alt", "S"], category: "Search", unsupported: true },
   { name: "Extended search", shortcut: ["Alt", "K"], category: "Search", unsupported: true },
@@ -68,7 +83,9 @@ export const SingleShortcut = ({ name, shortcut }: { name: string; shortcut: str
       <div className="flex items-center gap-1">
         {shortcut.map((key, index) => (
           <span key={index} className="flex items-center gap-1">
-            {index > 0 && <span className="text-[11px] text-light-muted dark:text-dark-muted">+</span>}
+            {index > 0 && (
+              <span className="text-[11px] text-light-muted dark:text-dark-muted">+</span>
+            )}
             <Keycap>{key}</Keycap>
           </span>
         ))}
@@ -84,7 +101,9 @@ function ShortcutRow({ name, shortcut }: Shortcut) {
       <div className="flex shrink-0 items-center gap-1">
         {shortcut.map((key, index) => (
           <span key={index} className="flex items-center gap-1">
-            {index > 0 && <span className="text-[11px] text-light-muted/80 dark:text-dark-muted/80">+</span>}
+            {index > 0 && (
+              <span className="text-[11px] text-light-muted/80 dark:text-dark-muted/80">+</span>
+            )}
             <Keycap>{key}</Keycap>
           </span>
         ))}

@@ -21,9 +21,7 @@ const ChatsSettingsScreen = () => {
   const [labelBusy, setLabelBusy] = useState(false)
   const [deleteLabelId, setDeleteLabelId] = useState("")
   const [deleteBusy, setDeleteBusy] = useState(false)
-  const [labelMsg, setLabelMsg] = useState<{ tone: "success" | "error"; text: string } | null>(
-    null,
-  )
+  const [labelMsg, setLabelMsg] = useState<{ tone: "success" | "error"; text: string } | null>(null)
 
   return (
     <div className="flex flex-col gap-5">
@@ -57,9 +55,7 @@ const ChatsSettingsScreen = () => {
       {/* Label management */}
       <SettingsCard>
         <div className="border-b border-black/[0.04] px-5 py-4 dark:border-white/[0.06]">
-          <h3 className="text-[15px] font-semibold text-light-text dark:text-dark-text">
-            Labels
-          </h3>
+          <h3 className="text-[15px] font-semibold text-light-text dark:text-dark-text">Labels</h3>
           <p className="mt-0.5 text-[13px] text-light-muted dark:text-dark-muted">
             Create or delete labels. Use the label ID in chat context menus.
           </p>
@@ -91,7 +87,9 @@ const ChatsSettingsScreen = () => {
                     title={`Color ${c}`}
                     className={[
                       "h-7 w-7 shrink-0 rounded-full transition-transform",
-                      labelColor === c ? "scale-110 ring-2 ring-[#21c063] ring-offset-2 dark:ring-offset-dark-secondary" : "hover:scale-105",
+                      labelColor === c
+                        ? "scale-110 ring-2 ring-[#21c063] ring-offset-2 dark:ring-offset-dark-secondary"
+                        : "hover:scale-105",
                     ].join(" ")}
                     style={{ backgroundColor: `hsl(${(c * 29) % 360} 65% 45%)` }}
                   />

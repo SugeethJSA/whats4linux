@@ -22,7 +22,13 @@ import {
 import { api } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
 import { ChatDetail } from "./ChatDetail"
-import { useChatStore, useChatById, useFilteredChatIds, useArchivedCount, useUIStore } from "../store"
+import {
+  useChatStore,
+  useChatById,
+  useFilteredChatIds,
+  useArchivedCount,
+  useUIStore,
+} from "../store"
 import { registerShortcut } from "../lib/shortcuts"
 import { useSelfAvatarStore } from "../store/useSelfAvatarStore"
 import { useChatMuted } from "../store/useMuteStore"

@@ -32,13 +32,7 @@ export function CheckIcon({ className = "" }: { className?: string }) {
   )
 }
 
-export function SettingsCard({
-  children,
-  className,
-}: {
-  children: ReactNode
-  className?: string
-}) {
+export function SettingsCard({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={clsx(cardCls, className)}>{children}</div>
 }
 
@@ -75,7 +69,8 @@ export function SettingRow({
       onKeyDown={clickable ? e => e.key === "Enter" && onClick?.() : undefined}
       className={clsx(
         "flex items-center gap-3 px-4 py-3.5",
-        clickable && "cursor-pointer transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.04]",
+        clickable &&
+          "cursor-pointer transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.04]",
       )}
     >
       {icon && (
@@ -106,7 +101,9 @@ export function SettingRow({
         )}
       </div>
       {control && <div className="flex shrink-0 items-center">{control}</div>}
-      {clickable && !control && <ChevronIcon className="text-light-muted/60 dark:text-dark-muted/60" />}
+      {clickable && !control && (
+        <ChevronIcon className="text-light-muted/60 dark:text-dark-muted/60" />
+      )}
     </div>
   )
 }
@@ -204,9 +201,7 @@ export function SelectMenu<T extends string>({
               className={clsx(
                 "flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left text-[13px] transition-colors",
                 "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
-                o.value === value
-                  ? "text-[#21c063]"
-                  : "text-light-text dark:text-dark-text",
+                o.value === value ? "text-[#21c063]" : "text-light-text dark:text-dark-text",
               )}
             >
               <span>{o.label}</span>
@@ -224,12 +219,7 @@ interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   wrapperClassName?: string
 }
 
-export function TextField({
-  label,
-  wrapperClassName,
-  className,
-  ...props
-}: TextFieldProps) {
+export function TextField({ label, wrapperClassName, className, ...props }: TextFieldProps) {
   return (
     <label className={clsx("block min-w-0 flex-1", wrapperClassName)}>
       {label && (
@@ -253,8 +243,7 @@ export function TextField({
 type ActionVariant = "primary" | "neutral" | "danger" | "ghost"
 
 const actionVariants: Record<ActionVariant, string> = {
-  primary:
-    "bg-[#21c063] text-[#0a1014] hover:bg-[#1ea952] disabled:hover:bg-[#21c063]",
+  primary: "bg-[#21c063] text-[#0a1014] hover:bg-[#1ea952] disabled:hover:bg-[#21c063]",
   neutral:
     "bg-black/[0.05] text-light-text hover:bg-black/[0.09] dark:bg-white/[0.08] dark:text-dark-text dark:hover:bg-white/[0.13]",
   danger: "bg-red-500 text-white hover:bg-red-600 disabled:hover:bg-red-500",

@@ -76,10 +76,16 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
   const [pushName, setPushNameState] = useState("")
   const [pushNameSaved, setPushNameSaved] = useState(false)
   const [resolveCode, setResolveCode] = useState("")
-  const [resolveResult, setResolveResult] = useState<{ tone: "success" | "error"; text: string } | null>(null)
+  const [resolveResult, setResolveResult] = useState<{
+    tone: "success" | "error"
+    text: string
+  } | null>(null)
   const [resolveBusy, setResolveBusy] = useState(false)
   const [bizLinkCode, setBizLinkCode] = useState("")
-  const [bizLinkResult, setBizLinkResult] = useState<{ tone: "success" | "error"; text: string } | null>(null)
+  const [bizLinkResult, setBizLinkResult] = useState<{
+    tone: "success" | "error"
+    text: string
+  } | null>(null)
   const [bizLinkBusy, setBizLinkBusy] = useState(false)
 
   useEffect(() => {
@@ -132,17 +138,12 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
             onChange={e => setStatusText(e.target.value)}
             placeholder="What's your status?"
           />
-          <ActionButton onClick={handleSaveStatus}>
-            {statusSaved ? "Saved" : "Set"}
-          </ActionButton>
+          <ActionButton onClick={handleSaveStatus}>{statusSaved ? "Saved" : "Set"}</ActionButton>
         </div>
         {statusSaved && <StatusBanner tone="success">Status updated</StatusBanner>}
       </CardSection>
 
-      <CardSection
-        title="Push name"
-        description="Name shown to others before they add you"
-      >
+      <CardSection title="Push name" description="Name shown to others before they add you">
         <div className="flex flex-col gap-2 sm:flex-row">
           <TextField
             value={pushName}
@@ -196,7 +197,9 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
             {resolveBusy ? "Resolving…" : "Resolve"}
           </ActionButton>
         </div>
-        {resolveResult && <StatusBanner tone={resolveResult.tone}>{resolveResult.text}</StatusBanner>}
+        {resolveResult && (
+          <StatusBanner tone={resolveResult.tone}>{resolveResult.text}</StatusBanner>
+        )}
       </CardSection>
 
       <CardSection
@@ -230,7 +233,9 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
             {bizLinkBusy ? "Resolving…" : "Resolve"}
           </ActionButton>
         </div>
-        {bizLinkResult && <StatusBanner tone={bizLinkResult.tone}>{bizLinkResult.text}</StatusBanner>}
+        {bizLinkResult && (
+          <StatusBanner tone={bizLinkResult.tone}>{bizLinkResult.text}</StatusBanner>
+        )}
       </CardSection>
 
       <SettingsCard>

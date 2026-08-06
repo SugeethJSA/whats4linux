@@ -613,7 +613,9 @@ video::-webkit-media-controls-fullscreen-button {
   line-height: 1;
   cursor: pointer;
   opacity: 0.7;
-  transition: opacity 0.15s ease, background 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
 }
 .toast-close:hover {
   opacity: 1;

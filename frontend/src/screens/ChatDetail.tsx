@@ -959,9 +959,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
               setSelectedFileType(
                 file.type.toLowerCase() === "image/gif"
                   ? "gif"
-                  : generalType === "image" ||
-                      generalType === "video" ||
-                      generalType === "audio"
+                  : generalType === "image" || generalType === "video" || generalType === "audio"
                     ? generalType
                     : "document",
               )

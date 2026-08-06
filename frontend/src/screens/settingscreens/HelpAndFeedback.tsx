@@ -1,7 +1,4 @@
-import {
-  SettingsCard,
-  ChevronIcon,
-} from "../../components/settings/ui-kit"
+import { SettingsCard, ChevronIcon } from "../../components/settings/ui-kit"
 
 const LinksIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">

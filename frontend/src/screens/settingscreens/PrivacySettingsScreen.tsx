@@ -6,12 +6,7 @@ import {
   SetStatusPrivacy,
   SetDisappearingTimerDefault,
 } from "../../../wailsjs/go/api/Api"
-import {
-  RowList,
-  SettingRow,
-  SelectMenu,
-  SettingsCard,
-} from "../../components/settings/ui-kit"
+import { RowList, SettingRow, SelectMenu, SettingsCard } from "../../components/settings/ui-kit"
 
 interface Setting {
   key: string

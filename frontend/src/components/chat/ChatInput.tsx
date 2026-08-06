@@ -466,9 +466,7 @@ export function ChatInput({
               fileType={selectedFileType}
               onRemove={onRemoveFile}
               gifEnabled={selectedFileType === "gif" || sendAsGif}
-              onToggleGif={
-                selectedFileType === "video" ? onToggleSendAsGif : undefined
-              }
+              onToggleGif={selectedFileType === "video" ? onToggleSendAsGif : undefined}
             />
           )}
           {renderReplyPreview()}

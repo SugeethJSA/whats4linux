@@ -349,9 +349,7 @@ function SettingsMenuItem({
       onKeyDown={e => e.key === "Enter" && onClick()}
       className={clsx(
         "mx-2 my-0.5 flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-150",
-        isSelected
-          ? "bg-[#21c063]/10"
-          : "hover:bg-black/[0.03] dark:hover:bg-white/[0.05]",
+        isSelected ? "bg-[#21c063]/10" : "hover:bg-black/[0.03] dark:hover:bg-white/[0.05]",
       )}
     >
       <div

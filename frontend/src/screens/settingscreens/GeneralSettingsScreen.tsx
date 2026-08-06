@@ -1,9 +1,4 @@
-import {
-  RowList,
-  SwitchRow,
-  SelectMenu,
-  SettingRow,
-} from "../../components/settings/ui-kit"
+import { RowList, SwitchRow, SelectMenu, SettingRow } from "../../components/settings/ui-kit"
 import { useAppSettingsStore } from "../../store/useAppSettingsStore"
 
 const LANGUAGE_OPTIONS = [
@@ -22,8 +17,7 @@ const FONT_OPTIONS = [
 ]
 
 const GeneralSettingsScreen = () => {
-  const { startAtLogin, minimizeToTray, language, fontSize, updateSetting } =
-    useAppSettingsStore()
+  const { startAtLogin, minimizeToTray, language, fontSize, updateSetting } = useAppSettingsStore()
 
   return (
     <div className="flex flex-col gap-5">

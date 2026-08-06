@@ -47,9 +47,7 @@ const ListHeader: Components<Message, ListContext>["Header"] = ({ context }) =>
   ) : null
 
 // Breathing room between the last message and the composer.
-const ListFooter: Components<Message, ListContext>["Footer"] = () => (
-  <div className="h-2" />
-)
+const ListFooter: Components<Message, ListContext>["Footer"] = () => <div className="h-2" />
 
 const listComponents: Components<Message, ListContext> = {
   Header: ListHeader,
