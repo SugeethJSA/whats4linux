@@ -1,94 +1,48 @@
 import { create } from "zustand"
-import { immer } from "zustand/middleware/immer"
-import { GetContact, GetJIDUser, GetProfileColor } from "../../wailsjs/go/api/Api"
+import { GetContact, GetProfileColor } from "../../wailsjs/go/api/Api"
 import type { types } from "../../wailsjs/go/models"
 
-interface ContactStore {
-  contacts: Record<string, { name: string; senderColor: string; timestamp: number }>
-  getContactName: (jid: any) => Promise<string>
-  getContactColor: (jid: any) => Promise<string>
-  getSenderInfo: (jid: string) => Promise<{ name: string; color: string }>
-  disposeCache: () => void
+interface ContactInfo {
+  name: string
+  senderColor: string
+  timestamp: number
 }
 
-export const useContactStore = create<ContactStore>()(
-  immer((set, get) => ({
-    contacts: {},
+interface ContactStore {
+  // Cache keyed by the raw JID so direct lookups (group sender rows) hit
+  // synchronously without an RPC per message.
+  contacts: Record<string, ContactInfo>
+  getSenderInfo: (jid: string) => Promise<{ name: string; color: string }>
+}
 
-    getContactName: async jidAny => {
-      const userId = await GetJIDUser(jidAny)
+export const useContactStore = create<ContactStore>()((set, get) => ({
+  contacts: {},
 
-      const cached = get().contacts[userId]
-      if (cached) return cached.name
+  // Cached name+color for a message sender, keyed by the raw JID so repeated
+  // renders while scrolling a group chat don't fire a GetContact RPC per
+  // message. One fetch per sender, then synchronous cache hits.
+  getSenderInfo: async (jid: string) => {
+    if (!jid) return { name: "", color: "#2b7fff" }
+    const cached = get().contacts[jid]
+    if (cached) return { name: cached.name, color: cached.senderColor }
+    try {
+      const contact = await GetContact(jid as unknown as types.JID)
+      const name = contact.full_name
+        ? contact.full_name
+        : contact.push_name
+          ? "~ " + contact.push_name
+          : ""
+      const color = await GetProfileColor(jid)
+      set(state => ({
+        contacts: { ...state.contacts, [jid]: { name, senderColor: color, timestamp: Date.now() } },
+      }))
+      return { name, color }
+    } catch {
+      return { name: "", color: "#2b7fff" }
+    }
+  },
+}))
 
-      try {
-        const contact = await GetContact(jidAny)
-        const displayName = contact.full_name || contact.push_name || userId
-        const senderColor = await GetProfileColor(jidAny)
-
-        set(state => {
-          state.contacts[userId] = {
-            name: displayName,
-            senderColor,
-            timestamp: Date.now(),
-          }
-        })
-        return displayName
-      } catch {
-        return userId
-      }
-    },
-
-    getContactColor: async jidAny => {
-      const userId = await GetJIDUser(jidAny)
-
-      const cached = get().contacts[userId]
-      if (cached) return cached.senderColor
-
-      try {
-        const senderColor = await GetProfileColor(jidAny)
-        const contact = await GetContact(jidAny)
-        const displayName = contact.full_name || contact.push_name || userId
-
-        set(state => {
-          state.contacts[userId] = {
-            name: displayName,
-            senderColor,
-            timestamp: Date.now(),
-          }
-        })
-        return senderColor
-      } catch {
-        return "#2b7fff"
-      }
-    },
-
-    // Cached name+color for a message sender, keyed by the raw JID so repeated
-    // renders while scrolling a group chat don't fire a GetContact/GetJIDUser
-    // RPC per message. One fetch per sender, then synchronous cache hits.
-    getSenderInfo: async (jid: string) => {
-      const cached = get().contacts[jid]
-      if (cached) return { name: cached.name, color: cached.senderColor }
-      try {
-        const contact = await GetContact(jid as unknown as types.JID)
-        const name = contact.full_name
-          ? contact.full_name
-          : contact.push_name
-            ? "~ " + contact.push_name
-            : ""
-        const color = await GetProfileColor(jid)
-        set(state => {
-          state.contacts[jid] = { name, senderColor: color, timestamp: Date.now() }
-        })
-        return { name, color }
-      } catch {
-        return { name: "", color: "#2b7fff" }
-      }
-    },
-
-    disposeCache: () =>
-      set(state => {
-        state.contacts = {}
-      }),
-  })),
-)
+/** Reactive cached display name for a sender JID ("" until resolved). */
+export const useSenderName = (jid: string) =>
+  useContactStore(state => (jid ? state.contacts[jid]?.name ?? "" : ""))

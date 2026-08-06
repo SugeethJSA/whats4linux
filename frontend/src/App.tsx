@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { Login, GetCustomCSS, GetCustomJS, SetWindowFocused } from "../wailsjs/go/api/Api"
+import { Login, GetCustomCSS, GetCustomJS, SetWindowFocused, GetMutedChats } from "../wailsjs/go/api/Api"
 import { EventsOn, BrowserOpenURL } from "../wailsjs/runtime/runtime"
 import QRCode from "qrcode"
 import { ChatListScreen } from "./screens/ChatScreen"
@@ -11,10 +11,22 @@ import { CallOverlay } from "./components/chat/CallOverlay"
 
 import { useUIStore, useMessageStore } from "./store"
 import { useAppSettingsStore } from "./store/useAppSettingsStore"
+import { useChatStore } from "./store/useChatStore"
+import { useMuteStore } from "./store/useMuteStore"
 import { applyThemeClass } from "./lib/theme"
 import { useWailsEvents } from "./hooks/useWailsEvents"
 import { useGlobalShortcuts } from "./hooks/useGlobalShortcuts"
 import { registerShortcut } from "./lib/shortcuts"
+
+// Clear all in-memory chat state and return to the login screen.
+function resetForLogout() {
+  useMessageStore.getState().reset()
+  useChatStore.getState().reset()
+  useMuteStore.getState().reset()
+  useUIStore.getState().setScreen("login")
+  useUIStore.getState().setChatInfoOpen(false)
+  useUIStore.getState().setShowEmojiPicker(false)
+}
 
 function App() {
   const screen = useUIStore(state => state.screen)
@@ -124,11 +136,18 @@ function App() {
       if (status === "logged_in" || status === "success") {
         useUIStore.getState().setScreen("chats")
         void initSelf()
+        // Mutes persist server-side and locally; hydrate the store so the
+        // chat-list bell is correct on a fresh launch.
+        GetMutedChats()
+          .then(jids => useMuteStore.getState().hydrate(jids || []))
+          .catch(() => {})
         const nid = (window as any).__reconnectNotifId
         if (nid !== undefined) {
           removeNotification(nid)
           delete (window as any).__reconnectNotifId
         }
+      } else if (status === "logged_out") {
+        resetForLogout()
       } else if (status === "reconnecting") {
         const nid = addNotification("Reconnecting to WhatsApp...")
         // The "logged_in" or "disconnected" events will remove this.
@@ -148,6 +167,9 @@ function App() {
       }, 3000)
     })
 
+    // Logged out (from another device or explicit logout) — clear state.
+    const unsubLoggedOut = EventsOn("wa:logged_out", resetForLogout)
+
     // Surface backend errors to the user as toast notifications.
     const unsubError = EventsOn("wa:error", (msg: string) => {
       const nid = addNotification(msg)
@@ -163,14 +185,20 @@ function App() {
 
     const unsubHistory = EventsOn(
       "wa:history_progress",
-      (data: { done?: boolean; download?: number; upload?: number; total?: number }) => {
+      (data: {
+        done?: boolean
+        processedConversations?: number
+        totalConversations?: number
+        processedMessages?: number
+        totalMessages?: number
+      }) => {
         if (data?.done) {
           setHistoryProgress(null)
-        } else if (data?.total) {
-          const downloaded = data.download ?? 0
-          const uploaded = data.upload ?? 0
-          const total = data.total
-          setHistoryProgress(Math.round(((downloaded + uploaded) / (total * 2)) * 100))
+        } else if (data?.totalConversations) {
+          const done =
+            (data.processedMessages ?? 0) + (data.processedConversations ?? 0)
+          const total = (data.totalMessages ?? 0) + data.totalConversations
+          setHistoryProgress(total > 0 ? Math.round((done / total) * 100) : null)
         }
       },
     )
@@ -180,6 +208,7 @@ function App() {
       unsubStatus()
       unsubDownload()
       unsubError()
+      unsubLoggedOut()
       unsubHistory()
     }
   }, [addNotification, removeNotification])

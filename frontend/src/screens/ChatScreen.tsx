@@ -611,8 +611,9 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   const screen = useUIStore(state => state.screen)
   // Use individual selectors to minimize re-renders
   const selectedChatId = useChatStore(state => state.selectedChatId)
-  const selectedChatName = useChatStore(state => state.selectedChatName)
-  const selectedChatAvatar = useChatStore(state => state.selectedChatAvatar)
+  const selectedChat = useChatById(selectedChatId ?? "")
+  const selectedChatName = selectedChat?.name ?? ""
+  const selectedChatAvatar = selectedChat?.avatar
   const searchTerm = useChatStore(state => state.searchTerm)
   const setChats = useChatStore(state => state.setChats)
   const selfAvatar = useSelfAvatarStore(state => state.selfAvatar)

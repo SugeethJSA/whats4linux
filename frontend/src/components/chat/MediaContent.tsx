@@ -148,7 +148,8 @@ export function MediaContent({
       )
       videoDataRef.current = dataUrl
       openLightbox(dataUrl, "video")
-    } catch {
+    } catch (err) {
+      console.error("Failed to load video for playback:", err)
     } finally {
       loadingRef.current = false
       if (mountedRef.current) setLoading(false)

@@ -193,7 +193,7 @@ export function htmlToPlainText(html: string): string {
   if (!html.includes("<") && !html.includes(">")) return html.trim()
   const temp = document.createElement("div")
   const formatted = html
-    .replace(/<br\s*[\/]?>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n")
     .replace(/<\/div>/gi, "\n")
     .replace(/<\/li>/gi, "\n")

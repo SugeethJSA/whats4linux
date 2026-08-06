@@ -10,9 +10,43 @@ env:
   IS_NIGHTLY: ${{ github.event_name == 'schedule' }}
 
 jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Type-check frontend
+        run: npx tsc -b --noEmit
+        working-directory: frontend
+
+      - name: Run frontend tests
+        run: npx vitest run
+        working-directory: frontend
+
+      - name: Run Go tests
+        run: go test ./...
+
   build:
+    needs: tests
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
          - os: ubuntu-latest
@@ -62,7 +96,7 @@ jobs:
 
       - name: Install Wails
         run: |
-          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
           echo "$HOME/go/bin" >> $GITHUB_PATH
 
       - name: Build binaries
@@ -79,7 +113,7 @@ jobs:
           wails build \
             -o ${{ matrix.binary }} \
             ${{ matrix.webkit && '-tags webkit2_41' || '' }} \
-            ${{ env.IS_NIGHTLY && '-ldflags "-s -w -X main.version=v1.0.0 -X main.buildType=nightly"' || '' }}
+            -ldflags "-s -w -X main.version=v1.0.0 -X main.commit=${{ github.sha }} -X main.buildType=${{ env.IS_NIGHTLY && 'nightly' || 'release' }}"
 
       - name: Download appimagetool
         if: matrix.os == 'ubuntu-latest'
@@ -112,7 +146,7 @@ jobs:
           path: build/bin/${{ matrix.binary }}*
 
   publish-nightly:
-    # if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule'
     needs: build
     runs-on: ubuntu-latest
 

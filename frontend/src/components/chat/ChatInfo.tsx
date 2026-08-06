@@ -51,6 +51,9 @@ import { EventsOn } from "../../../wailsjs/runtime/runtime"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
 import ToggleButton from "../settings/ToggleButton"
 import { useMuteStore } from "../../store/useMuteStore"
+import { useChatStore } from "../../store/useChatStore"
+import { useMessageStore } from "../../store/useMessageStore"
+import { GetCachedAvatar } from "../../../wailsjs/go/api/Api"
 import { InviteLinkDialog } from "./InviteLinkDialog"
 
 interface ChatInfoProps {
@@ -504,7 +507,8 @@ export function ChatInfo({
                           const base64 = reader.result as string
                           try {
                             await SetGroupPhoto(chatId, base64)
-                            window.location.reload()
+                            const avatarURL = await GetCachedAvatar(chatId, true)
+                            useChatStore.getState().updateSingleChat(chatId, { avatar: avatarURL })
                           } catch (err) {
                             console.error("Failed to set group photo:", err)
                           }
@@ -531,7 +535,9 @@ export function ChatInfo({
               <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-1">
                 {chatType === "group"
                   ? groupInfo?.group_name
-                  : contactInfo?.full_name || "~ " + contactInfo?.push_name || chatName}
+                  : contactInfo?.full_name ||
+                    (contactInfo?.push_name ? "~ " + contactInfo.push_name : "") ||
+                    chatName}
               </h3>
               {chatType === "contact" && contactInfo && (
                 <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">
@@ -773,7 +779,7 @@ export function ChatInfo({
                   if (!confirm("Clear all messages in this chat?")) return
                   try {
                     await ClearChat(chatId)
-                    window.location.reload()
+                    useMessageStore.getState().clearMessages(chatId)
                   } catch (e) {
                     console.error("Clear chat failed:", e)
                   }
@@ -813,7 +819,10 @@ export function ChatInfo({
 
                       <div className="flex-1 min-w-0">
                         <p className="text-gray-900 dark:text-gray-100 font-medium truncate">
-                          {participant.contact.full_name || "~ " + participant.contact.push_name}
+                          {participant.contact.full_name ||
+                            (participant.contact.push_name
+                              ? "~ " + participant.contact.push_name
+                              : participant.contact.phno || "")}
                         </p>
                         <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">
                           {participant.contact.phno}
@@ -1391,7 +1400,8 @@ export function ChatInfo({
                     setActionBusy(true)
                     try {
                       await LeaveGroup(chatId)
-                      window.location.reload()
+                      useChatStore.getState().removeChat(chatId)
+                      useChatStore.getState().selectChat(null)
                     } catch (e) {
                       console.error("Leave group failed:", e)
                     } finally {

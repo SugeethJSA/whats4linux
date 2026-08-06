@@ -284,8 +284,7 @@ export function ChatInput({
   const [senderName, setSenderName] = useState<string>("")
   const [senderColor, setSenderColor] = useState<string>("")
   const [loadingSenderName, setLoadingSenderName] = useState<boolean>(false)
-  const getContactName = useContactStore(state => state.getContactName)
-  const getContactColor = useContactStore(state => state.getContactColor)
+  const getSenderInfo = useContactStore(state => state.getSenderInfo)
 
   useEffect(() => {
     if (!replyingTo || replyingTo.Info.IsFromMe) {
@@ -299,28 +298,23 @@ export function ChatInput({
     if (participant) {
       let mounted = true
       setLoadingSenderName(true)
-      getContactName(participant)
-        .then((contactName: string) => {
+      getSenderInfo(participant)
+        .then(({ name, color }) => {
           if (!mounted) return
-          if (contactName) setSenderName(contactName)
+          if (name) setSenderName(name)
+          if (color) setSenderColor(color)
         })
         .catch(() => {})
         .finally(() => {
           if (!mounted) return
           setLoadingSenderName(false)
         })
-      getContactColor(participant)
-        .then((color: string) => {
-          if (!mounted) return
-          if (color) setSenderColor(color)
-        })
-        .catch(() => {})
 
       return () => {
         mounted = false
       }
     }
-  }, [replyingTo, getContactName, getContactColor])
+  }, [replyingTo, getSenderInfo])
 
   useEffect(() => {
     const loadAvatars = async () => {

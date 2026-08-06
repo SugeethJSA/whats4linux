@@ -42,11 +42,15 @@ export function CallOverlay() {
     try {
       const profile = await GetProfile(jid)
       name = profile.full_name || profile.push_name || u
-    } catch {}
+    } catch {
+      /* profile fetch is best-effort */
+    }
 
     try {
       avatar = await GetCachedAvatar(jid, false)
-    } catch {}
+    } catch {
+      /* avatar fetch is best-effort */
+    }
 
     cb(name, avatar)
   }
@@ -122,7 +126,9 @@ export function CallOverlay() {
         try {
           const s = await GetCallStats(activeCall.callID)
           setStats(s)
-        } catch {}
+        } catch (err) {
+          console.error("Failed to poll call stats:", err)
+        }
       }
       poll()
       statsRef.current = setInterval(poll, 2000)

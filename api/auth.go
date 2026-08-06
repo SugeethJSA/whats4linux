@@ -34,7 +34,6 @@ func (a *Api) PairPhone(phone string) (string, error) {
 		return "", fmt.Errorf("pairing failed: %w", err)
 	}
 	slog.Info(fmt.Sprintf("PairPhone code generated for %s", phone), "source", "auth")
-	runtime.EventsEmit(a.ctx, "wa:status", code)
 	return code, nil
 }
 

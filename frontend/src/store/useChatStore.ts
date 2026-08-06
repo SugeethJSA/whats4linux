@@ -10,9 +10,6 @@ interface ChatStore {
   // Keep ordered list of chat IDs for rendering order
   chatIds: string[]
   selectedChatId: string | null
-  selectedChatName: string
-  selectedChatAvatar?: string
-  selectedChatSender?: string
   searchTerm: string
   // Actions
   setChats: (chats: ChatItem[]) => void
@@ -31,15 +28,13 @@ interface ChatStore {
   clearUnreadCount: (chatId: string) => void
   getChat: (chatId: string) => ChatItem | undefined
   removeChat: (chatId: string) => void
+  reset: () => void
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   chatsById: new Map(),
   chatIds: [],
   selectedChatId: null,
-  selectedChatName: "",
-  selectedChatAvatar: undefined,
-  selectedChatSender: undefined,
   searchTerm: "",
 
   setChats: chats =>
@@ -67,9 +62,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   selectChat: chat =>
     set({
       selectedChatId: chat?.id || null,
-      selectedChatName: chat?.name || "",
-      selectedChatAvatar: chat?.avatar,
-      selectedChatSender: chat?.sender,
     }),
 
   setSearchTerm: term => set({ searchTerm: term }),
@@ -150,16 +142,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         : []
       return { chatsById: newChatsById, chatIds: newChatIds }
     }),
+
+  reset: () =>
+    set({
+      chatsById: new Map(),
+      chatIds: [],
+      selectedChatId: null,
+      searchTerm: "",
+    }),
 }))
 
 // Selector hook to get a single chat by ID - only re-renders when that specific chat changes
 export const useChatById = (chatId: string) => {
   return useChatStore(useCallback((state: ChatStore) => state.chatsById.get(chatId), [chatId]))
-}
-
-// Selector hook to get only chat IDs (for list rendering) - doesn't re-render on chat content changes
-export const useChatIds = () => {
-  return useChatStore(useShallow((state: ChatStore) => state.chatIds))
 }
 
 // Selector for filtered chat IDs based on search and archive view.
@@ -186,13 +181,4 @@ export const useArchivedCount = () => {
     for (const chat of state.chatsById.values()) if (chat.archived) n++
     return n
   })
-}
-
-// Legacy helper to get chats as array (for backward compatibility)
-export const useChatsArray = () => {
-  return useChatStore(
-    useShallow((state: ChatStore) => {
-      return state.chatIds.map(id => state.chatsById.get(id)!).filter(Boolean)
-    }),
-  )
 }

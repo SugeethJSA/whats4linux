@@ -123,7 +123,9 @@ export function MessageItem({
       ? useContactStore.getState().contacts[message.Info.Sender]
       : undefined
   const [senderName, setSenderName] = useState(
-    cachedSender?.name || "~ " + message.Info.PushName || "Unknown",
+    cachedSender?.name ||
+      (message.Info.PushName ? "~ " + message.Info.PushName : "") ||
+      "Unknown",
   )
   const [senderColor, setSenderColor] = useState<string | undefined>(cachedSender?.senderColor)
   const getSenderInfo = useContactStore(state => state.getSenderInfo)

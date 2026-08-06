@@ -4,6 +4,7 @@ interface MuteStore {
   mutedJids: Set<string>
   setMuted: (jid: string, muted: boolean) => void
   hydrate: (jids: string[]) => void
+  reset: () => void
 }
 
 /**
@@ -39,6 +40,7 @@ export const useMuteStore = create<MuteStore>(set => ({
     }),
 
   hydrate: jids => set({ mutedJids: buildMutedSet(jids) }),
+  reset: () => set({ mutedJids: new Set<string>() }),
 }))
 
 /** Subscribe to the muted flag of a single chat. */

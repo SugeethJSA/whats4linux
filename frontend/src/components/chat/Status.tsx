@@ -20,7 +20,7 @@ function last<T>(a: T[]): T {
 export function StatusList({ onOpen }: { onOpen: (g: StatusGroup) => void }) {
   const [groups, setGroups] = useState<StatusGroup[]>([])
   const [loading, setLoading] = useState(true)
-  const getContactName = useContactStore(s => s.getContactName)
+  const getSenderInfo = useContactStore(s => s.getSenderInfo)
 
   useEffect(() => {
     let cancelled = false
@@ -39,7 +39,8 @@ export function StatusList({ onOpen }: { onOpen: (g: StatusGroup) => void }) {
         items.sort((a, b) => a.Info.Timestamp.localeCompare(b.Info.Timestamp))
         let name = sender.split("@")[0].split(":")[0]
         try {
-          name = (await getContactName(sender)) || name
+          const info = await getSenderInfo(sender)
+          name = info.name || name
         } catch {
           /* keep number */
         }
@@ -56,7 +57,7 @@ export function StatusList({ onOpen }: { onOpen: (g: StatusGroup) => void }) {
     return () => {
       cancelled = true
     }
-  }, [getContactName])
+  }, [getSenderInfo])
 
   if (loading)
     return (
@@ -149,8 +150,7 @@ export function StoryViewer({ group, onClose }: { group: StatusGroup; onClose: (
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  })
+  }, [])
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col bg-black">

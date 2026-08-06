@@ -15,7 +15,6 @@ const LogOut = () => {
     setBusy(true)
     try {
       await Logout()
-      window.location.reload()
     } catch (err) {
       console.error("Logout failed:", err)
       alert("Logout failed: " + String(err))

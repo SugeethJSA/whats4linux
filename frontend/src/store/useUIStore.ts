@@ -18,14 +18,11 @@ export type AppScreen = "login" | "chats" | "settings"
 interface UIStore {
   screen: AppScreen
   setScreen: (screen: AppScreen) => void
-  sidebarOpen: boolean
   showEmojiPicker: boolean
   chatInfoOpen: boolean
   typingIndicators: Record<string, TypingState>
   onlineStatus: Record<string, OnlineState>
   notifications: Array<{ id: number; message: string }>
-  toggleSidebar: () => void
-  setSidebarOpen: (open: boolean) => void
   setShowEmojiPicker: (show: boolean) => void
   setChatInfoOpen: (open: boolean) => void
   setTypingIndicator: (chatId: string, isTyping: boolean) => void
@@ -42,7 +39,6 @@ interface UIStore {
 export const useUIStore = create<UIStore>(set => ({
   screen: "login",
   setScreen: screen => set({ screen }),
-  sidebarOpen: true,
   showEmojiPicker: false,
   chatInfoOpen: false,
   typingIndicators: {},
@@ -54,8 +50,6 @@ export const useUIStore = create<UIStore>(set => ({
   openLightbox: (src, kind = "image") => set({ lightboxSrc: src, lightboxKind: kind }),
   closeLightbox: () => set({ lightboxSrc: null }),
 
-  toggleSidebar: () => set(state => ({ sidebarOpen: !state.sidebarOpen })),
-  setSidebarOpen: open => set({ sidebarOpen: open }),
   setShowEmojiPicker: show => set({ showEmojiPicker: show }),
   setChatInfoOpen: open => set({ chatInfoOpen: open }),
 

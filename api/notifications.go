@@ -103,6 +103,12 @@ func (a *Api) IsChatMuted(chatJID string) (bool, error) {
 	return a.messageStore.IsChatMuted(jid.String()), nil
 }
 
+// GetMutedChats returns all chat JIDs that are currently muted, for hydrating
+// the frontend mute store on login.
+func (a *Api) GetMutedChats() ([]string, error) {
+	return a.messageStore.GetMutedChats()
+}
+
 // mutedUntilFromMuteEnd converts a whatsmeow mute end timestamp into the
 // muted_until representation used by the store: -1 = muted forever, unix
 // seconds = muted until then, 0 = not muted.

@@ -12,8 +12,7 @@ export function QuotedMessage({
   const [name, setName] = useState<string>("")
   const [senderColor, setSenderColor] = useState<string>("")
   const [loadingName, setLoadingName] = useState<boolean>(false)
-  const getContactName = useContactStore(state => state.getContactName)
-  const getContactColor = useContactStore(state => state.getContactColor)
+  const getSenderInfo = useContactStore(state => state.getSenderInfo)
   const quoted = contextInfo.quotedMessage
   // Quoting yourself shows "You" in green, like WhatsApp — no lookup needed.
   const isSelf = !!contextInfo.participant && isMe(contextInfo.participant)
@@ -23,28 +22,23 @@ export function QuotedMessage({
     if (participant && !isSelf) {
       let mounted = true
       setLoadingName(true)
-      getContactName(participant)
-        .then((contactName: string) => {
+      getSenderInfo(participant)
+        .then(({ name, color }) => {
           if (!mounted) return
-          if (contactName) setName(contactName)
+          if (name) setName(name)
+          if (color) setSenderColor(color)
         })
         .catch(() => {})
         .finally(() => {
           if (!mounted) return
           setLoadingName(false)
         })
-      getContactColor(participant)
-        .then((color: string) => {
-          if (!mounted) return
-          if (color) setSenderColor(color)
-        })
-        .catch(() => {})
 
       return () => {
         mounted = false
       }
     }
-  }, [contextInfo, isSelf, getContactName, getContactColor])
+  }, [contextInfo, isSelf, getSenderInfo])
 
   if (!quoted) return null
 

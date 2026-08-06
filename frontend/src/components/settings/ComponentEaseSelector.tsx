@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback, Fragment } from "react"
 import { gsap } from "gsap"
 import { CustomEase } from "gsap/CustomEase"
 import { PathEditor } from "gsap/utils/PathEditor"
-import { useEaseStore } from "../../store"
+import { useAppSettingsStore } from "../../store/useAppSettingsStore"
 import ToggleButton from "./ToggleButton"
 import DropDown from "./DropDown"
 import { DEFAULT_EASES } from "../../theme.config"
@@ -36,7 +36,8 @@ const COMPONENTS = {
 const GSAPMasterVisualizer = () => {
   const [component, setComponent] = useState<keyof typeof COMPONENTS | null>(null)
   const [prop, setProp] = useState<string | null>(null)
-  const { eases, updateEase: saveEaseToStore } = useEaseStore()
+  const eases = useAppSettingsStore(s => s.eases)
+  const saveEaseToStore = useAppSettingsStore(s => s.updateEase)
 
   const [easeString, setEaseString] = useState(INITIAL_EASE_STRING)
   const [dirty, setDirty] = useState(false)

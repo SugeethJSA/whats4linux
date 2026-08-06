@@ -240,7 +240,7 @@ export function MessageMenu({
                 <button
                   onClick={async () => {
                     try {
-                      await DownloadMediaToFile(messageBody.directPath!)
+                      await DownloadMediaToFile(messageId)
                     } catch (e) {
                       console.error("DownloadMediaToFile failed:", e)
                     }

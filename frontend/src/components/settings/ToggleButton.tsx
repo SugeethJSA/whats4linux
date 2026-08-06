@@ -2,7 +2,7 @@ import { useRef, useEffect } from "react"
 import { useGSAP } from "@gsap/react"
 import gsap from "gsap"
 import clsx from "clsx"
-import { getEase } from "../../store/useEaseStore"
+import { useEase } from "../../store/useAppSettingsStore"
 
 interface ToggleButtonProps {
   isEnabled: boolean
@@ -12,11 +12,12 @@ interface ToggleButtonProps {
 const ToggleButton = ({ isEnabled, onToggle }: ToggleButtonProps) => {
   const circleRef = useRef<HTMLDivElement>(null)
 
-  const easeRef = useRef(getEase("ToggleButton", "slide"))
+  const ease = useEase("ToggleButton", "slide")
+  const easeRef = useRef(ease)
 
   useEffect(() => {
-    easeRef.current = getEase("ToggleButton", "slide")
-  })
+    easeRef.current = ease
+  }, [ease])
 
   useGSAP(() => {
     if (!circleRef.current) return

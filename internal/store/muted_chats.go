@@ -33,3 +33,23 @@ func (ms *MessageStore) IsChatMuted(chatJID string) bool {
 	}
 	return mutedUntil == -1 || mutedUntil > time.Now().Unix()
 }
+
+// GetMutedChats returns the chat JIDs that are currently muted (forever or
+// until a future timestamp), so the frontend can hydrate its mute store.
+func (ms *MessageStore) GetMutedChats() ([]string, error) {
+	rows, err := ms.db.Query(query.SelectMutedChatJIDs, time.Now().Unix())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	jids := []string{}
+	for rows.Next() {
+		var jid string
+		if err := rows.Scan(&jid); err != nil {
+			return nil, err
+		}
+		jids = append(jids, jid)
+	}
+	return jids, rows.Err()
+}

@@ -13,12 +13,10 @@ interface GroupedReaction {
 }
 
 export function ReactionBubble({ reactions, isFromMe }: ReactionsProps) {
-  if (!reactions || reactions.length === 0) return null
-
   const { groupedReactions, totalReactions } = useMemo(() => {
     const map = new Map<string, GroupedReaction>()
 
-    for (const reaction of reactions) {
+    for (const reaction of reactions ?? []) {
       const existing = map.get(reaction.emoji)
 
       if (existing) {
@@ -35,9 +33,11 @@ export function ReactionBubble({ reactions, isFromMe }: ReactionsProps) {
 
     return {
       groupedReactions,
-      totalReactions: reactions.length,
+      totalReactions: (reactions ?? []).length,
     }
   }, [reactions])
+
+  if (!reactions || reactions.length === 0) return null
 
   return (
     <div className={clsx("mt-1", isFromMe ? "flex justify-end" : "flex justify-start")}>

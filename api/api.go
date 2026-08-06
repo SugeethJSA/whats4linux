@@ -710,36 +710,21 @@ func (a *Api) mainEventHandler(evt any) {
 		a.handleBlocklistEvent(v)
 
 	case *events.PrivacySettings:
-		runtime.EventsEmit(a.ctx, "wa:privacy_settings_changed", map[string]any{
-			"groupAddChanged":     v.GroupAddChanged,
-			"lastSeenChanged":     v.LastSeenChanged,
-			"statusChanged":       v.StatusChanged,
-			"profileChanged":      v.ProfileChanged,
-			"readReceiptsChanged": v.ReadReceiptsChanged,
-			"onlineChanged":       v.OnlineChanged,
-			"callAddChanged":      v.CallAddChanged,
-		})
+		slog.Info("Privacy settings changed", "source", "privacy")
 
 	case *events.JoinedGroup:
 		slog.Info(fmt.Sprintf("Joined group %s (%s)", v.GroupInfo.Name, v.JID), "source", "groups")
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 
-	case *events.LabelEdit:
-		runtime.EventsEmit(a.ctx, "wa:label_edit", map[string]any{
-			"labelId": v.LabelID,
-		})
-
 	case *events.LabelAssociationChat:
+		labeled := false
+		if v.Action != nil {
+			labeled = v.Action.GetLabeled()
+		}
 		runtime.EventsEmit(a.ctx, "wa:label_chat", map[string]any{
 			"jid":     v.JID.String(),
 			"labelId": v.LabelID,
-		})
-
-	case *events.LabelAssociationMessage:
-		runtime.EventsEmit(a.ctx, "wa:label_message", map[string]any{
-			"jid":       v.JID.String(),
-			"labelId":   v.LabelID,
-			"messageId": v.MessageID,
+			"labeled": labeled,
 		})
 
 	case *events.NewsletterJoin:
@@ -751,8 +736,19 @@ func (a *Api) mainEventHandler(evt any) {
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 
 	case *events.NewsletterLiveUpdate:
+		jidStr := v.JID.String()
 		runtime.EventsEmit(a.ctx, "wa:newsletter_update", map[string]any{
-			"jid": v.JID.String(),
+			"jid": jidStr,
+		})
+		// Fetch the updated name in the background so the listener can
+		// refresh the chat row without blocking the event loop.
+		a.startBackground(func() {
+			if info, err := a.GetNewsletterInfo(jidStr); err == nil && info != nil {
+				runtime.EventsEmit(a.ctx, "wa:newsletter_update", map[string]any{
+					"jid":  jidStr,
+					"name": info.Name,
+				})
+			}
 		})
 
 	case *events.Mute:
@@ -816,8 +812,9 @@ func (a *Api) mainEventHandler(evt any) {
 		}
 	case *events.Receipt:
 		runtime.EventsEmit(a.ctx, "wa:message_receipt", map[string]any{
-			"chatId": v.Chat.String(),
-			"status": v.Type.GoString(),
+			"chatId":     v.Chat.String(),
+			"messageIDs": v.MessageIDs,
+			"status":     v.Type.GoString(),
 		})
 	case *events.Contact:
 		action := v.Action
@@ -864,17 +861,12 @@ func (a *Api) mainEventHandler(evt any) {
 			newName = v.Action.GetName()
 		}
 		slog.Info(fmt.Sprintf("Own push name changed: %q", newName), "source", "profile")
-		runtime.EventsEmit(a.ctx, "wa:push_name_changed", newName)
 
 	case *events.KeepAliveTimeout:
 		slog.Warn(fmt.Sprintf("Keepalive failing (errors: %d, last success: %s)", v.ErrorCount, v.LastSuccess.Format(time.RFC3339)), "source", "connection")
-		runtime.EventsEmit(a.ctx, "wa:connection_unstable", map[string]any{
-			"errorCount": v.ErrorCount,
-		})
 
 	case *events.KeepAliveRestored:
 		slog.Info("Keepalive restored", "source", "connection")
-		runtime.EventsEmit(a.ctx, "wa:connection_stable")
 
 	case *events.LoggedOut:
 		slog.Warn("Logged out from another device", "source", "connection")
@@ -1055,13 +1047,23 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 	}
 	stored := 0
 	totalConvs := len(conversations)
-	runtime.EventsEmit(a.ctx, "wa:history_progress", map[string]any{
-		"type":                   v.Data.GetSyncType().String(),
-		"totalConversations":     totalConvs,
-		"processedConversations": 0,
-		"totalMessages":          0,
-		"processedMessages":      0,
-	})
+	totalMsgs := 0
+	for _, conv := range conversations {
+		totalMsgs += len(conv.GetMessages())
+	}
+	processedConvs := 0
+	processedMsgs := 0
+	progress := func(done bool) {
+		runtime.EventsEmit(a.ctx, "wa:history_progress", map[string]any{
+			"type":                   v.Data.GetSyncType().String(),
+			"totalConversations":     totalConvs,
+			"processedConversations": processedConvs,
+			"totalMessages":          totalMsgs,
+			"processedMessages":      processedMsgs,
+			"done":                   done,
+		})
+	}
+	progress(false)
 	for _, conv := range conversations {
 		chatJID, err := types.ParseJID(conv.GetID())
 		if err != nil {
@@ -1083,19 +1085,15 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 				continue
 			}
 			parsedHTML := a.processMessageText(parsedMsg.Message)
+			processedMsgs++
 			if a.messageStore.ProcessMessageEvent(a.ctx, a.waClient.Store.LIDs, parsedMsg, parsedHTML) != "" {
 				stored++
 			}
 		}
+		processedConvs++
+		progress(false)
 	}
-	runtime.EventsEmit(a.ctx, "wa:history_progress", map[string]any{
-		"type":                   v.Data.GetSyncType().String(),
-		"totalConversations":     totalConvs,
-		"processedConversations": totalConvs,
-		"totalMessages":          0,
-		"processedMessages":      stored,
-		"done":                   true,
-	})
+	progress(true)
 	slog.Info(fmt.Sprintf("Stored %d messages from %d conversations", stored, len(conversations)), "source", "history")
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 }

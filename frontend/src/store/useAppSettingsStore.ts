@@ -2,7 +2,9 @@ import { create } from "zustand"
 import { GetSettings, SaveSettings } from "../../wailsjs/go/api/Api"
 import { DEFAULT_EASES, THEME, applyThemeColors } from "../theme.config"
 import { cacheTheme, normalizeTheme, readCachedTheme } from "../lib/theme"
-import { useEaseStore } from "./useEaseStore"
+
+export type EaseGroup = keyof typeof DEFAULT_EASES
+export type EaseAction<G extends EaseGroup = EaseGroup> = keyof (typeof DEFAULT_EASES)[G]
 
 interface AppSettingsStore extends AppSettings {
   loaded: boolean
@@ -11,6 +13,7 @@ interface AppSettingsStore extends AppSettings {
   updateSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => Promise<void>
   updateThemeColor: (group: keyof typeof THEME, label: string, value: string) => Promise<void>
   toggleTheme: () => Promise<void>
+  updateEase: <G extends EaseGroup>(group: G, action: EaseAction<G>, ease: string) => Promise<void>
 }
 
 export interface AppSettings {
@@ -74,7 +77,15 @@ const defaultSettings: AppSettings = {
 }
 
 function extractSettings(state: AppSettingsStore): AppSettings {
-  const { loaded, ...settings } = state
+  const {
+    loaded: _loaded,
+    loadSettings: _loadSettings,
+    updateSetting: _updateSetting,
+    updateThemeColor: _updateThemeColor,
+    toggleTheme: _toggleTheme,
+    updateEase: _updateEase,
+    ...settings
+  } = state
   return settings
 }
 
@@ -104,37 +115,33 @@ export const useAppSettingsStore = create<AppSettingsStore>((set, get) => ({
       }
 
       applyThemeColors(merged.themeColors)
-      useEaseStore.setState({ eases: merged.eases })
       cacheTheme(merged.theme)
 
       set({
         ...merged,
         loaded: true,
       })
-    } catch (err) {
+    } catch {
       // fallback to defaults, but keep the locally cached theme so a backend
       // failure does not flip a dark-mode user back to light
       applyThemeColors(defaultSettings.themeColors)
-      useEaseStore.setState({ eases: defaultSettings.eases })
 
       set({ theme: readCachedTheme(), loaded: true })
     }
   },
 
   updateSetting: async (key, value) => {
-    set(state => {
-      const next = { ...state, [key]: value }
+    const next = { ...get(), [key]: value }
 
-      if (key === "theme") {
-        cacheTheme(next.theme)
-      }
+    if (key === "theme") {
+      cacheTheme(next.theme)
+    }
 
-      SaveSettings(extractSettings(next)).catch(err => {
-        console.error("Failed to save setting:", err)
-      })
-
-      return next
+    SaveSettings(extractSettings(next)).catch(err => {
+      console.error("Failed to save setting:", err)
     })
+
+    set(next)
   },
 
   toggleTheme: async () => {
@@ -143,25 +150,43 @@ export const useAppSettingsStore = create<AppSettingsStore>((set, get) => ({
   },
 
   updateThemeColor: async (group, label, value) => {
-    set(state => {
-      const next = {
-        ...state,
-        themeColors: {
-          ...state.themeColors,
-          [group]: {
-            ...state.themeColors[group],
-            [label]: value,
-          },
+    const next = {
+      ...get(),
+      themeColors: {
+        ...get().themeColors,
+        [group]: {
+          ...get().themeColors[group],
+          [label]: value,
         },
-      }
+      },
+    }
 
-      // ⭐ apply to CSS
-      applyThemeColors(next.themeColors)
+    applyThemeColors(next.themeColors)
+    SaveSettings(extractSettings(next)).catch(console.error)
+    set(next)
+  },
 
-      // ⭐ persist
-      SaveSettings(extractSettings(next)).catch(console.error)
+  updateEase: async (group, action, ease) => {
+    const next = {
+      ...get(),
+      eases: {
+        ...get().eases,
+        [group]: {
+          ...get().eases[group],
+          [action]: ease,
+        },
+      },
+    }
 
-      return next
-    })
+    SaveSettings(extractSettings(next)).catch(console.error)
+    set(next)
   },
 }))
+
+/** Non-reactive read of a single ease value. */
+export const getEase = <G extends EaseGroup>(group: G, action: EaseAction<G>) =>
+  useAppSettingsStore.getState().eases[group][action]
+
+/** Reactive selector for a single ease value. */
+export const useEase = <G extends EaseGroup>(group: G, action: EaseAction<G>) =>
+  useAppSettingsStore(state => state.eases[group][action])

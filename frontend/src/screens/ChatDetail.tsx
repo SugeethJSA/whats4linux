@@ -26,7 +26,7 @@ import clsx from "clsx"
 import { formatPhone, phoneFromJID } from "../lib/utils"
 import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
-import { getEase } from "../store/useEaseStore"
+import { useEase } from "../store/useAppSettingsStore"
 
 interface ChatDetailProps {
   chatId: string
@@ -65,7 +65,6 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     setMessages,
     updateMessage,
     prependMessages,
-    setActiveChatId,
     addPendingMessage,
     updatePendingMessageToSent,
   } = useMessageStore()
@@ -117,8 +116,15 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   const initialLoadPromiseRef = useRef<Promise<void> | null>(null)
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const easeShowRef = useRef(getEase("DropDown", "open"))
-  const easeHideRef = useRef(getEase("DropDown", "close"))
+  const easeShow = useEase("DropDown", "open")
+  const easeHide = useEase("DropDown", "close")
+  const easeShowRef = useRef(easeShow)
+  const easeHideRef = useRef(easeHide)
+
+  useEffect(() => {
+    easeShowRef.current = easeShow
+    easeHideRef.current = easeHide
+  }, [easeShow, easeHide])
 
   const currentChat = chatsById.get(chatId)
   const chatType = currentChat?.type || "contact"
@@ -178,7 +184,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
               .filter((c: any) => c && c.phno !== self.phno && c.jid !== self.jid)
             setChatSubtitle(["You", ...others.map(participantLabel).filter(Boolean)].join(", "))
             setMentionableContacts(others)
-          } catch (err) {
+          } catch {
             setCanSend(true)
             const contacts = groupInfo.group_participants.map((p: any) => p.contact)
             setChatSubtitle(contacts.map(participantLabel).filter(Boolean).join(", "))
@@ -701,7 +707,6 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     setHasMore(true)
     setIsLoadingMore(false)
     setIsAtBottom(true)
-    setActiveChatId(chatId)
     const initialRequest = loadInitialMessages(generation)
     initialLoadPromiseRef.current = initialRequest
     void initialRequest.finally(() => {
@@ -717,7 +722,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
         highlightTimerRef.current = null
       }
     }
-  }, [chatId, loadInitialMessages, setActiveChatId])
+  }, [chatId, loadInitialMessages])
 
   useEffect(() => {
     // New messages from events still use the old Message format for real-time updates
@@ -763,24 +768,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
 
     SubscribeContactPresence(chatId).catch(() => {})
 
-    const unsubPresence = EventsOn(
-      "wa:chat_presence",
-      (data: { chatId: string; state: string }) => {
-        if (data?.chatId === chatId) {
-          useUIStore.getState().setTypingIndicator(chatId, data.state === "composing")
-        }
-      },
-    )
-
-    const unsubOnline = EventsOn("wa:presence", (data: { jid: string; unavailable: boolean }) => {
-      if (data?.jid === chatId || data?.jid.split("@")[0] === chatId.split("@")[0]) {
-        useUIStore.getState().setOnlineStatus(data.jid, !data.unavailable)
-      }
-    })
-
     return () => {
-      unsubPresence()
-      unsubOnline()
       useUIStore.getState().setTypingIndicator(chatId, false)
     }
   }, [chatId, chatType])

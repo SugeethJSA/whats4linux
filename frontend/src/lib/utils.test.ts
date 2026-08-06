@@ -71,7 +71,8 @@ describe("phoneFromJID", () => {
 
 describe("cn", () => {
   it("merges class values", () => {
-    expect(cn("a", false && "b", "c")).toBe("a c")
+    const flag = Boolean(undefined)
+    expect(cn("a", flag && "b", "c")).toBe("a c")
   })
 })
 

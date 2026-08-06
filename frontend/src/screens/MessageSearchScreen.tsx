@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import clsx from "clsx"
 import { SearchMessages, GetSearchSuggestions } from "../../wailsjs/go/api/Api"
-import { useMessageStore } from "../store"
+import { useChatStore } from "../store/useChatStore"
 import { GoBackIcon } from "../assets/svgs/header_icons"
 
 interface SearchResult {
@@ -45,7 +45,6 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
   const [offset, setOffset] = useState(0)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
-  const setActiveChatId = useMessageStore(s => s.setActiveChatId)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const suggestionRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -119,7 +118,8 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
   }
 
   const handleResultClick = (r: SearchResult) => {
-    setActiveChatId(r.chat_jid)
+    const chat = useChatStore.getState().chatsById.get(r.chat_jid)
+    if (chat) useChatStore.getState().selectChat(chat)
     onClose()
   }
 

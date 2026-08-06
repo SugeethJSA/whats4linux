@@ -2,7 +2,7 @@ import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
 import { useState, useRef, useEffect } from "react"
 import clsx from "clsx"
-import { getEase } from "../../store/useEaseStore"
+import { useEase } from "../../store/useAppSettingsStore"
 
 const DropDown = ({
   title,
@@ -23,15 +23,18 @@ const DropDown = ({
   const arrowRef = useRef<HTMLSpanElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const easeOpenRef = useRef(getEase("DropDown", "open"))
-  const easeCloseRef = useRef(getEase("DropDown", "close"))
-  const easeRotateRef = useRef(getEase("DropDown", "rotate"))
+  const easeOpen = useEase("DropDown", "open")
+  const easeClose = useEase("DropDown", "close")
+  const easeRotate = useEase("DropDown", "rotate")
+  const easeOpenRef = useRef(easeOpen)
+  const easeCloseRef = useRef(easeClose)
+  const easeRotateRef = useRef(easeRotate)
 
   useEffect(() => {
-    easeOpenRef.current = getEase("DropDown", "open")
-    easeCloseRef.current = getEase("DropDown", "close")
-    easeRotateRef.current = getEase("DropDown", "rotate")
-  })
+    easeOpenRef.current = easeOpen
+    easeCloseRef.current = easeClose
+    easeRotateRef.current = easeRotate
+  }, [easeOpen, easeClose, easeRotate])
 
   const toggleOpen = () => {
     setOnOpen(!onOpen)

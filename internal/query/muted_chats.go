@@ -26,4 +26,12 @@ const (
 	DELETE FROM muted_chats
 	WHERE chat_jid = ?
 	`
+
+	// Only rows that are still actively muted: forever (-1) or ending in the
+	// future. Expired rows are excluded.
+	SelectMutedChatJIDs = `
+	SELECT chat_jid
+	FROM muted_chats
+	WHERE muted_until = -1 OR muted_until > ?
+	`
 )

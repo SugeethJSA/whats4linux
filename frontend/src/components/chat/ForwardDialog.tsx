@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { ForwardMessage } from "../../../wailsjs/go/api/Api"
 import { useChatStore } from "../../store/useChatStore"
-import { useMessageStore } from "../../store"
 import { formatPhone, phoneFromJID } from "../../lib/utils"
 
 interface ForwardDialogProps {
@@ -15,7 +14,6 @@ export function ForwardDialog({ sourceJID, messageID, onClose }: ForwardDialogPr
   const chatsById = useChatStore(s => s.chatsById)
   const [search, setSearch] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
-  const setActiveChatId = useMessageStore(s => s.setActiveChatId)
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -24,7 +22,8 @@ export function ForwardDialog({ sourceJID, messageID, onClose }: ForwardDialogPr
   const handleForward = async (targetJID: string) => {
     try {
       await ForwardMessage(sourceJID, messageID, targetJID)
-      setActiveChatId(targetJID)
+      const target = chatsById.get(targetJID)
+      if (target) useChatStore.getState().selectChat(target)
       onClose()
     } catch (e) {
       console.error("ForwardMessage failed:", e)

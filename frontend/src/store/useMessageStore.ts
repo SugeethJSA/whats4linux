@@ -1,67 +1,30 @@
 import { create } from "zustand"
 import { immer } from "zustand/middleware/immer"
-import { useContactStore } from "./useContactStore"
 import type { Message } from "./types"
 
 const MAX_MSGS_PER_CHAT = 200
 
 interface MessageStore {
   messages: Record<string, Message[]>
-  activeChatId: string | null
-  setActiveChatId: (chatId: string) => void
   setMessages: (chatId: string, messages: Message[]) => void
-  addMessage: (chatId: string, message: Message) => void
   prependMessages: (chatId: string, messages: Message[]) => void
   updateMessage: (chatId: string, message: Message) => void
   addReactionToMessage: (chatId: string, messageId: string, emoji: string, senderId: string) => void
   clearMessages: (chatId: string) => void
-  trimOldMessages: (chatId: string, keepCount: number) => void
   trimAllChats: () => void
   addPendingMessage: (chatId: string, message: Message) => void
   updatePendingMessageToSent: (chatId: string, tempId: string, message: Message) => void
   updateMessageReceipt: (chatId: string, messageId: string, status: string) => void
+  reset: () => void
 }
 
 export const useMessageStore = create<MessageStore>()(
-  immer((set, get) => ({
+  immer(set => ({
     messages: {},
-    activeChatId: null,
-
-    setActiveChatId: chatId => {
-      const prevChatId = get().activeChatId
-
-      set(state => {
-        if (prevChatId && prevChatId !== chatId) {
-          // keep only last 10 messages of previous chat (for quick switching)
-          if (state.messages[prevChatId]) {
-            state.messages[prevChatId] = state.messages[prevChatId].slice(-10)
-          }
-
-          // dispose contact name cache for old chat context
-          useContactStore.getState().disposeCache()
-        }
-        state.activeChatId = chatId
-        // Cap all other chats to prevent unbounded growth across session
-        for (const cid of Object.keys(state.messages)) {
-          if (cid !== chatId && state.messages[cid].length > MAX_MSGS_PER_CHAT) {
-            state.messages[cid] = state.messages[cid].slice(-MAX_MSGS_PER_CHAT)
-          }
-        }
-      })
-    },
 
     setMessages: (chatId, messages) =>
       set(state => {
         state.messages[chatId] = messages
-      }),
-
-    addMessage: (chatId, message) =>
-      set(state => {
-        if (!state.messages[chatId]) state.messages[chatId] = []
-        state.messages[chatId].push(message)
-        if (state.messages[chatId].length > MAX_MSGS_PER_CHAT) {
-          state.messages[chatId] = state.messages[chatId].slice(-MAX_MSGS_PER_CHAT)
-        }
       }),
 
     prependMessages: (chatId, messages) =>
@@ -106,13 +69,6 @@ export const useMessageStore = create<MessageStore>()(
         msg.reactions = emoji
           ? [...others, { id: 0, message_id: messageId, sender_id: senderId, emoji }]
           : others
-      }),
-
-    trimOldMessages: (chatId, keepCount) =>
-      set(state => {
-        if (state.messages[chatId] && state.messages[chatId].length > keepCount) {
-          state.messages[chatId] = state.messages[chatId].slice(-keepCount)
-        }
       }),
 
     trimAllChats: () =>
@@ -167,6 +123,11 @@ export const useMessageStore = create<MessageStore>()(
         const idx = msgs.findIndex(m => m.Info?.ID === messageId)
         if (idx < 0) return
         msgs[idx] = { ...msgs[idx], receiptStatus: status }
+      }),
+
+    reset: () =>
+      set(state => {
+        state.messages = {}
       }),
   })),
 )
