@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"log"
@@ -30,6 +31,32 @@ type MessageContent struct {
 	Mentions        []string `json:"mentions,omitempty"`
 	ClientTempID    string   `json:"clientTempId,omitempty"`
 	Forwarded       bool     `json:"forwarded,omitempty"`
+	// GifPlayback marks a video message as an animated GIF (whatsmeow's GIF
+	// format: a video upload with the gifPlayback flag set).
+	GifPlayback bool `json:"gifPlayback,omitempty"`
+}
+
+// uploadWithRetry wraps a.waClient.Upload with retries for transient network
+// failures (whatsmeow's Upload performs a single HTTP request with no retry).
+func (a *Api) uploadWithRetry(ctx context.Context, data []byte, appInfo whatsmeow.MediaType) (whatsmeow.UploadResponse, error) {
+	const maxAttempts = 3
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		uploaded, err := a.waClient.Upload(ctx, data, appInfo)
+		if err == nil {
+			return uploaded, nil
+		}
+		lastErr = err
+		if attempt < maxAttempts {
+			slog.Warn(fmt.Sprintf("Media upload attempt %d/%d failed: %v", attempt, maxAttempts, err), "source", "media")
+			select {
+			case <-ctx.Done():
+				return whatsmeow.UploadResponse{}, ctx.Err()
+			case <-time.After(time.Duration(attempt) * time.Second):
+			}
+		}
+	}
+	return whatsmeow.UploadResponse{}, lastErr
 }
 
 func (a *Api) processMessageText(msg *waE2E.Message) string {
@@ -291,7 +318,7 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 		}
 
 		// Upload the image
-		uploaded, err := a.waClient.Upload(a.ctx, imageData, whatsmeow.MediaImage)
+		uploaded, err := a.uploadWithRetry(a.ctx, imageData, whatsmeow.MediaImage)
 		if err != nil {
 			return "", fmt.Errorf("failed to upload image: %v", err)
 		}
@@ -324,6 +351,12 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 			JPEGThumbnail: nil, // We'll let WhatsApp generate the thumbnail
 		}
 
+		// Sending a GIF = a video message flagged for gif playback. Receivers
+		// render it as a looping animation instead of a regular video.
+		if content.GifPlayback {
+			videoMsg.GifPlayback = proto.Bool(true)
+		}
+
 		if len(content.Mentions) > 0 || contextInfo != nil {
 			if contextInfo == nil {
 				contextInfo = &waE2E.ContextInfo{}
@@ -335,7 +368,7 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 		}
 
 		// Upload the video
-		uploaded, err := a.waClient.Upload(a.ctx, videoData, whatsmeow.MediaVideo)
+		uploaded, err := a.uploadWithRetry(a.ctx, videoData, whatsmeow.MediaVideo)
 		if err != nil {
 			return "", fmt.Errorf("failed to upload video: %v", err)
 		}
@@ -371,7 +404,7 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 		}
 
 		// Upload the audio
-		uploaded, err := a.waClient.Upload(a.ctx, audioData, whatsmeow.MediaAudio)
+		uploaded, err := a.uploadWithRetry(a.ctx, audioData, whatsmeow.MediaAudio)
 		if err != nil {
 			return "", fmt.Errorf("failed to upload audio: %v", err)
 		}
@@ -419,7 +452,7 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 		}
 
 		// Upload the document
-		uploaded, err := a.waClient.Upload(a.ctx, documentData, whatsmeow.MediaDocument)
+		uploaded, err := a.uploadWithRetry(a.ctx, documentData, whatsmeow.MediaDocument)
 		if err != nil {
 			return "", fmt.Errorf("failed to upload document: %v", err)
 		}
@@ -451,7 +484,7 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 		}
 
 		// Upload the sticker
-		uploaded, err := a.waClient.Upload(a.ctx, stickerData, whatsmeow.MediaImage) // Stickers use MediaImage
+		uploaded, err := a.uploadWithRetry(a.ctx, stickerData, whatsmeow.MediaImage) // Stickers use MediaImage
 		if err != nil {
 			return "", fmt.Errorf("failed to upload sticker: %v", err)
 		}
@@ -505,7 +538,11 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 		case msgContent.GetImageMessage() != nil:
 			messageText = "image"
 		case msgContent.GetVideoMessage() != nil:
-			messageText = "video"
+			if msgContent.GetVideoMessage().GetGifPlayback() {
+				messageText = "gif"
+			} else {
+				messageText = "video"
+			}
 		case msgContent.GetAudioMessage() != nil:
 			messageText = "audio"
 		case msgContent.GetDocumentMessage() != nil:
@@ -581,7 +618,7 @@ func (a *Api) ForwardMessage(sourceJID, messageID, targetJID string) error {
 		}
 
 		mediaType := msg.Media.GetMediaType()
-		uploaded, err := a.waClient.Upload(a.ctx, data, mediaType)
+		uploaded, err := a.uploadWithRetry(a.ctx, data, mediaType)
 		if err != nil {
 			return fmt.Errorf("failed to upload media: %v", err)
 		}

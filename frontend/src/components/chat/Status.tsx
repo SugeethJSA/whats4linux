@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react"
-import clsx from "clsx"
 import { FetchMessagesPaged, GetCachedImage, DownloadMedia } from "../../../wailsjs/go/api/Api"
 import { store } from "../../../wailsjs/go/models"
 import { useContactStore } from "../../store/useContactStore"

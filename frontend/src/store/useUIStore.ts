@@ -13,7 +13,11 @@ interface OnlineState {
   at: number
 }
 
+export type AppScreen = "login" | "chats" | "settings"
+
 interface UIStore {
+  screen: AppScreen
+  setScreen: (screen: AppScreen) => void
   sidebarOpen: boolean
   showEmojiPicker: boolean
   chatInfoOpen: boolean
@@ -35,7 +39,9 @@ interface UIStore {
   closeLightbox: () => void
 }
 
-export const useUIStore = create<UIStore>((set, get) => ({
+export const useUIStore = create<UIStore>(set => ({
+  screen: "login",
+  setScreen: screen => set({ screen }),
   sidebarOpen: true,
   showEmojiPicker: false,
   chatInfoOpen: false,

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/lugvitc/whats4linux/internal/store"
 	"github.com/nyaruka/phonenumbers"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"go.mau.fi/whatsmeow/appstate"
@@ -28,10 +29,11 @@ func formatPhone(user string) string {
 type ChatElement struct {
 	LatestMessage string `json:"latest_message"`
 	LatestTS      int64
-	Sender        string
-	Pinned        bool  `json:"pinned"`
-	PinnedAt      int64 `json:"pinned_at"`
-	Archived      bool  `json:"archived"`
+	Sender        string `json:"sender"`
+	IsFromMe      bool   `json:"is_from_me"`
+	Pinned        bool   `json:"pinned"`
+	PinnedAt      int64  `json:"pinned_at"`
+	Archived      bool   `json:"archived"`
 	Contact
 
 	// Community linkage (populated for groups that belong to a community).
@@ -146,7 +148,8 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 		ce[i] = ChatElement{
 			LatestMessage:     cm.MessageText,
 			LatestTS:          cm.MessageTime,
-			Sender:            cm.Sender,
+			Sender:            a.chatListSenderName(cm),
+			IsFromMe:          cm.IsFromMe,
 			Pinned:            pinned,
 			PinnedAt:          pinnedAt,
 			Archived:          archived,
@@ -159,6 +162,33 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 		}
 	}
 	return ce, nil
+}
+
+// chatListSenderName resolves the display name for a chat list row: "You" for
+// own messages, otherwise the sender's contact name (FullName > PushName >
+// phone number) for the stored sender JID.
+func (a *Api) chatListSenderName(cm store.ChatMessage) string {
+	if cm.IsFromMe {
+		return "You"
+	}
+	jid, err := types.ParseJID(cm.Sender)
+	if err != nil {
+		return cm.Sender
+	}
+	contact, err := a.waClient.Store.Contacts.GetContact(a.ctx, jid.ToNonAD())
+	if err != nil {
+		return jid.User
+	}
+	if contact.FullName != "" {
+		return contact.FullName
+	}
+	if contact.PushName != "" {
+		return contact.PushName
+	}
+	if num, perr := phonenumbers.Parse("+"+jid.User, ""); perr == nil {
+		return phonenumbers.Format(num, phonenumbers.INTERNATIONAL)
+	}
+	return jid.User
 }
 
 // GetChannelList returns the followed Channels (newsletter feeds), named via

@@ -23,6 +23,7 @@ interface ChatStore {
     message: string,
     timestamp?: number,
     sender?: string,
+    isFromMe?: boolean,
   ) => void
   updateSingleChat: (chatId: string, updates: Partial<ChatItem>) => void
   resortChats: () => void
@@ -92,7 +93,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       return { chatsById: newChatsById }
     }),
 
-  updateChatLastMessage: (chatId, message, timestamp, sender) =>
+  updateChatLastMessage: (chatId, message, timestamp, sender, isFromMe) =>
     set(state => {
       const existingChat = state.chatsById.get(chatId)
       if (!existingChat) return state
@@ -103,6 +104,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         subtitle: message,
         timestamp: timestamp || Date.now(),
         sender: sender !== undefined ? sender : existingChat.sender,
+        isFromMe: isFromMe !== undefined ? isFromMe : existingChat.isFromMe,
       })
 
       // Re-sort: keeps pinned chats above even when another chat gets a

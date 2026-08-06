@@ -6,8 +6,12 @@ import {
   SetStatusPrivacy,
   SetDisappearingTimerDefault,
 } from "../../../wailsjs/go/api/Api"
-
-type PrivacyValue = "all" | "contacts" | "contact_blacklist" | "none" | "match_last_seen" | "known"
+import {
+  RowList,
+  SettingRow,
+  SelectMenu,
+  SettingsCard,
+} from "../../components/settings/ui-kit"
 
 interface Setting {
   key: string
@@ -95,10 +99,12 @@ const SETTINGS: Setting[] = [
   },
 ]
 
-const selectCls =
-  "rounded-lg border border-gray-300 dark:border-dark-border bg-white px-3 py-2 text-sm outline-none " +
-  "focus:border-[#21c063] dark:border-white/10 dark:bg-dark-secondary " +
-  "text-light-text dark:text-dark-text"
+const TIMER_OPTIONS = [
+  { value: "0", label: "Off" },
+  { value: "86400", label: "24 hours" },
+  { value: "604800", label: "7 days" },
+  { value: "7776000", label: "90 days" },
+]
 
 const PrivacySettingsScreen = () => {
   const [values, setValues] = useState<Record<string, string>>({})
@@ -177,9 +183,8 @@ const PrivacySettingsScreen = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-2xl mx-auto">
-      <h2 className="text-xl font-bold text-light-text dark:text-dark-text">Privacy</h2>
-      <p className="-mt-4 text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted">
+    <div className="flex flex-col gap-6">
+      <p className="text-[13px] text-light-muted dark:text-dark-muted">
         Control who can see your personal information.
       </p>
 
@@ -190,72 +195,56 @@ const PrivacySettingsScreen = () => {
       )}
 
       {error && !loading && (
-        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
+        <div className="rounded-xl bg-red-500/10 px-3.5 py-2.5 text-[13px] font-medium text-red-600 dark:text-red-400">
           {error}
         </div>
       )}
 
       {/* Default disappearing timer */}
       {!loading && (
-        <div className="mt-4">
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 bg-white p-4 dark:border-white/5 dark:bg-dark-secondary">
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-light-text dark:text-dark-text">
-                Default disappearing timer
-              </div>
-              <div className="mt-0.5 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
-                Sets the default timer for new chats.
-              </div>
-            </div>
-            <select
-              value={defaultTimer}
-              onChange={e => handleDefaultTimer(Number(e.target.value))}
-              disabled={timerBusy}
-              className={selectCls + (timerBusy ? " opacity-50" : "")}
-            >
-              <option value={0}>Off</option>
-              <option value={86400}>24 hours</option>
-              <option value={604800}>7 days</option>
-              <option value={7776000}>90 days</option>
-            </select>
-          </div>
-        </div>
+        <SettingsCard>
+          <SettingRow
+            title="Default disappearing timer"
+            description="Sets the default timer for new chats."
+            control={
+              <SelectMenu
+                value={String(defaultTimer)}
+                options={TIMER_OPTIONS}
+                onChange={v => handleDefaultTimer(Number(v))}
+                disabled={timerBusy}
+              />
+            }
+          />
+        </SettingsCard>
       )}
 
-      {!loading &&
-        SETTINGS.map(s => (
-          <div key={s.key}>
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 bg-white p-4 dark:border-white/5 dark:bg-dark-secondary">
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-light-text dark:text-dark-text">
-                  {s.label}
-                </div>
-                <div className="mt-0.5 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
-                  {s.description}
-                </div>
-              </div>
-              <select
-                value={values[s.key] || ""}
-                onChange={e => handleChange(s.key, e.target.value)}
-                disabled={busy === s.key}
-                className={selectCls + (busy === s.key ? " opacity-50" : "")}
-              >
-                {s.options.map(o => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+      {!loading && (
+        <RowList>
+          {SETTINGS.map(s => (
+            <div key={s.key}>
+              <SettingRow
+                title={s.label}
+                description={s.description}
+                control={
+                  <SelectMenu
+                    value={values[s.key] || ""}
+                    options={s.options}
+                    onChange={v => handleChange(s.key, v)}
+                    disabled={busy === s.key}
+                  />
+                }
+              />
+              {s.key === "status" &&
+                values[s.key] === "contact_blacklist" &&
+                statusBlacklist.length > 0 && (
+                  <div className="px-4 pb-2.5 text-[12px] text-light-muted dark:text-dark-muted">
+                    Excluded: {statusBlacklist.join(", ")}
+                  </div>
+                )}
             </div>
-            {s.key === "status" &&
-              values[s.key] === "contact_blacklist" &&
-              statusBlacklist.length > 0 && (
-                <div className="mt-1 ml-4 text-xs text-gray-500 dark:text-dark-muted">
-                  Excluded: {statusBlacklist.join(", ")}
-                </div>
-              )}
-          </div>
-        ))}
+          ))}
+        </RowList>
+      )}
     </div>
   )
 }

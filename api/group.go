@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/lugvitc/whats4linux/internal/wa"
+	"github.com/nyaruka/phonenumbers"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
 )
@@ -78,15 +79,43 @@ func (a *Api) GetGroupInfo(jidStr string) (Group, error) {
 		return Group{}, err
 	}
 
-	var participants []GroupParticipant
-	for _, p := range GroupInfo.Participants {
-		contact, err := a.GetContact(p.JID)
-		if err != nil {
-			return Group{}, fmt.Errorf("error fetching participant: %w", err)
-		}
+	// Batch-load the contact store once instead of querying it once per
+	// participant (large groups previously cost O(n) individual lookups).
+	allContacts, err := a.waClient.Store.Contacts.GetAllContacts(a.ctx)
+	if err != nil {
+		return Group{}, err
+	}
 
+	buildContact := func(jid types.JID) Contact {
+		jid = canonicalUserJID(a.ctx, a.waClient, jid)
+		c, found := allContacts[jid]
+		fullName, firstName, pushName, businessName := "", "", "", ""
+		if found {
+			fullName = c.FullName
+			firstName = c.FirstName
+			pushName = c.PushName
+			businessName = c.BusinessName
+		}
+		// Unnamed participants (and LIDs with no PN mapping) still get a
+		// phone-formatted row so the group panel always has something to show.
+		phno := ""
+		if num, perr := phonenumbers.Parse("+"+jid.User, ""); perr == nil {
+			phno = phonenumbers.Format(num, phonenumbers.INTERNATIONAL)
+		}
+		return Contact{
+			Phno:       phno,
+			JID:        jid.String(),
+			FullName:   fullName,
+			Short:      firstName,
+			PushName:   pushName,
+			IsBusiness: businessName != "",
+		}
+	}
+
+	participants := make([]GroupParticipant, 0, len(GroupInfo.Participants))
+	for _, p := range GroupInfo.Participants {
 		participants = append(participants, GroupParticipant{
-			Contact: *contact,
+			Contact: buildContact(p.JID),
 			IsAdmin: p.IsAdmin,
 		})
 	}
@@ -94,10 +123,7 @@ func (a *Api) GetGroupInfo(jidStr string) (Group, error) {
 	if !GroupInfo.LinkedParentJID.IsEmpty() {
 		parentJID = GroupInfo.LinkedParentJID.String()
 	}
-	owner, err := a.GetContact(GroupInfo.OwnerJID)
-	if err != nil {
-		return Group{}, fmt.Errorf("error fetching owner: %w", err)
-	}
+	owner := buildContact(GroupInfo.OwnerJID)
 	return Group{
 		GroupName:        GroupInfo.GroupName.Name,
 		GroupTopic:       GroupInfo.GroupTopic.Topic,
@@ -106,7 +132,7 @@ func (a *Api) GetGroupInfo(jidStr string) (Group, error) {
 		MemberAddMode:    string(GroupInfo.MemberAddMode),
 		JoinApproval:     GroupInfo.GroupMembershipApprovalMode.IsJoinApprovalRequired,
 		ParentJID:        parentJID,
-		GroupOwner:       *owner,
+		GroupOwner:       owner,
 		GroupCreatedAt:   GroupInfo.GroupCreated.Format("2006-01-02 15:04:05"),
 		ParticipantCount: GroupInfo.ParticipantCount,
 		Participants:     participants,

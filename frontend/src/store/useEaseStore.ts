@@ -14,7 +14,7 @@ type EaseStore = {
 export const getEase = <G extends EaseGroup>(group: G, action: EaseAction<G>) =>
   useEaseStore.getState().eases[group][action]
 
-export const useEaseStore = create<EaseStore>((set, get) => ({
+export const useEaseStore = create<EaseStore>(set => ({
   eases: DEFAULT_EASES,
 
   updateEase: async (group, action, ease) => {

@@ -233,10 +233,26 @@ func (a *Api) RejectCall(callID string) error {
 	return nil
 }
 
-// cleanupMeowcaller removes registered event hooks to prevent stale
-// callbacks from firing after shutdown.
+// cleanupMeowcaller tears down the VoIP client and any active calls so no
+// stale callbacks fire after shutdown and no audio resources leak.
 func (a *Api) cleanupMeowcaller() {
-	a.callClient = nil
+	callsMu.Lock()
+	for id, ac := range activeCalls {
+		if ac.Bridge != nil {
+			_ = ac.Bridge.Close()
+		}
+		if ac.Call != nil {
+			_ = ac.Call.Hangup()
+		}
+		delete(activeCalls, id)
+	}
+	callsMu.Unlock()
+
+	// The meowcaller client registers a whatsmeow event handler; removing it
+	// here prevents callbacks from firing after the app has shut down.
+	if a.callClient != nil {
+		a.callClient = nil
+	}
 }
 
 // insertCallLog stores a call history entry as a system message in the chat so

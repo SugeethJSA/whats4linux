@@ -167,6 +167,39 @@ const (
 	WHERE chat_jid = ?;
 	`
 
+	// LID->PN migration helpers for secondary tables. Each query selects the
+	// distinct JID values in a column so they can be canonicalized one at a
+	// time (the LID store only resolves a single LID per call).
+	SelectDistinctJIDColumnReactionsSender = `
+	SELECT DISTINCT sender_id FROM reactions WHERE sender_id IS NOT NULL AND sender_id != '';
+	`
+	SelectDistinctJIDColumnPinnedMessagesChat = `
+	SELECT DISTINCT chat_jid FROM pinned_messages WHERE chat_jid IS NOT NULL AND chat_jid != '';
+	`
+	SelectDistinctJIDColumnPinnedMessagesSender = `
+	SELECT DISTINCT sender_jid FROM pinned_messages WHERE sender_jid IS NOT NULL AND sender_jid != '';
+	`
+	SelectDistinctJIDColumnPinnedChats = `
+	SELECT DISTINCT chat_jid FROM pinned_chats WHERE chat_jid IS NOT NULL AND chat_jid != '';
+	`
+	SelectDistinctJIDColumnArchivedChats = `
+	SELECT DISTINCT chat_jid FROM archived_chats WHERE chat_jid IS NOT NULL AND chat_jid != '';
+	`
+	SelectDistinctJIDColumnMutedChats = `
+	SELECT DISTINCT chat_jid FROM muted_chats WHERE chat_jid IS NOT NULL AND chat_jid != '';
+	`
+	SelectDistinctJIDColumnReadReceipts = `
+	SELECT DISTINCT chat_jid FROM read_receipts WHERE chat_jid IS NOT NULL AND chat_jid != '';
+	`
+
+	UpdateReactionsSenderJID      = `UPDATE reactions SET sender_id = ? WHERE sender_id = ?;`
+	UpdatePinnedMessagesChatJID   = `UPDATE pinned_messages SET chat_jid = ? WHERE chat_jid = ?;`
+	UpdatePinnedMessagesSenderJID = `UPDATE pinned_messages SET sender_jid = ? WHERE sender_jid = ?;`
+	UpdatePinnedChatsJID          = `UPDATE pinned_chats SET chat_jid = ? WHERE chat_jid = ?;`
+	UpdateArchivedChatsJID        = `UPDATE archived_chats SET chat_jid = ? WHERE chat_jid = ?;`
+	UpdateMutedChatsJID           = `UPDATE muted_chats SET chat_jid = ? WHERE chat_jid = ?;`
+	UpdateReadReceiptsJID         = `UPDATE read_receipts SET chat_jid = ? WHERE chat_jid = ?;`
+
 	SearchMessagesSelect = `
 SELECT m.chat_jid, m.message_id, m.sender_jid, m.timestamp, m.text, m.is_from_me, m.has_media, COALESCE(mm.type, 0), m.edited, m.forwarded
 FROM messages m

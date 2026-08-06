@@ -412,8 +412,8 @@ func playBeep() {
 }
 
 // DownloadMediaToFile downloads any media type (document, video, audio, image) to the filesystem.
-// It directly fetches from the CDN if not cached, determines the correct filename,
-// and prompts the user where to save it.
+// It streams the download to a temp file (never loading it fully into memory),
+// emits progress events, and prompts the user where to save it.
 func (a *Api) DownloadMediaToFile(messageID string) error {
 	if a.messageStore == nil {
 		return fmt.Errorf("message store is not ready")
@@ -425,15 +425,54 @@ func (a *Api) DownloadMediaToFile(messageID string) error {
 	if msg.Media == nil {
 		return fmt.Errorf("message %s has no downloadable media", messageID)
 	}
-
-	data, mimeType, _, _, err := a.downloadMedia(msg)
-	if err != nil {
-		return fmt.Errorf("failed to download media: %w", err)
+	if a.waClient == nil {
+		return fmt.Errorf("WhatsApp client is not ready")
 	}
 
+	mimeType := msg.Media.GetMimetype()
 	homeDir, _ := os.UserHomeDir()
 	downloadsDir := filepath.Join(homeDir, "Downloads")
 	fileName := messageID + getFileExtension(mimeType)
+
+	// Stream to a temp file first so downloads never balloon memory.
+	tmp, err := os.CreateTemp("", "whats4linux-dl-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer func() {
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
+	}()
+
+	emitProgress := func(done, total int64) {
+		pct := 0
+		if total > 0 {
+			pct = int(float64(done) / float64(total) * 100)
+		}
+		runtime.EventsEmit(a.ctx, "media:download_progress", map[string]any{
+			"messageId":   messageID,
+			"downloaded":  done,
+			"total":       total,
+			"percent":     pct,
+			"destination": "file",
+		})
+	}
+
+	total := int64(msg.Media.GetFileLength())
+	if total <= 0 {
+		total = 0
+	}
+	emitProgress(0, total)
+	dlErr := a.waClient.DownloadToFile(a.ctx, msg.Media, &progressFile{File: tmp, total: total, onWrite: emitProgress})
+	if dlErr != nil {
+		return fmt.Errorf("failed to download media: %w", dlErr)
+	}
+	// The decrypted payload is a few bytes smaller than the ciphertext, so
+	// report the final (decrypted) size as 100%.
+	info, statErr := tmp.Stat()
+	if statErr == nil {
+		emitProgress(info.Size(), info.Size())
+	}
 
 	filePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
 		DefaultDirectory: downloadsDir,
@@ -448,12 +487,41 @@ func (a *Api) DownloadMediaToFile(messageID string) error {
 		return nil // Cancelled
 	}
 
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
-		return err
+	// Copy from the temp file to the user-chosen destination.
+	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("failed to seek temp file: %w", err)
+	}
+	out, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer func() { _ = out.Close() }()
+	if _, err := io.Copy(out, tmp); err != nil {
+		_ = os.Remove(filePath)
+		return fmt.Errorf("failed to write destination file: %w", err)
 	}
 
 	runtime.EventsEmit(a.ctx, "download:complete", filePath)
 	_ = beeep.Notify("whats4linux", "Downloaded: "+filePath, "")
 	playBeep()
 	return nil
+}
+
+// progressFile wraps an *os.File so whatsmeow's DownloadToFile can stream into
+// it while reporting write progress to the frontend.
+type progressFile struct {
+	*os.File
+	total   int64
+	onWrite func(done, total int64)
+}
+
+func (p *progressFile) Write(b []byte) (int, error) {
+	n, err := p.File.Write(b)
+	if err == nil {
+		info, serr := p.File.Stat()
+		if serr == nil {
+			p.onWrite(info.Size(), p.total)
+		}
+	}
+	return n, err
 }

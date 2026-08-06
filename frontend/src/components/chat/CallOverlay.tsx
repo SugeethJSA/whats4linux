@@ -92,10 +92,10 @@ export function CallOverlay() {
     EventsOn("call:ended", onEnded)
 
     return () => {
-      EventsOff("call:incoming", onIncoming)
-      EventsOff("call:outgoing", onOutgoing)
-      EventsOff("call:accepted", onAccepted)
-      EventsOff("call:ended", onEnded)
+      EventsOff("call:incoming")
+      EventsOff("call:outgoing")
+      EventsOff("call:accepted")
+      EventsOff("call:ended")
     }
   }, [])
 
@@ -298,7 +298,7 @@ export function CallOverlay() {
           <div className="mt-3 w-full rounded-lg bg-black/30 p-3 text-[11px] font-mono text-gray-400 space-y-1 border border-white/5">
             <div className="flex justify-between">
               <span>Phase</span>
-              <span className="text-gray-200 capitalize">{stats.phase}</span>
+              <span className="text-gray-200 capitalize">{stats.state}</span>
             </div>
             <div className="flex justify-between">
               <span>Duration</span>

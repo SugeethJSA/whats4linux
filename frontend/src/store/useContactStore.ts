@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { immer } from "zustand/middleware/immer"
 import { GetContact, GetJIDUser, GetProfileColor } from "../../wailsjs/go/api/Api"
+import type { types } from "../../wailsjs/go/models"
 
 interface ContactStore {
   contacts: Record<string, { name: string; senderColor: string; timestamp: number }>
@@ -69,7 +70,7 @@ export const useContactStore = create<ContactStore>()(
       const cached = get().contacts[jid]
       if (cached) return { name: cached.name, color: cached.senderColor }
       try {
-        const contact = await GetContact(jid)
+        const contact = await GetContact(jid as unknown as types.JID)
         const name = contact.full_name
           ? contact.full_name
           : contact.push_name

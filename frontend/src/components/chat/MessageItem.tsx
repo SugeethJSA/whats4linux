@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, lazy, Suspense } from "react"
-import { store } from "../../../wailsjs/go/models"
 import {
   DownloadMediaToFile,
   EditMessage,
@@ -29,6 +28,7 @@ import {
 } from "../../assets/svgs/chat_icons"
 import { useContactStore } from "../../store/useContactStore"
 import { useMessageStore } from "../../store"
+import type { Message } from "../../store/types"
 import { isMe } from "../../lib/self"
 import { formatPhone, phoneFromJID, htmlToPlainText } from "../../lib/utils"
 import { LRUCache } from "../../lib/lruCache"
@@ -39,12 +39,12 @@ const EmojiPicker = lazy(() => import("./EmojiPickerLazy"))
 const votedPollKeys = new Set<string>()
 
 interface MessageItemProps {
-  message: store.DecodedMessage
+  message: Message
   chatId: string
   firstInGroup?: boolean
   pinnedIds?: Set<string>
   sentMediaCache: React.MutableRefObject<Map<string, string>>
-  onReply?: (message: store.DecodedMessage) => void
+  onReply?: (message: Message) => void
   onQuotedClick?: (messageId: string) => void
   highlightedMessageId?: string | null
   isAnnounceGroup?: boolean
@@ -106,7 +106,7 @@ export function MessageItem({
   const isFromMe = message.Info.IsFromMe
   const content = message.Content
   const isSticker = !!content?.stickerMessage
-  const isPending = (message as any).isPending || false
+  const isPending = message.isPending || false
   const mediaBody =
     content?.imageMessage ||
     content?.videoMessage ||
@@ -159,7 +159,7 @@ export function MessageItem({
 
   const handleReact = () => setShowReactionPicker(v => !v)
 
-  const myReaction = (reactions as any[]).find(r => isMe(r.sender_id))?.emoji as string | undefined
+  const myReaction = reactions.find(r => isMe(r.sender_id))?.emoji
 
   const sendReaction = (emoji: string) => {
     const finalEmoji = myReaction === emoji ? "" : emoji
@@ -191,6 +191,21 @@ export function MessageItem({
     setEditText(htmlToPlainText(text))
     setEditing(true)
   }
+
+  // Ctrl+ArrowUp ("Edit last message") dispatches a window event naming the
+  // target message; the matching MessageItem switches itself into edit mode.
+  useEffect(() => {
+    const onEditRequest = (e: Event) => {
+      const targetId = (e as CustomEvent<string>).detail
+      if (!isFromMe || targetId !== message.Info?.ID) return
+      const text = content?.conversation || content?.extendedTextMessage?.text || ""
+      if (!text || text.startsWith("[system]")) return
+      handleEdit()
+    }
+    window.addEventListener("wa:edit-message", onEditRequest)
+    return () => window.removeEventListener("wa:edit-message", onEditRequest)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFromMe, message.Info?.ID, content])
 
   const handleEditSubmit = async () => {
     const cleanText = htmlToPlainText(editText)
@@ -232,7 +247,7 @@ export function MessageItem({
     setJoinError("")
     setJoinSuccess("")
     try {
-      const jid = await AcceptGroupInviteLink(inviteMatch[1])
+      await AcceptGroupInviteLink(inviteMatch[1])
       setJoinSuccess("Joined group!")
     } catch (e: any) {
       setJoinError(e?.message || "Failed to join")

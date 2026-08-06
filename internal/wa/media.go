@@ -26,6 +26,7 @@ type Media struct {
 	mimetype      string
 	mediaType     types.MediaType
 	width, height int
+	fileLength    int64
 }
 
 func NewMedia(
@@ -83,4 +84,20 @@ func (em *Media) GetMimetype() string {
 
 func (em *Media) GetDimensions() (width, height int) {
 	return em.width, em.height
+}
+
+// SetFileLength stores the decrypted file length reported by WhatsApp (used to
+// compute download progress). A value <= 0 means "unknown".
+func (em *Media) SetFileLength(fileLength int64) {
+	em.fileLength = fileLength
+}
+
+// GetFileLength returns the decrypted file length, or -1 when unknown. It
+// satisfies whatsmeow's downloadableMessageWithLength interface so that
+// DownloadToFile can report progress against a known total.
+func (em *Media) GetFileLength() int64 {
+	if em.fileLength <= 0 {
+		return -1
+	}
+	return em.fileLength
 }

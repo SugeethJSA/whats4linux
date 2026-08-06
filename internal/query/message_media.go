@@ -15,12 +15,16 @@ const (
 		height INTEGER,
 		file_name TEXT,
 		gif_playback INTEGER DEFAULT 0,
-		thumbnail BLOB
+		thumbnail BLOB,
+		ptt INTEGER DEFAULT 0,
+		seconds INTEGER DEFAULT 0,
+		waveform BLOB,
+		file_length INTEGER DEFAULT 0
 	);
 	`
 
-	// AddGifPlaybackColumn / AddThumbnailColumn / AddPTAColumns migrate
-	// existing message_media tables that predate those columns. SQLite has no
+	// AddGifPlaybackColumn / AddThumbnailColumn / AddPTAColumns / AddFileLengthColumn
+	// migrate existing message_media tables that predate those columns. SQLite has no
 	// ADD COLUMN IF NOT EXISTS, so the caller ignores the "duplicate column"
 	// error on subsequent runs.
 	AddGifPlaybackColumn = `
@@ -37,10 +41,14 @@ const (
 	ALTER TABLE message_media ADD COLUMN waveform BLOB;
 	`
 
+	AddFileLengthColumn = `
+	ALTER TABLE message_media ADD COLUMN file_length INTEGER DEFAULT 0;
+	`
+
 	InsertMessageMedia = `
 	INSERT OR REPLACE INTO message_media
-	(message_id, type, url, mimetype, direct_path, media_key, file_sha256, file_enc_sha256, width, height, file_name, gif_playback, thumbnail, ptt, seconds, waveform)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+	(message_id, type, url, mimetype, direct_path, media_key, file_sha256, file_enc_sha256, width, height, file_name, gif_playback, thumbnail, ptt, seconds, waveform, file_length)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 	`
 
 	SelectGifPlaybackByMessageID = `
@@ -62,7 +70,7 @@ const (
 	`
 
 	SelectMessageMediaByMessageID = `
-	SELECT type, url, mimetype, direct_path, media_key, file_sha256, file_enc_sha256, width, height, file_name
+	SELECT type, url, mimetype, direct_path, media_key, file_sha256, file_enc_sha256, width, height, file_name, file_length
 	FROM message_media
 	WHERE message_id = ?;
 	`

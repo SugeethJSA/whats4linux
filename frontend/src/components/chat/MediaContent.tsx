@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
-import { store } from "../../../wailsjs/go/models"
 import { GetCachedImage, DownloadMedia, GetVideoThumbnail } from "../../../wailsjs/go/api/Api"
 import { useUIStore } from "../../store"
+import type { Message, MediaMessageContent } from "../../store/types"
 import { LRUCache } from "../../lib/lruCache"
 
 // TODO: fix word wrap for longer words in content
@@ -60,7 +60,7 @@ export function mediaBox(w?: number, h?: number): { width: number; height: numbe
 }
 
 interface MediaContentProps {
-  message: store.DecodedMessage
+  message: Message
   type: "image" | "video" | "sticker" | "audio" | "document"
   chatId: string
   isGif?: boolean
@@ -96,7 +96,10 @@ export function MediaContent({
 
   // Reserve the final layout box before the media loads. Only images and GIF
   // videos swap a placeholder for an inline element, so only they can shift.
-  const messageBody = (message.Content as any)?.[`${type}Message`]
+  const messageBody = message.Content?.[`${type}Message`] as MediaMessageContent | undefined
+  // GIFs sent as raw .gif files carry mimetype image/gif — the decrypted
+  // bytes are a GIF image (playable in <img>), not a video file.
+  const isRawGif = type === "video" && isGif && messageBody?.mimetype === "image/gif"
   const reservedBox =
     type === "image" || (type === "video" && isGif)
       ? (mediaBox(messageBody?.width, messageBody?.height) ??
@@ -160,8 +163,7 @@ export function MediaContent({
   }, [])
 
   useEffect(() => {
-    const content = message.Content as any
-    const messageBody = content?.[`${type}Message`]
+    const messageBody = message.Content?.[`${type}Message`] as MediaMessageContent | undefined
 
     if (messageBody?._tempImage) {
       setMediaSrc(messageBody._tempImage)
@@ -238,7 +240,7 @@ export function MediaContent({
         <div
           className="relative inline-block"
           onMouseEnter={() => type === "image" && setShowDownloadButton(true)}
-          onMouseLeave={() => setShowDownloadButton(false)}
+          onMouseLeave={() => type === "image" && setShowDownloadButton(false)}
         >
           <img
             src={mediaSrc}
@@ -275,6 +277,21 @@ export function MediaContent({
             </button>
           )}
         </div>
+      )
+    }
+    if (type === "video" && isRawGif) {
+      return (
+        <img
+          src={mediaSrc}
+          onClick={() => {
+            onImageClick?.(mediaSrc)
+            openLightbox(mediaSrc)
+          }}
+          className="block min-w-75 max-w-82.5 max-h-100 rounded-lg object-cover cursor-pointer"
+          style={reservedBox ?? GIF_FALLBACK_BOX}
+          decoding="async"
+          alt="GIF"
+        />
       )
     }
     if (type === "video")
@@ -338,7 +355,7 @@ export function MediaContent({
     return (
       <div
         ref={placeholderRef}
-        onClick={openVideo}
+        onClick={isRawGif ? () => void handleDownload() : openVideo}
         className="relative w-64 h-64 rounded-lg overflow-hidden bg-gray-300 dark:bg-gray-800 flex items-center justify-center cursor-pointer bg-cover bg-center"
         // GIFs auto-swap this placeholder for the inline <video>, so it must
         // already occupy the video's final box when dimensions are known.
@@ -349,6 +366,16 @@ export function MediaContent({
       >
         {loading ? (
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
+        ) : isRawGif ? (
+          <button
+            onClick={() => void handleDownload()}
+            className="bg-black/50 p-2 rounded-full text-white hover:bg-black/70"
+            title="Download GIF"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+            </svg>
+          </button>
         ) : (
           <div className="bg-black/55 rounded-full p-3">
             <svg viewBox="0 0 24 24" width="28" height="28" fill="white">

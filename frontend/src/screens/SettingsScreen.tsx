@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import type { ReactNode } from "react"
 import clsx from "clsx"
-import { GetProfile, GetCachedAvatar, GetSelfAvatar } from "../../wailsjs/go/api/Api"
+import { GetProfile, GetSelfAvatar } from "../../wailsjs/go/api/Api"
 import { api } from "../../wailsjs/go/models"
 import GeneralSettingsScreen from "./settingscreens/GeneralSettingsScreen"
 import AccountSettingsScreen from "./settingscreens/AccountSettingsScreen"
@@ -53,7 +53,7 @@ const settingsItems: SettingsItem[] = [
     id: "general",
     label: "General",
     description: "Startup and Close",
-    icon: <SettingsIcon />,
+    icon: <SettingsIcon className="w-5 h-5" />,
     screen: <GeneralSettingsScreen />,
   },
   {
@@ -125,7 +125,6 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const loadAvatar = useCallback(async () => {
     try {
       const avatarURL = await GetSelfAvatar(false)
-
       setSelfAvatar(avatarURL)
     } catch (err) {
       console.error("Self avatar load failed:", err)
@@ -134,8 +133,18 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     GetProfile("").then(setProfile)
-
     loadAvatar()
+  }, [loadAvatar])
+
+  // "Profile and About" (Ctrl+Alt+P) opens settings directly on the Account
+  // category. The event is dispatched by the App-level shortcut handler.
+  useEffect(() => {
+    const onOpenCategory = (e: Event) => {
+      const category = (e as CustomEvent<string>).detail
+      if (category === "account") setSelectedCategory("account")
+    }
+    window.addEventListener("wa:open-settings-category", onOpenCategory)
+    return () => window.removeEventListener("wa:open-settings-category", onOpenCategory)
   }, [])
 
   const handleNavigate = (anchor: ReactNode) => {
@@ -145,37 +154,33 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const renderContent = () => {
     if (!selectedCategory) {
       return (
-        <div className="flex flex-col items-center gap-3 text-center px-8">
-          <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center mb-2"
-            style={{ background: "rgba(33,192,99,0.08)", border: "1px solid rgba(33,192,99,0.15)" }}
-          >
-            <SettingsIcon className="w-10 h-10" style={{ color: "#21c063" } as any} />
+        <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-[#21c063]/10 text-[#21c063] shadow-[0_0_40px_rgba(33,192,99,0.15)]">
+            <SettingsIcon className="w-10 h-10" />
           </div>
-          <h2
-            className="text-xl font-semibold text-light-text dark:text-dark-text"
-            style={{ letterSpacing: "-0.02em" }}
-          >
-            Settings
-          </h2>
-          <p className="text-sm" style={{ color: "#8696a0" }}>
-            Select a category to get started
-          </p>
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-light-text dark:text-dark-text">
+              Settings
+            </h2>
+            <p className="mt-1 text-sm text-light-muted dark:text-dark-muted">
+              Select a category to get started
+            </p>
+          </div>
         </div>
       )
     }
 
     if (nestedScreen) {
       return (
-        <div className="w-full max-w-2xl px-8 py-6 overflow-y-auto h-full">
+        <div className="w-full max-w-3xl overflow-y-auto px-6 py-6 lg:px-10">
           <button
             onClick={() => setNestedScreen(null)}
-            className="flex items-center gap-2 mb-4 text-gray-500 dark:text-light-muted dark:text-dark-muted hover:text-gray-700 dark:hover:text-gray-200"
+            className="mb-5 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-medium text-light-muted transition-colors hover:bg-black/[0.04] hover:text-light-text dark:text-dark-muted dark:hover:bg-white/[0.06] dark:hover:text-dark-text"
           >
-            <BackIcon />
-            <span>Back</span>
+            <ChevronBack />
+            Back
           </button>
-          {nestedScreen}
+          <div className="animate-slide-in-right">{nestedScreen}</div>
         </div>
       )
     }
@@ -183,15 +188,19 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
     const currentItem = settingsItems.find(i => i.id === selectedCategory)
 
     return (
-      <div className="w-full px-8 py-6 overflow-y-auto h-full">
-        <h2 className="text-2xl font-light mb-6 text-light-text dark:text-dark-text">
-          {currentItem?.label}
-        </h2>
-        {selectedCategory === "account" ? (
-          <AccountSettingsScreen onNavigate={handleNavigate} />
-        ) : (
-          currentItem?.screen
-        )}
+      <div className="w-full overflow-y-auto px-6 py-6 lg:px-10">
+        <div className="mx-auto max-w-3xl animate-slide-in-right">
+          <h2 className="mb-6 text-2xl font-semibold tracking-tight text-light-text dark:text-dark-text">
+            {currentItem?.label}
+          </h2>
+          <div className={clsx(!currentItem?.danger && "max-w-2xl")}>
+            {selectedCategory === "account" ? (
+              <AccountSettingsScreen onNavigate={handleNavigate} />
+            ) : (
+              currentItem?.screen
+            )}
+          </div>
+        </div>
       </div>
     )
   }
@@ -201,7 +210,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
   )
 
   return (
-    <div className="flex h-screen bg-light-secondary dark:bg-dark-bg overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-light-secondary dark:bg-dark-bg">
       <Sidebar
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
@@ -212,10 +221,18 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         onSelectCategory={setSelectedCategory}
         onBack={onBack}
       />
-      <div className="flex-1 bg-light-secondary dark:bg-dark-secondary flex flex-col items-center justify-center text-gray-500 dark:text-light-muted dark:text-dark-muted">
+      <div className="flex min-w-0 flex-1 flex-col bg-light-secondary dark:bg-dark-secondary">
         {renderContent()}
       </div>
     </div>
+  )
+}
+
+function ChevronBack() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+      <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+    </svg>
   )
 }
 
@@ -230,87 +247,85 @@ function Sidebar({
   onBack,
 }: any) {
   return (
-    <div className="w-120 flex flex-col border-r border-gray-200 dark:border-dark-tertiary bg-white dark:bg-dark-bg">
-      <div className="h-28 flex flex-col justify-end px-4 pb-2">
-        <div className="flex items-center mb-4">
+    <div className="flex w-[380px] shrink-0 flex-col border-r border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-dark-bg">
+      <div className="px-4 pb-3 pt-5">
+        <div className="mb-4 flex items-center gap-2">
           <button
             onClick={onBack}
-            className="mr-4 text-gray-500 dark:text-light-muted dark:text-dark-muted hover:text-gray-700 dark:hover:text-gray-200"
+            className="rounded-xl p-2 text-light-muted transition-colors hover:bg-black/[0.05] hover:text-light-text dark:text-dark-muted dark:hover:bg-white/[0.07] dark:hover:text-dark-text"
+            title="Back to chats"
           >
             <BackIcon />
           </button>
-          <h1 className="text-2xl font-semibold text-light-text dark:text-dark-text">Settings</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-light-text dark:text-dark-text">
+            Settings
+          </h1>
         </div>
-        <SearchBar value={searchTerm} onChange={onSearchChange} />
+        <div className="group flex items-center gap-2.5 rounded-xl bg-light-secondary px-3 py-2 transition-all focus-within:ring-2 focus-within:ring-[#21c063]/25 dark:bg-dark-tertiary">
+          <SearchIcon className="h-4 w-4 shrink-0 text-light-muted dark:text-dark-muted" />
+          <input
+            type="text"
+            placeholder="Search settings"
+            className="w-full bg-transparent text-sm text-light-text outline-none placeholder:text-light-muted/70 dark:text-dark-text dark:placeholder:text-dark-muted/60"
+            value={searchTerm}
+            onChange={e => onSearchChange(e.target.value)}
+          />
+          {searchTerm && (
+            <button
+              onClick={() => onSearchChange("")}
+              className="text-light-muted/70 transition-colors hover:text-light-text dark:text-dark-muted/70 dark:hover:text-dark-text"
+              title="Clear search"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       <ProfileCard profile={profile} avatar={avatar} />
 
-      <div className="flex-1 overflow-y-auto">
-        {items.map((item: SettingsItem) => (
-          <SettingsMenuItem
-            key={item.id}
-            item={item}
-            isSelected={selectedCategory === item.id}
-            onClick={() => onSelectCategory(item.id)}
-          />
-        ))}
+      <div className="mt-1 flex-1 overflow-y-auto pb-3">
+        {items.length === 0 ? (
+          <p className="px-5 py-6 text-center text-sm text-light-muted dark:text-dark-muted">
+            No settings match "{searchTerm}"
+          </p>
+        ) : (
+          items.map((item: SettingsItem) => (
+            <SettingsMenuItem
+              key={item.id}
+              item={item}
+              isSelected={selectedCategory === item.id}
+              onClick={() => onSelectCategory(item.id)}
+            />
+          ))
+        )}
       </div>
-    </div>
-  )
-}
-
-function SearchBar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="bg-light-secondary dark:bg-dark-tertiary rounded-lg flex items-center px-3 py-1.5">
-      <SearchIcon className="text-gray-500 dark:text-light-muted dark:text-dark-muted mr-2 w-4 h-4" />
-      <input
-        type="text"
-        placeholder="Search settings"
-        className="bg-transparent border-none outline-none text-sm w-full text-light-text dark:text-dark-text placeholder-gray-500"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-      />
     </div>
   )
 }
 
 function ProfileCard({ profile, avatar }: { profile: api.Contact | null; avatar?: string | null }) {
+  const avatarSrc = avatar || profile?.avatar_url || null
   return (
-    <div
-      className="mx-3 my-2 rounded-xl cursor-pointer overflow-hidden transition-all duration-200 hover:opacity-90"
-      style={{ background: "rgba(33,192,99,0.06)", border: "1px solid rgba(33,192,99,0.12)" }}
-    >
-      <div
-        className="h-10 w-full"
-        style={{ background: "linear-gradient(90deg, rgba(33,192,99,0.15) 0%, transparent 100%)" }}
-      />
-      <div className="flex items-center px-4 pb-3 -mt-6 gap-3">
-        <div
-          className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-gray-300 dark:bg-gray-600"
-          style={{
-            border: "3px solid rgba(33,192,99,0.4)",
-            boxShadow: "0 0 12px rgba(33,192,99,0.2)",
-          }}
-        >
-          {avatar ? (
-            <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
-          ) : profile?.avatar_url ? (
-            <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+    <div className="mx-3 mb-1 overflow-hidden rounded-2xl border border-black/[0.06] bg-white transition-all hover:shadow-md dark:border-white/[0.08] dark:bg-dark-secondary">
+      <div className="h-14 w-full bg-gradient-to-r from-[#21c063]/25 via-[#21c063]/10 to-transparent" />
+      <div className="-mt-8 flex items-end gap-3 px-4 pb-3.5">
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-light-tertiary ring-4 ring-white dark:bg-dark-elevated dark:ring-dark-secondary">
+          {avatarSrc ? (
+            <img src={avatarSrc} alt="Profile" className="h-full w-full object-cover" />
           ) : (
             <UserIcon />
           )}
         </div>
-        <div className="pt-6">
-          <h3
-            className="font-semibold text-sm text-light-text dark:text-dark-text"
-            style={{ letterSpacing: "-0.01em" }}
-          >
+        <div className="min-w-0 pb-0.5">
+          <div className="truncate text-sm font-semibold text-light-text dark:text-dark-text">
             {profile?.push_name || "Your Name"}
-          </h3>
-          <p className="text-xs mt-0.5" style={{ color: "#8696a0" }}>
+          </div>
+          <div className="truncate text-[12px] text-light-muted dark:text-dark-muted">
             {profile?.phno}
-          </p>
+          </div>
         </div>
       </div>
     </div>
@@ -328,49 +343,51 @@ function SettingsMenuItem({
 }) {
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={e => e.key === "Enter" && onClick()}
       className={clsx(
-        "flex items-center px-3 py-2.5 cursor-pointer mx-2 my-0.5 rounded-xl transition-all duration-150",
+        "mx-2 my-0.5 flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-150",
         isSelected
-          ? "bg-[#21c063]/8 dark:bg-[#21c063]/10"
-          : "hover:bg-gray-100/80 dark:hover:bg-dark-tertiary/60",
+          ? "bg-[#21c063]/10"
+          : "hover:bg-black/[0.03] dark:hover:bg-white/[0.05]",
       )}
-      style={
-        isSelected ? { borderLeft: "3px solid #21c063", paddingLeft: "calc(0.75rem - 3px)" } : {}
-      }
     >
       <div
-        className="settings-icon-wrap mr-4"
-        style={{
-          background: item.danger
-            ? "rgba(231,76,60,0.1)"
+        className={clsx(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors",
+          item.danger
+            ? "bg-red-500/10 text-red-500"
             : isSelected
-              ? "rgba(33,192,99,0.15)"
-              : "rgba(134,150,160,0.1)",
-          color: item.danger ? "#e74c3c" : isSelected ? "#21c063" : "#8696a0",
-        }}
+              ? "bg-[#21c063]/15 text-[#21c063]"
+              : "bg-black/[0.04] text-light-muted dark:bg-white/[0.06] dark:text-dark-muted",
+        )}
       >
         {item.icon}
       </div>
-      <div className="flex-1 min-w-0">
-        <h3
+      <div className="min-w-0 flex-1">
+        <div
           className={clsx(
-            "font-medium text-sm",
-            !item.danger && !isSelected && "text-light-text dark:text-dark-text",
+            "truncate text-sm font-medium",
+            item.danger
+              ? "text-red-500"
+              : isSelected
+                ? "text-[#21c063]"
+                : "text-light-text dark:text-dark-text",
           )}
-          style={{
-            color: item.danger ? "#e74c3c" : isSelected ? "#21c063" : undefined,
-            letterSpacing: "-0.01em",
-          }}
         >
           {item.label}
-        </h3>
+        </div>
         {item.description && (
-          <p className="text-xs mt-0.5" style={{ color: "#8696a0" }}>
+          <div className="truncate text-[12px] text-light-muted dark:text-dark-muted">
             {item.description}
-          </p>
+          </div>
         )}
       </div>
+      {isSelected && (
+        <span className="h-2 w-2 shrink-0 rounded-full bg-[#21c063] shadow-[0_0_8px_rgba(33,192,99,0.6)]" />
+      )}
     </div>
   )
 }

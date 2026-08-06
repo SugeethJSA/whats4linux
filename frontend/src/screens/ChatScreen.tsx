@@ -13,11 +13,17 @@ import {
   ToggleChatLabel,
   DeleteChat,
   MarkChatAsRead,
+  IsChatMuted,
+  ToggleChatMute,
+  BlockContact,
+  UnblockContact,
+  GetBlockList,
 } from "../../wailsjs/go/api/Api"
 import { api } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
 import { ChatDetail } from "./ChatDetail"
-import { useChatStore, useChatById, useFilteredChatIds, useArchivedCount } from "../store"
+import { useChatStore, useChatById, useFilteredChatIds, useArchivedCount, useUIStore } from "../store"
+import { registerShortcut } from "../lib/shortcuts"
 import { useSelfAvatarStore } from "../store/useSelfAvatarStore"
 import { useChatMuted } from "../store/useMuteStore"
 import type { ChatItem } from "../store/types"
@@ -41,7 +47,6 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "../components/common/resizable"
-import { useContactStore } from "@/store/useContactStore"
 import { MessageSearchScreen } from "./MessageSearchScreen"
 
 interface HeaderProps {
@@ -318,7 +323,8 @@ const ChatListItemContent = memo(
           </div>
           <div className="flex items-center gap-2">
             <div className="flex-1 text-sm text-gray-500 dark:text-[#8696a0] truncate [&_p]:inline [&_p]:m-0 ">
-              {chat.sender && chat.type === "group" && (
+              {chat.isFromMe && <span className="mr-1 text-[#8696a0]">You: </span>}
+              {chat.sender && chat.type === "group" && !chat.isFromMe && (
                 <span className="mr-1">{chat.sender}: </span>
               )}
               <span
@@ -602,6 +608,7 @@ interface ChatListScreenProps {
 }
 
 export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
+  const screen = useUIStore(state => state.screen)
   // Use individual selectors to minimize re-renders
   const selectedChatId = useChatStore(state => state.selectedChatId)
   const selectedChatName = useChatStore(state => state.selectedChatName)
@@ -616,7 +623,6 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   const updateChatLastMessage = useChatStore(state => state.updateChatLastMessage)
   const updateSingleChat = useChatStore(state => state.updateSingleChat)
   const getChat = useChatStore(state => state.getChat)
-  const getContactName = useContactStore(state => state.getContactName)
 
   const [showArchived, setShowArchived] = useState(false)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
@@ -627,6 +633,11 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   const filteredChatIds = useFilteredChatIds(showArchived)
   const archivedCount = useArchivedCount()
   const totalChats = useChatStore(state => state.chatIds.length)
+
+  // Keep the latest id list for the keyboard-shortcut handlers (they run from
+  // a stable effect, so they must read refs, not stale closures).
+  const filteredIdsRef = useRef(filteredChatIds)
+  filteredIdsRef.current = filteredChatIds
 
   const isFetchingRef = useRef(false)
   const mountedRef = useRef(true)
@@ -691,7 +702,9 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
         chatElements.map(async c => {
           const isGroup = c.jid?.endsWith("@g.us") || false
           const avatar = c.avatar_url || ""
-          const senderName = c.Sender ? await getContactName(c.Sender) : ""
+          // Sender is already resolved to a display name by the backend
+          // (contact name for group senders, "You" for own messages).
+          const senderName = c.is_from_me ? "You" : isGroup ? c.sender || "" : ""
 
           return {
             id: c.jid || "",
@@ -704,6 +717,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
             timestamp: c.LatestTS,
             avatar: avatar,
             sender: senderName || "",
+            isFromMe: c.is_from_me || false,
             pinned: c.pinned || false,
             archived: c.archived || false,
             communityJid: c.parent_jid || undefined,
@@ -714,7 +728,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
         }),
       )
     },
-    [getContactName],
+    [],
   )
 
   const loadAvatars = useCallback(
@@ -873,6 +887,117 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
     }
   }, [chatMenu])
 
+  // Global keyboard shortcuts that operate on the chat list / active chat.
+  // Registered only while the chats screen is the visible one (the component
+  // stays mounted underneath the settings screen).
+  useEffect(() => {
+    if (screen !== "chats") return
+
+    const unregs: Array<() => void> = []
+
+    const openChatById = (chatId: string | undefined) => {
+      if (!chatId) return
+      const chat = getChat(chatId)
+      if (chat) handleChatSelect(chat)
+    }
+
+    const openChatAt = (index: number) => openChatById(filteredIdsRef.current?.[index])
+
+    for (let i = 1; i <= 9; i++) {
+      unregs.push(registerShortcut(`open-chat-${i}`, () => openChatAt(i - 1)))
+    }
+
+    unregs.push(
+      registerShortcut("next-chat", () => {
+        const ids = filteredIdsRef.current
+        const sel = useChatStore.getState().selectedChatId
+        const idx = sel ? ids.indexOf(sel) : -1
+        if (idx >= 0 && idx < ids.length - 1) openChatById(ids[idx + 1])
+        else if (idx < 0 && ids.length > 0) openChatById(ids[0])
+      }),
+      registerShortcut("prev-chat", () => {
+        const ids = filteredIdsRef.current
+        const sel = useChatStore.getState().selectedChatId
+        const idx = sel ? ids.indexOf(sel) : -1
+        if (idx > 0) openChatById(ids[idx - 1])
+        else if (idx < 0 && ids.length > 0) openChatById(ids[ids.length - 1])
+      }),
+      registerShortcut("search", () => setShowSearch(true)),
+      registerShortcut("search-chat", () => setShowSearch(true)),
+      registerShortcut("new-chat", () => setShowCreateGroup(true)),
+      registerShortcut("new-group", () => setShowCreateGroup(true)),
+      // The backend has no unread flag, so this is a local visual mark, same
+      // as the in-app unread badge behaviour.
+      registerShortcut("mark-unread", () => {
+        const id = useChatStore.getState().selectedChatId
+        if (id) useChatStore.getState().updateSingleChat(id, { unreadCount: 1 })
+      }),
+      registerShortcut("mute-chat", () => {
+        const id = useChatStore.getState().selectedChatId
+        if (!id) return
+        IsChatMuted(id)
+          .then(muted => ToggleChatMute(id, !muted))
+          .catch(err => console.error("Mute toggle failed:", err))
+      }),
+      registerShortcut("archive-chat", () => {
+        const st = useChatStore.getState()
+        const id = st.selectedChatId
+        const chat = id ? st.getChat(id) : undefined
+        if (!id || !chat) return
+        const next = !chat.archived
+        st.updateSingleChat(id, { archived: next })
+        ToggleChatArchive(id, next).catch(() =>
+          st.updateSingleChat(id, { archived: chat.archived }),
+        )
+      }),
+      registerShortcut("pin-chat", () => {
+        const st = useChatStore.getState()
+        const id = st.selectedChatId
+        const chat = id ? st.getChat(id) : undefined
+        if (!id || !chat) return
+        const next = !chat.pinned
+        st.updateSingleChat(id, { pinned: next })
+        st.resortChats()
+        ToggleChatPin(id, next).catch(() => {
+          st.updateSingleChat(id, { pinned: chat.pinned })
+          st.resortChats()
+        })
+      }),
+      registerShortcut("label-chat", () => {
+        const st = useChatStore.getState()
+        const id = st.selectedChatId
+        const chat = id ? st.getChat(id) : undefined
+        if (!chat) return
+        setChatMenu({
+          x: Math.round(window.innerWidth / 2) - 100,
+          y: Math.round(window.innerHeight / 2) - 120,
+          chat,
+        })
+      }),
+      registerShortcut("block-chat", () => {
+        const st = useChatStore.getState()
+        const id = st.selectedChatId
+        const chat = id ? st.getChat(id) : undefined
+        if (!id || !chat) return
+        if (
+          chat.id.endsWith("@g.us") ||
+          chat.id.endsWith("@broadcast") ||
+          chat.id.endsWith("@newsletter")
+        ) {
+          return
+        }
+        GetBlockList()
+          .then(list => {
+            const blocked = (list || []).some(b => b.jid === id)
+            return blocked ? UnblockContact(id) : BlockContact(id)
+          })
+          .catch(err => console.error("Block toggle failed:", err))
+      }),
+    )
+
+    return () => unregs.forEach(unreg => unreg())
+  }, [screen, handleChatSelect, getChat, setShowSearch, setShowCreateGroup, setChatMenu])
+
   const [chatLabelId, setChatLabelId] = useState("")
   const [storyGroup, setStoryGroup] = useState<StatusGroup | null>(null)
   const viewRef = useRef(view)
@@ -959,14 +1084,22 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
         const existingChat = getChat(data.chatId)
         if (existingChat) {
           let previewText = data.messageText
-          let senderForUpdate = data.sender
+          // Backend sends the raw push name; mirror the chat list's sender
+          // resolution ("You" for own messages, name otherwise).
+          let senderForUpdate = data.isFromMe ? "You" : data.sender
           if (data.reaction) {
             previewText = `${data.sender} reacted ${data.reaction} to: "${previewText}"`
             senderForUpdate = ""
           }
 
           // Update only this specific chat - no full re-fetch needed!
-          updateChatLastMessage(data.chatId, previewText, data.timestamp, senderForUpdate)
+          updateChatLastMessage(
+            data.chatId,
+            previewText,
+            data.timestamp,
+            senderForUpdate,
+            Boolean(data.isFromMe),
+          )
         } else {
           // New chat we don't have - need to fetch to get avatar/name
           setTimeout(fetchChats, 500)
@@ -1026,7 +1159,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           >
             {chatMenu.chat.archived ? "Unarchive chat" : "Archive chat"}
           </button>
-          {chatMenu.chat.unreadCount > 0 && (
+          {(chatMenu.chat.unreadCount ?? 0) > 0 && (
             <button
               onClick={handleMarkAsRead}
               className="w-full px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-white/5"

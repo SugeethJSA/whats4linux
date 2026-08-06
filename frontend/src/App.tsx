@@ -9,16 +9,16 @@ import { initSelf } from "./lib/self"
 import { Lightbox } from "./components/Lightbox"
 import { CallOverlay } from "./components/chat/CallOverlay"
 
-import { useUIStore, useMessageStore, useChatStore } from "./store"
+import { useUIStore, useMessageStore } from "./store"
 import { useAppSettingsStore } from "./store/useAppSettingsStore"
 import { applyThemeClass } from "./lib/theme"
-import { useMuteStore } from "./store/useMuteStore"
 import { useWailsEvents } from "./hooks/useWailsEvents"
-
-type Screen = "login" | "chats" | "settings"
+import { useGlobalShortcuts } from "./hooks/useGlobalShortcuts"
+import { registerShortcut } from "./lib/shortcuts"
 
 function App() {
-  const [screen, setScreen] = useState<Screen>("login")
+  const screen = useUIStore(state => state.screen)
+  const setScreen = useUIStore(state => state.setScreen)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const loginStartedRef = useRef(false)
   const [status, setStatus] = useState<string>("waiting")
@@ -89,6 +89,27 @@ function App() {
 
   useWailsEvents()
 
+  // Dispatch key combinations to whichever component registered the matching
+  // shortcut (chat list / chat detail). Registered below: app-level ones.
+  useGlobalShortcuts()
+
+  useEffect(() => {
+    const openSettings = () => {
+      if (useUIStore.getState().screen !== "login") useUIStore.getState().setScreen("settings")
+    }
+    const openProfile = () => {
+      if (useUIStore.getState().screen === "login") return
+      useUIStore.getState().setScreen("settings")
+      window.dispatchEvent(new CustomEvent("wa:open-settings-category", { detail: "account" }))
+    }
+    const unregSettings = registerShortcut("open-settings", openSettings)
+    const unregProfile = registerShortcut("profile-about", openProfile)
+    return () => {
+      unregSettings()
+      unregProfile()
+    }
+  }, [])
+
   useEffect(() => {
     const unsubQR = EventsOn("wa:qr", async (qr: string) => {
       if (!canvasRef.current) return
@@ -101,7 +122,7 @@ function App() {
     const unsubStatus = EventsOn("wa:status", (status: string) => {
       setStatus(status)
       if (status === "logged_in" || status === "success") {
-        setScreen("chats")
+        useUIStore.getState().setScreen("chats")
         void initSelf()
         const nid = (window as any).__reconnectNotifId
         if (nid !== undefined) {
@@ -205,7 +226,15 @@ function App() {
           return (
             <div key={n.id} className={`toast-base ${cls}`}>
               <span style={{ fontSize: 14 }}>{icon}</span>
-              <span>{n.message}</span>
+              <span className="toast-message">{n.message}</span>
+              <button
+                className="toast-close"
+                onClick={() => removeNotification(n.id)}
+                title="Dismiss"
+                aria-label="Dismiss notification"
+              >
+                ✕
+              </button>
             </div>
           )
         })}

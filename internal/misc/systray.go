@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 )
 
 func StartSystray() error {
@@ -19,7 +20,14 @@ func StartSystray() error {
 		baseDir = filepath.Dir(exePath)
 	}
 
+	// Windows executables carry the .exe extension. Fall back to the raw name
+	// so binaries built by older scripts still launch.
 	trayPath := filepath.Join(baseDir, "whats4linux_tray")
+	if runtime.GOOS == "windows" {
+		if _, err := os.Stat(trayPath); err != nil {
+			trayPath += ".exe"
+		}
+	}
 
 	cmd := exec.Command(trayPath)
 	cmd.Stdout = os.Stdout

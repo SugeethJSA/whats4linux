@@ -12,9 +12,11 @@ import {
   ContactIcon,
   LocationIcon,
 } from "../../assets/svgs/chat_icons"
-import { store } from "../../../wailsjs/go/models"
 import { GetCachedAvatar, SendLocation } from "../../../wailsjs/go/api/Api"
+import type { Message } from "../../store/types"
 import { useContactStore } from "../../store/useContactStore"
+import { useUIStore } from "../../store"
+import { registerShortcut } from "../../lib/shortcuts"
 import { PollDialog } from "./PollDialog"
 import { ContactShareDialog } from "./ContactShareDialog"
 
@@ -31,7 +33,7 @@ interface ChatInputProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>
   emojiPickerRef: React.RefObject<HTMLDivElement | null>
   emojiButtonRef: React.RefObject<HTMLButtonElement | null>
-  replyingTo: store.DecodedMessage | null
+  replyingTo: Message | null
   mentionableContacts: any[]
   onInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
   onKeyDown: (e: React.KeyboardEvent) => void
@@ -44,6 +46,9 @@ interface ChatInputProps {
   onCancelReply: () => void
   onMentionAdd: (contact: any) => void
   selectedMentions: any[]
+  /** Send the selected video as an animated GIF (gifPlayback message). */
+  sendAsGif?: boolean
+  onToggleSendAsGif?: () => void
 }
 
 const FILE_TYPE_ICONS = {
@@ -78,19 +83,41 @@ interface FilePreviewProps {
   file: File
   fileType: string
   onRemove: () => void
+  /** Video/gif files can be sent as an animated GIF (gifPlayback message). */
+  gifEnabled?: boolean
+  onToggleGif?: () => void
 }
 
-const FilePreview = ({ file, fileType, onRemove }: FilePreviewProps) => (
-  <div className="mb-2 flex items-center rounded-xl gap-2 bg-gray-100 dark:bg-gray-700 p-2 rounded-lg">
+const FilePreview = ({ file, fileType, onRemove, gifEnabled, onToggleGif }: FilePreviewProps) => (
+  <div className="mb-2 flex items-center gap-2 rounded-xl bg-gray-100 p-2 dark:bg-gray-700">
     <div className="flex-1">
       <div className="flex items-center gap-2">
         {FILE_TYPE_ICONS[fileType as keyof typeof FILE_TYPE_ICONS]}
         <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{file.name}</span>
+        {fileType === "gif" && (
+          <span className="rounded bg-[#21c063]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-[#21c063]">
+            GIF
+          </span>
+        )}
       </div>
       <span className="text-xs text-light-muted dark:text-dark-muted">
         {(file.size / 1024).toFixed(2)} KB
       </span>
     </div>
+    {(fileType === "video" || fileType === "gif") && onToggleGif && (
+      <button
+        onClick={onToggleGif}
+        title="Send as an animated GIF (loops instead of playing like a video)"
+        className={clsx(
+          "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
+          gifEnabled
+            ? "border-[#21c063] bg-[#21c063] text-[#0a1014]"
+            : "border-gray-300 dark:border-white/15 text-light-muted dark:text-dark-muted hover:bg-gray-200 dark:hover:bg-gray-600",
+        )}
+      >
+        GIF
+      </button>
+    )}
     <button onClick={onRemove} className="text-red-500 hover:text-red-600 p-1" title="Remove file">
       ×
     </button>
@@ -144,6 +171,8 @@ export function ChatInput({
   onCancelReply,
   onMentionAdd,
   selectedMentions,
+  sendAsGif,
+  onToggleSendAsGif,
 }: ChatInputProps) {
   const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([])
   const [attachMenuOpen, setAttachMenuOpen] = useState(false)
@@ -157,6 +186,14 @@ export function ChatInput({
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [mentionAvatars, setMentionAvatars] = useState<Record<string, string>>({})
   const [loadingAvatars, setLoadingAvatars] = useState<Record<string, boolean>>({})
+
+  // Alt+A opens/toggles this component's attachment dropdown (the global
+  // shortcut handler won't reach here while the user is typing in the box).
+  const screen = useUIStore(state => state.screen)
+  useEffect(() => {
+    if (screen !== "chats") return
+    return registerShortcut("attach-menu", () => setAttachMenuOpen(v => !v))
+  }, [screen])
   const avatarCacheRef = useRef<Record<string, string>>({})
   const suggestionsRef = useRef<HTMLDivElement>(null)
   const backdropRef = useRef<HTMLDivElement>(null)
@@ -424,7 +461,15 @@ export function ChatInput({
         <div className="mb-2 rounded-xl border border-gray-200 dark:border-dark-border bg-light-bg p-2 dark:border-transparent dark:bg-dark-secondary">
           {pastedImage && <ImagePreview imageSrc={pastedImage} onRemove={onRemoveFile} />}
           {selectedFile && (
-            <FilePreview file={selectedFile} fileType={selectedFileType} onRemove={onRemoveFile} />
+            <FilePreview
+              file={selectedFile}
+              fileType={selectedFileType}
+              onRemove={onRemoveFile}
+              gifEnabled={selectedFileType === "gif" || sendAsGif}
+              onToggleGif={
+                selectedFileType === "video" ? onToggleSendAsGif : undefined
+              }
+            />
           )}
           {renderReplyPreview()}
         </div>

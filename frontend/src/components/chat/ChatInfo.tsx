@@ -122,7 +122,6 @@ export function ChatInfo({
     name?: string
     description?: string
     subscriber_count?: number
-    mute?: string
   } | null>(null)
   const [newsletterMuted, setNewsletterMuted] = useState(false)
   const MAX_VISIBLE = 10
@@ -202,7 +201,7 @@ export function ChatInfo({
       .then(info => {
         if (cancelled) return
         setNewsletterInfo(info)
-        setNewsletterMuted(info?.mute === "on")
+        setNewsletterMuted(false)
       })
       .catch(() => {})
     return () => {
@@ -576,7 +575,7 @@ export function ChatInfo({
                     About
                   </p>
                   <p className="text-gray-900 dark:text-gray-100">
-                    {contactInfo.status || "No about info"}
+                    {(contactInfo as { status?: string }).status || "No about info"}
                   </p>
                 </div>
               </div>

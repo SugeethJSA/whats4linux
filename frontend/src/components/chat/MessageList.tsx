@@ -1,16 +1,16 @@
 import { forwardRef, useImperativeHandle, useRef, memo } from "react"
 import { Virtuoso, type VirtuosoHandle, type Components } from "react-virtuoso"
-import { store } from "../../../wailsjs/go/models"
+import type { Message } from "../../store/types"
 import { MessageItem } from "./MessageItem"
 
 interface MessageListProps {
   chatId: string
-  messages: store.DecodedMessage[]
+  messages: Message[]
   // Virtuoso anchor for prepending older messages without a scroll jump: it
   // decreases by the number of messages prepended (see ChatDetail).
   firstItemIndex: number
   sentMediaCache: React.MutableRefObject<Map<string, string>>
-  onReply?: (message: store.DecodedMessage) => void
+  onReply?: (message: Message) => void
   onQuotedClick?: (messageId: string) => void
   onLoadMore?: () => void
   onAtBottomChange?: (atBottom: boolean) => void
@@ -39,7 +39,7 @@ interface ListContext {
 // Components must be stable module-level references: an inline object/arrow
 // recreated per render makes Virtuoso remount them on every parent re-render
 // (which happens mid-scroll via atBottomStateChange), causing visible hitches.
-const ListHeader: Components<store.DecodedMessage, ListContext>["Header"] = ({ context }) =>
+const ListHeader: Components<Message, ListContext>["Header"] = ({ context }) =>
   context?.isLoading ? (
     <div className="flex justify-center py-4">
       <div className="animate-spin h-5 w-5 border-2 border-green-500 rounded-full border-t-transparent" />
@@ -47,11 +47,11 @@ const ListHeader: Components<store.DecodedMessage, ListContext>["Header"] = ({ c
   ) : null
 
 // Breathing room between the last message and the composer.
-const ListFooter: Components<store.DecodedMessage, ListContext>["Footer"] = () => (
+const ListFooter: Components<Message, ListContext>["Footer"] = () => (
   <div className="h-2" />
 )
 
-const listComponents: Components<store.DecodedMessage, ListContext> = {
+const listComponents: Components<Message, ListContext> = {
   Header: ListHeader,
   Footer: ListFooter,
 }

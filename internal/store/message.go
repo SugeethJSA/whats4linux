@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -43,6 +44,7 @@ type ChatMessage struct {
 	MessageText string
 	MessageTime int64
 	Sender      string
+	IsFromMe    bool
 }
 
 // DecodedMessage represents a message from messages.db with decoded fields
@@ -187,6 +189,9 @@ func NewMessageStore() (*MessageStore, error) {
 			return aerr
 		}
 		if _, aerr := tx.Exec(query.AddPTAColumns); aerr != nil && !strings.Contains(aerr.Error(), "duplicate column") {
+			return aerr
+		}
+		if _, aerr := tx.Exec(query.AddFileLengthColumn); aerr != nil && !strings.Contains(aerr.Error(), "duplicate column") {
 			return aerr
 		}
 		_, err = tx.Exec(query.CreatePinnedMessagesTable)
@@ -490,8 +495,65 @@ func (ms *MessageStore) MigrateLIDToPN(ctx context.Context, sd store.LIDStore) e
 				continue
 			}
 		}
+
+		// Migrate JID columns in all secondary tables (reactions, pins,
+		// archives, mutes, read receipts) so LID references don't leak into
+		// them and break lookups after a LID->PN relink.
+		for _, job := range []struct {
+			selectSQL string
+			updateSQL string
+			column    string
+		}{
+			{query.SelectDistinctJIDColumnReactionsSender, query.UpdateReactionsSenderJID, "reactions.sender_id"},
+			{query.SelectDistinctJIDColumnPinnedMessagesChat, query.UpdatePinnedMessagesChatJID, "pinned_messages.chat_jid"},
+			{query.SelectDistinctJIDColumnPinnedMessagesSender, query.UpdatePinnedMessagesSenderJID, "pinned_messages.sender_jid"},
+			{query.SelectDistinctJIDColumnPinnedChats, query.UpdatePinnedChatsJID, "pinned_chats.chat_jid"},
+			{query.SelectDistinctJIDColumnArchivedChats, query.UpdateArchivedChatsJID, "archived_chats.chat_jid"},
+			{query.SelectDistinctJIDColumnMutedChats, query.UpdateMutedChatsJID, "muted_chats.chat_jid"},
+			{query.SelectDistinctJIDColumnReadReceipts, query.UpdateReadReceiptsJID, "read_receipts.chat_jid"},
+		} {
+			if err := migrateJIDColumn(ctx, sd, tx, job.selectSQL, job.updateSQL, job.column); err != nil {
+				log.Printf("LID migration failed for %s: %v", job.column, err)
+			}
+		}
+
 		return nil
 	})
+}
+
+// migrateJIDColumn canonicalizes every distinct JID in a table column from LID
+// to PN using the whatsmeow LID store, updating rows in place.
+func migrateJIDColumn(ctx context.Context, sd store.LIDStore, tx *sql.Tx, selectSQL, updateSQL, column string) error {
+	rows, err := tx.Query(selectSQL)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var raw string
+	for rows.Next() {
+		if err := rows.Scan(&raw); err != nil {
+			continue
+		}
+		jid, err := types.ParseJID(raw)
+		if err != nil {
+			continue
+		}
+		original := jid.String()
+		if !updateCanonicalJID(ctx, sd, &jid) {
+			continue
+		}
+		converted := jid.String()
+		if converted == original {
+			continue
+		}
+		if _, err := tx.Exec(updateSQL, converted, original); err != nil {
+			log.Printf("Failed to migrate %s from %s to %s: %v", column, original, converted, err)
+			continue
+		}
+		log.Printf("Migrated %s from LID %s to PN %s", column, original, converted)
+	}
+	return rows.Err()
 }
 
 // migrateChatlist migrates chatlist entries from LID to PN when a new PN chat is detected
@@ -603,20 +665,16 @@ func (ms *MessageStore) ProcessMessageEvent(ctx context.Context, sd store.LIDSto
 	} else {
 		messageText = ExtractMessageText(msg.Message)
 	}
-	sender := msg.Info.PushName
-	if sender == "" && msg.Info.Sender.User != "" {
-		sender = msg.Info.Sender.User
-	}
-
-	if msg.Info.IsFromMe {
-		sender = "You"
-	}
-
+	// Sender is the canonical sender JID (resolved by the api layer to a
+	// display name for the chat list) plus a flag so the UI can prefix
+	// "You: " for own messages. Keep it a JID here so the in-memory cache
+	// stays consistent with the rows loaded from messages.db.
 	chatMsg := ChatMessage{
 		JID:         msg.Info.Chat,
 		MessageText: messageText,
 		MessageTime: msg.Info.Timestamp.Unix(),
-		Sender:      sender,
+		Sender:      msg.Info.Sender.String(),
+		IsFromMe:    msg.Info.IsFromMe,
 	}
 
 	ms.chatListMap.Set(chat, chatMsg)
@@ -767,6 +825,7 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 			ptt,
 			seconds,
 			waveform,
+			getFileLength(msg),
 		)
 		if err != nil {
 			return err
@@ -893,6 +952,7 @@ func (ms *MessageStore) GetMessageWithMedia(chatJID string, messageID string) (*
 			fileSHA256    []byte
 			fileEncSHA256 []byte
 			width, height int
+			fileLength    int64
 		)
 		err = ms.db.QueryRow(query.SelectMessageMediaByMessageID, messageID).Scan(
 			&mediaType,
@@ -905,6 +965,7 @@ func (ms *MessageStore) GetMessageWithMedia(chatJID string, messageID string) (*
 			&width,
 			&height,
 			&fileName,
+			&fileLength,
 		)
 		if err != nil {
 			log.Println("GetMessageWithMedia media query error:", err)
@@ -918,6 +979,7 @@ func (ms *MessageStore) GetMessageWithMedia(chatJID string, messageID string) (*
 			width, height,
 			mtypes.MediaType(mediaType),
 		)
+		media.SetFileLength(fileLength)
 	}
 
 	return &ExtendedMessage{
@@ -984,6 +1046,7 @@ func (ms *MessageStore) GetMessageWithMediaByID(messageID string) (*ExtendedMess
 			fileSHA256    []byte
 			fileEncSHA256 []byte
 			width, height int
+			fileLength    int64
 		)
 		err = ms.db.QueryRow(query.SelectMessageMediaByMessageID, messageID).Scan(
 			&mediaType,
@@ -996,6 +1059,7 @@ func (ms *MessageStore) GetMessageWithMediaByID(messageID string) (*ExtendedMess
 			&width,
 			&height,
 			&fileName,
+			&fileLength,
 		)
 		if err != nil {
 			return nil, err
@@ -1008,6 +1072,7 @@ func (ms *MessageStore) GetMessageWithMediaByID(messageID string) (*ExtendedMess
 			width, height,
 			mtypes.MediaType(mediaType),
 		)
+		media.SetFileLength(fileLength)
 	}
 
 	return &ExtendedMessage{
@@ -1102,6 +1167,7 @@ func (ms *MessageStore) chatListFromQuery(q string) []ChatMessage {
 			MessageText: messageText,
 			MessageTime: timestamp,
 			Sender:      senderJID,
+			IsFromMe:    isFromMe,
 		}
 
 		// Cache per-chat entry
@@ -1311,6 +1377,33 @@ func extractMessageContent(msg *waE2E.Message) (text, fileName, replyToMessageID
 	}
 
 	return
+}
+
+// getFileLength returns the decrypted size WhatsApp reports for a media
+// message, or 0 when unknown/not a media message. It is used to display
+// accurate download progress.
+func getFileLength(msg *waE2E.Message) int64 {
+	toInt64 := func(v uint64) int64 {
+		if v > math.MaxInt64 {
+			return 0
+		}
+		return int64(v)
+	}
+	switch {
+	case msg.GetImageMessage() != nil:
+		return toInt64(msg.GetImageMessage().GetFileLength())
+	case msg.GetVideoMessage() != nil:
+		return toInt64(msg.GetVideoMessage().GetFileLength())
+	case msg.GetDocumentMessage() != nil:
+		return toInt64(msg.GetDocumentMessage().GetFileLength())
+	case msg.GetAudioMessage() != nil:
+		return toInt64(msg.GetAudioMessage().GetFileLength())
+	case msg.GetPtvMessage() != nil:
+		return toInt64(msg.GetPtvMessage().GetFileLength())
+	case msg.GetStickerMessage() != nil:
+		return toInt64(msg.GetStickerMessage().GetFileLength())
+	}
+	return 0
 }
 
 type decodedPageRow struct {

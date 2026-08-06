@@ -37,7 +37,7 @@ export function InviteLinkDialog({ onClose }: InviteLinkDialogProps) {
     setError("")
     setSuccess("")
     try {
-      const jid = await AcceptGroupInviteLink(code)
+      await AcceptGroupInviteLink(code)
       setSuccess(`Joined successfully!`)
       setTimeout(onClose, 1500)
     } catch (e: any) {

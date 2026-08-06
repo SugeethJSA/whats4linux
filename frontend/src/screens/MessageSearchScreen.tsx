@@ -46,8 +46,8 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
   const [suggestions, setSuggestions] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const setActiveChatId = useMessageStore(s => s.setActiveChatId)
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
-  const suggestionRef = useRef<ReturnType<typeof setTimeout>>()
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const suggestionRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const doSearch = useCallback(
     async (q: string, filter: string, sender: string, off: number, append: boolean) => {

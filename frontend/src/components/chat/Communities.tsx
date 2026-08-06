@@ -336,18 +336,22 @@ export function CommunityHome({
                 if (!url || cancelled) continue
                 setDetails(current => {
                   if (!current) return current
-                  if (target.kind === "community") return { ...current, avatar_url: url }
+                  if (target.kind === "community")
+                    return api.CommunityDetails.createFrom({ ...current, avatar_url: url })
                   if (target.kind === "announcement") {
                     return current.announcement?.jid === target.jid
-                      ? { ...current, announcement: { ...current.announcement, avatar_url: url } }
+                      ? api.CommunityDetails.createFrom({
+                          ...current,
+                          announcement: { ...current.announcement, avatar_url: url },
+                        })
                       : current
                   }
-                  return {
+                  return api.CommunityDetails.createFrom({
                     ...current,
                     groups: current.groups.map(group =>
                       group.jid === target.jid ? { ...group, avatar_url: url } : group,
                     ),
-                  }
+                  })
                 })
               } catch {
                 /* ignore missing avatars */

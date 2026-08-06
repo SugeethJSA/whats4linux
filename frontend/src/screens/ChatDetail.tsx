@@ -9,16 +9,21 @@ import {
   MarkRead,
   SubscribeContactPresence,
   MakeCall,
+  StarMessage,
 } from "../../wailsjs/go/api/Api"
 import { store } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
 import { useMessageStore, useUIStore, useChatStore } from "../store"
+import { useContactStore } from "../store/useContactStore"
 import { MessageList, type MessageListHandle } from "../components/chat/MessageList"
 import { ChatHeader } from "../components/chat/ChatHeader"
 import { ChatInput } from "../components/chat/ChatInput"
 import { ChatInfo } from "../components/chat/ChatInfo"
+import { ForwardDialog } from "../components/chat/ForwardDialog"
+import { registerShortcut } from "../lib/shortcuts"
+import type { ChatItem, Message } from "../store/types"
 import clsx from "clsx"
-import { formatPhone } from "../lib/utils"
+import { formatPhone, phoneFromJID } from "../lib/utils"
 import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
 import { getEase } from "../store/useEaseStore"
@@ -34,6 +39,16 @@ const PAGE_SIZE = 50
 // Virtuoso needs a stable, large starting index so it can decrement as older
 // messages are prepended, keeping the scroll position anchored.
 const START_INDEX = 1_000_000
+
+// "Reply privately" quotes a message from the group the user is currently in,
+// then switches to a 1:1 chat with that sender. The message is staged here and
+// consumed by the newly-mounted ChatDetail (keyed by chatId).
+let pendingReplyMessage: Message | null = null
+const takePendingReply = (): Message | null => {
+  const msg = pendingReplyMessage
+  pendingReplyMessage = null
+  return msg
+}
 
 function blobToDataURL(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -63,13 +78,16 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     typingIndicators,
   } = useUIStore()
   const { chatsById } = useChatStore()
+  const screen = useUIStore(state => state.screen)
 
   const chatMessages = messages[chatId] || []
   const [inputText, setInputText] = useState("")
   const [pastedImage, setPastedImage] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedFileType, setSelectedFileType] = useState<string>("")
-  const [replyingTo, setReplyingTo] = useState<store.DecodedMessage | null>(null)
+  const [sendAsGif, setSendAsGif] = useState(false)
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null)
+  const [forwardTarget, setForwardTarget] = useState<string | null>(null)
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
 
   const [mentionableContacts, setMentionableContacts] = useState<any[]>([])
@@ -95,7 +113,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   const requestGenerationRef = useRef(0)
   const loadingMoreRef = useRef(false)
   const hasMoreRef = useRef(true)
-  const loadMorePromiseRef = useRef<Promise<store.DecodedMessage[]> | null>(null)
+  const loadMorePromiseRef = useRef<Promise<Message[]> | null>(null)
   const initialLoadPromiseRef = useRef<Promise<void> | null>(null)
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -220,6 +238,86 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     return () => window.removeEventListener("keydown", onKey)
   }, [chatInfoOpen, showEmojiPicker, replyingTo, onBack, setChatInfoOpen, setShowEmojiPicker])
 
+  // Pick up a staged quote from "Reply privately" (Alt+R in a group switches
+  // to the sender's 1:1 chat with the group message quoted).
+  useEffect(() => {
+    const pending = takePendingReply()
+    if (pending) setReplyingTo(pending)
+  }, [chatId])
+
+  // Global keyboard shortcuts that act on the open chat. Registered only while
+  // the chats screen is visible (this component stays mounted underneath the
+  // settings screen).
+  useEffect(() => {
+    if (screen !== "chats") return
+
+    const unregs: Array<() => void> = []
+
+    const lastMessage = (): Message | undefined => {
+      const msgs = useMessageStore.getState().messages[chatId] || []
+      return msgs.length ? msgs[msgs.length - 1] : undefined
+    }
+
+    const lastMessageText = (msg?: Message) => {
+      return msg?.Content?.conversation || msg?.Content?.extendedTextMessage?.text || ""
+    }
+
+    unregs.push(
+      registerShortcut("chat-info", () => setChatInfoOpen(true)),
+      registerShortcut("emoji-panel", () => setShowEmojiPicker(true)),
+      registerShortcut("reply", () => {
+        const msg = lastMessage()
+        if (!msg || !msg.Content) return
+        if (lastMessageText(msg).startsWith("[system]")) return
+        setReplyingTo(msg)
+      }),
+      registerShortcut("forward", () => {
+        const msg = lastMessage()
+        if (msg?.Info?.ID) setForwardTarget(msg.Info.ID)
+      }),
+      registerShortcut("star-last", () => {
+        const msg = lastMessage()
+        if (msg?.Info?.ID) {
+          StarMessage(chatId, msg.Info.ID, true).catch(err => console.error("Star failed:", err))
+        }
+      }),
+      // Quote the last own message and edit it in place (WhatsApp Ctrl+ArrowUp).
+      registerShortcut("edit-last", () => {
+        const msgs = useMessageStore.getState().messages[chatId] || []
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          const m = msgs[i]
+          if (!m.Info?.IsFromMe) continue
+          const text = lastMessageText(m)
+          if (!text || text.startsWith("[system]")) continue
+          window.dispatchEvent(new CustomEvent("wa:edit-message", { detail: m.Info.ID }))
+          break
+        }
+      }),
+      // Group messages only: jump to a 1:1 with the sender, quoting their post.
+      registerShortcut("reply-private", () => {
+        const msg = lastMessage()
+        if (!msg || msg.Info?.IsFromMe) return
+        const senderJid = msg.Info?.Sender
+        if (!senderJid || senderJid === chatId) return
+        const contact = useContactStore.getState().contacts[senderJid]
+        pendingReplyMessage = msg
+        const chatItem: ChatItem = {
+          id: senderJid,
+          name:
+            contact?.name ||
+            msg.Info?.PushName ||
+            phoneFromJID(senderJid) ||
+            senderJid.split("@")[0],
+          subtitle: "",
+          type: "contact",
+        }
+        useChatStore.getState().selectChat(chatItem)
+      }),
+    )
+
+    return () => unregs.forEach(unreg => unreg())
+  }, [screen, chatId, setChatInfoOpen, setShowEmojiPicker])
+
   const loadInitialMessages = useCallback(
     async (generation: number) => {
       setInitialLoad(true)
@@ -271,7 +369,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     [chatId, setMessages],
   )
 
-  const loadMoreMessages = useCallback((): Promise<store.DecodedMessage[]> => {
+  const loadMoreMessages = useCallback((): Promise<Message[]> => {
     if (loadMorePromiseRef.current) return loadMorePromiseRef.current
     if (!hasMoreRef.current || loadingMoreRef.current) return Promise.resolve([])
 
@@ -443,11 +541,13 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
             _tempFile: fileToSend,
           },
         }
-      } else if (fileTypeToSend === "video") {
+      } else if (fileTypeToSend === "video" || fileTypeToSend === "gif") {
+        const asGif = fileTypeToSend === "gif" || sendAsGif
         pendingMessage.Content = {
           videoMessage: {
             caption: textToSend || "",
             mimetype: fileToSend.type,
+            gifPlayback: asGif,
             _tempFile: fileToSend,
           },
         }
@@ -565,8 +665,9 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
       } else if (fileToSend) {
         const dataURL = await blobToDataURL(fileToSend)
         const base64 = dataURL.split(",")[1]
+        const asGif = fileTypeToSend === "gif" || (fileTypeToSend === "video" && sendAsGif)
         await SendMessage(chatId, {
-          type: fileTypeToSend,
+          type: "video",
           clientTempId: tempId,
           base64Data: base64,
           mimetype: fileToSend.type || "application/octet-stream",
@@ -574,6 +675,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
           text: processedText,
           quotedMessageId,
           mentions: mentionsToSend,
+          gifPlayback: asGif,
         })
       } else {
         await SendMessage(chatId, {
@@ -622,23 +724,23 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     // They will be compatible due to the Info and Content structure
     const unsub = EventsOn(
       "wa:new_message",
-      (data: { chatId: string; message: any; clientTempId?: string }) => {
+      (data: { chatId: string; message: Message; clientTempId?: string }) => {
         if (data?.chatId === chatId && data.message?.Info?.ID) {
           // Use getState to avoid depending on messages array and causing re-subscriptions
           const currentMessages = useMessageStore.getState().messages[chatId] || []
-          const hasPendingMessage = currentMessages.some((m: any) => m.isPending)
+          const hasPendingMessage = currentMessages.some(m => m.isPending)
 
           if (hasPendingMessage && data.message.Info?.IsFromMe && data.clientTempId) {
-            const pendingMessages = currentMessages.filter((m: any) => m.isPending)
-            const pending = pendingMessages.find((m: any) => m.tempId === data.clientTempId)
-            if (pending) {
-              for (const body of ["imageMessage", "videoMessage", "audioMessage"]) {
+            const pendingMessages = currentMessages.filter(m => m.isPending)
+            const pending = pendingMessages.find(m => m.tempId === data.clientTempId)
+            if (pending && pending.tempId) {
+              for (const body of ["imageMessage", "videoMessage", "audioMessage"] as const) {
                 const transient =
                   pending.Content?.[body]?._tempImage || pending.Content?.[body]?._tempFile
                 if (transient && data.message.Content?.[body]) {
-                  data.message.Content[body][
-                    transient instanceof File ? "_tempFile" : "_tempImage"
-                  ] = transient
+                  const content = data.message.Content[body]
+                  if (transient instanceof File) content._tempFile = transient
+                  else content._tempImage = transient
                 }
               }
               updatePendingMessageToSent(data.chatId, pending.tempId, data.message)
@@ -851,18 +953,27 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
             const file = e.target.files?.[0]
             if (file) {
               setSelectedFile(file)
+              setSendAsGif(false)
               const generalType = file.type.split("/")[0]
+              // Animated GIF files are sent as gifPlayback videos, not images.
               setSelectedFileType(
-                generalType === "image" || generalType === "video" || generalType === "audio"
-                  ? generalType
-                  : "document",
+                file.type.toLowerCase() === "image/gif"
+                  ? "gif"
+                  : generalType === "image" ||
+                      generalType === "video" ||
+                      generalType === "audio"
+                    ? generalType
+                    : "document",
               )
             }
           }}
           onRemoveFile={() => {
             setSelectedFile(null)
             setPastedImage(null)
+            setSendAsGif(false)
           }}
+          sendAsGif={sendAsGif}
+          onToggleSendAsGif={() => setSendAsGif(v => !v)}
           onEmojiClick={emoji => {
             setInputText(prev => prev + emoji)
             setShowEmojiPicker(false)
@@ -882,6 +993,14 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
         isOpen={chatInfoOpen}
         onClose={() => setChatInfoOpen(false)}
       />
+
+      {forwardTarget && (
+        <ForwardDialog
+          sourceJID={chatId}
+          messageID={forwardTarget}
+          onClose={() => setForwardTarget(null)}
+        />
+      )}
     </div>
   )
 }

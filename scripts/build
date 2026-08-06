@@ -1,5 +1,10 @@
 #!/bin/sh
 cd systray
-go build -o ../build/bin/whats4linux_tray
+TRAY_BIN=whats4linux_tray
+# Windows requires the .exe extension to launch the tray.
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) TRAY_BIN=whats4linux_tray.exe ;;
+esac
+go build -o ../build/bin/$TRAY_BIN
 cd ..
 wails build $1

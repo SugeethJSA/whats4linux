@@ -59,8 +59,10 @@ type Api struct {
 	groupRepairInFlight atomic.Bool
 	appStateResync      atomic.Bool
 
-	taskCh   chan func()
-	workerWg sync.WaitGroup
+	taskCh         chan func()
+	workerWg       sync.WaitGroup
+	healthCheckCtx context.CancelFunc
+	healthCheckWg  sync.WaitGroup
 }
 
 // repairGroupNames heals whats4linux_groups rows that are missing or were
@@ -309,12 +311,86 @@ func (a *Api) isShuttingDown() bool {
 	return a.shuttingDown
 }
 
+// startConnectionHealthCheck begins periodic connection health monitoring.
+// It sends a ping every 30 seconds and triggers reconnection if the connection appears stale.
+func (a *Api) startConnectionHealthCheck() {
+	a.lifecycleMu.Lock()
+	if a.healthCheckCtx != nil {
+		a.lifecycleMu.Unlock()
+		return
+	}
+	ctx, cancel := context.WithCancel(a.ctx)
+	a.healthCheckCtx = cancel
+	a.lifecycleMu.Unlock()
+
+	a.healthCheckWg.Add(1)
+	go func() {
+		defer a.healthCheckWg.Done()
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+
+		consecutiveFailures := 0
+		const maxFailures = 3
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if a.isShuttingDown() {
+					return
+				}
+
+				a.lifecycleMu.Lock()
+				client := a.waClient
+				a.lifecycleMu.Unlock()
+
+				if client == nil {
+					continue
+				}
+
+				if !client.IsConnected() {
+					consecutiveFailures++
+					slog.Warn(fmt.Sprintf("Health check: client not connected (failures: %d/%d)", consecutiveFailures, maxFailures), "source", "health")
+					if consecutiveFailures >= maxFailures {
+						slog.Error("Health check: max failures reached, triggering reconnect", "source", "health")
+						a.emitError("Connection lost — reconnecting...")
+						a.startBackground(a.reconnectLoop)
+						return
+					}
+					continue
+				}
+
+				// whatsmeow's internal keepalive (keepAliveLoop) already
+				// detects dead links, dispatches events.KeepAliveTimeout and
+				// forces an auto-reconnect after KeepAliveMaxFailTime, so no
+				// app-level ping is needed here.
+				consecutiveFailures = 0
+			}
+		}
+	}()
+}
+
+func (a *Api) stopConnectionHealthCheck() {
+	a.lifecycleMu.Lock()
+	cancel := a.healthCheckCtx
+	a.healthCheckCtx = nil
+	a.lifecycleMu.Unlock()
+
+	if cancel != nil {
+		cancel()
+		a.healthCheckWg.Wait()
+	}
+}
+
 func (a *Api) OnSecondInstanceLaunch(_ options.SecondInstanceData) {
 	runtime.WindowUnminimise(a.ctx)
 	runtime.Show(a.ctx)
 }
 
 func (a *Api) Shutdown(_ context.Context) {
+	a.stopConnectionHealthCheck()
+
 	a.taskMu.Lock()
 	a.shuttingDown = true
 	a.taskMu.Unlock()
@@ -508,10 +584,12 @@ func (a *Api) Login() error {
 		if a.isShuttingDown() {
 			return context.Canceled
 		}
+
 		err = client.Connect()
 		if err != nil {
 			return err
 		}
+
 		for {
 			select {
 			case <-loginCtx.Done():
@@ -712,6 +790,8 @@ func (a *Api) mainEventHandler(evt any) {
 			slog.Info("LID migration completed", "source", "migration")
 			runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 		}
+		// Start connection health monitoring
+		a.startConnectionHealthCheck()
 	case *events.HistorySync:
 		// whatsmeow delivers past conversations here after linking. Process
 		// in a background goroutine so thousands of messages don't block the
@@ -766,6 +846,47 @@ func (a *Api) mainEventHandler(evt any) {
 
 	case *events.GroupInfo:
 		a.startBackground(func() { a.handleGroupInfoEvent(v) })
+
+	case *events.AppStateSyncComplete:
+		slog.Info(fmt.Sprintf("App state sync complete: %s", v.Name), "source", "appstate")
+		runtime.EventsEmit(a.ctx, "wa:appstate_sync_complete", map[string]any{
+			"name": string(v.Name),
+		})
+
+	case *events.StreamReplaced:
+		slog.Warn("Stream replaced — another device took over", "source", "connection")
+		a.emitError("Another device took over the connection")
+		a.startBackground(a.reconnectLoop)
+
+	case *events.PushNameSetting:
+		newName := ""
+		if v.Action != nil {
+			newName = v.Action.GetName()
+		}
+		slog.Info(fmt.Sprintf("Own push name changed: %q", newName), "source", "profile")
+		runtime.EventsEmit(a.ctx, "wa:push_name_changed", newName)
+
+	case *events.KeepAliveTimeout:
+		slog.Warn(fmt.Sprintf("Keepalive failing (errors: %d, last success: %s)", v.ErrorCount, v.LastSuccess.Format(time.RFC3339)), "source", "connection")
+		runtime.EventsEmit(a.ctx, "wa:connection_unstable", map[string]any{
+			"errorCount": v.ErrorCount,
+		})
+
+	case *events.KeepAliveRestored:
+		slog.Info("Keepalive restored", "source", "connection")
+		runtime.EventsEmit(a.ctx, "wa:connection_stable")
+
+	case *events.LoggedOut:
+		slog.Warn("Logged out from another device", "source", "connection")
+		runtime.EventsEmit(a.ctx, "wa:logged_out")
+
+	case *events.ConnectFailure:
+		slog.Error(fmt.Sprintf("Connection attempt failed: %s", v.Reason), "source", "connection")
+		a.emitError("Failed to connect to WhatsApp")
+
+	case *events.ClientOutdated:
+		slog.Error("WhatsApp blocked this client version", "source", "connection")
+		a.emitError("WhatsApp no longer supports this client — update the app")
 
 	default:
 		// Ignore other events for now

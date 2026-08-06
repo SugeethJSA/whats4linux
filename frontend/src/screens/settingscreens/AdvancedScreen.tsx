@@ -11,21 +11,108 @@ import {
 
 import ComponentColorSelector from "../../components/settings/ComponentColorSelector"
 import EaseVisualizer from "../../components/settings/ComponentEaseSelector"
+import {
+  SettingsCard,
+  TextField,
+  ActionButton,
+  StatusBanner,
+} from "../../components/settings/ui-kit"
+
+function CodeEditorCard({
+  title,
+  description,
+  value,
+  onChange,
+  onSave,
+  placeholder,
+  saved,
+}: {
+  title: string
+  description: string
+  value: string
+  onChange: (v: string) => void
+  onSave: () => void
+  placeholder: string
+  saved: boolean
+}) {
+  return (
+    <SettingsCard>
+      <div className="border-b border-black/[0.04] px-5 py-4 dark:border-white/[0.06]">
+        <h3 className="text-[15px] font-semibold text-light-text dark:text-dark-text">{title}</h3>
+        <p className="mt-0.5 text-[13px] text-light-muted dark:text-dark-muted">{description}</p>
+      </div>
+      <div className="space-y-3 p-5">
+        <textarea
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          spellCheck={false}
+          className="h-40 w-full resize-y rounded-xl border border-black/[0.08] bg-light-secondary p-3 font-mono text-[13px] leading-relaxed text-light-text outline-none transition-all placeholder:text-light-muted/60 focus:border-[#21c063] focus:ring-2 focus:ring-[#21c063]/20 dark:border-white/[0.1] dark:bg-dark-tertiary dark:text-dark-text dark:placeholder:text-dark-muted/50"
+        />
+        <div className="flex items-center gap-3">
+          <ActionButton onClick={onSave}>Save {title}</ActionButton>
+          {saved && <StatusBanner tone="success">Applied and saved</StatusBanner>}
+        </div>
+      </div>
+    </SettingsCard>
+  )
+}
+
+function SectionCard({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description: string
+  children: React.ReactNode
+}) {
+  return (
+    <SettingsCard>
+      <div className="border-b border-black/[0.04] px-5 py-4 dark:border-white/[0.06]">
+        <h3 className="text-[15px] font-semibold text-light-text dark:text-dark-text">{title}</h3>
+        <p className="mt-0.5 text-[13px] text-light-muted dark:text-dark-muted">{description}</p>
+      </div>
+      <div className="space-y-3 p-5">{children}</div>
+    </SettingsCard>
+  )
+}
 
 const AdvancedScreen = () => {
   const [customCSS, setCustomCSS] = useState("")
   const [customJS, setCustomJS] = useState("")
   const [proxyURL, setProxyURL] = useState("")
   const [proxyBusy, setProxyBusy] = useState(false)
-  const [proxyResult, setProxyResult] = useState("")
+  const [proxyResult, setProxyResult] = useState<string | null>(null)
   const [stickerPackID, setStickerPackID] = useState("")
   const [stickerBusy, setStickerBusy] = useState(false)
-  const [stickerResult, setStickerResult] = useState("")
+  const [stickerResult, setStickerResult] = useState<string | null>(null)
+  const [cssSaved, setCssSaved] = useState(false)
+  const [jsSaved, setJsSaved] = useState(false)
+  const [reloadMsg, setReloadMsg] = useState<string | null>(null)
 
   useEffect(() => {
     GetCustomCSS().then(setCustomCSS)
     GetCustomJS().then(setCustomJS)
   }, [])
+
+  useEffect(() => {
+    if (!cssSaved) return
+    const t = setTimeout(() => setCssSaved(false), 2000)
+    return () => clearTimeout(t)
+  }, [cssSaved])
+
+  useEffect(() => {
+    if (!jsSaved) return
+    const t = setTimeout(() => setJsSaved(false), 2000)
+    return () => clearTimeout(t)
+  }, [jsSaved])
+
+  useEffect(() => {
+    if (!reloadMsg) return
+    const t = setTimeout(() => setReloadMsg(null), 2000)
+    return () => clearTimeout(t)
+  }, [reloadMsg])
 
   const applyCustomCode = (code: string, id: string, tag: "style" | "script") => {
     const oldElement = document.getElementById(id)
@@ -42,13 +129,13 @@ const AdvancedScreen = () => {
   const handleSaveCSS = async () => {
     await SetCustomCSS(customCSS)
     applyCustomCode(customCSS, "custom-css", "style")
-    alert("Custom CSS saved and applied!")
+    setCssSaved(true)
   }
 
   const handleSaveJS = async () => {
     await SetCustomJS(customJS)
     applyCustomCode(customJS, "custom-js", "script")
-    alert("Custom JS saved and applied!")
+    setJsSaved(true)
   }
 
   const handleReloadCustom = async () => {
@@ -57,67 +144,76 @@ const AdvancedScreen = () => {
     setCustomJS(js)
     applyCustomCode(css, "custom-css", "style")
     applyCustomCode(js, "custom-js", "script")
-    alert("Custom CSS and JS reloaded from disk!")
+    setReloadMsg("Custom CSS and JS reloaded from disk")
   }
 
   const handleReinitialize = async () => {
     await Reinitialize()
-    alert("Reinitialized!")
+    setReloadMsg("Connection re-initialized")
   }
 
   return (
-    <>
+    <div className="flex flex-col gap-5">
       <ComponentColorSelector />
       <EaseVisualizer />
-      <CodeEditor
+
+      <CodeEditorCard
         title="Custom CSS"
+        description="Inject custom styles that are applied across the entire app"
         value={customCSS}
         onChange={setCustomCSS}
         onSave={handleSaveCSS}
         placeholder="/* Enter custom CSS here */"
+        saved={cssSaved}
       />
 
-      <CodeEditor
+      <CodeEditorCard
         title="Custom JS"
+        description="Inject custom scripts for advanced tweaks and experiments"
         value={customJS}
         onChange={setCustomJS}
         onSave={handleSaveJS}
         placeholder="// Enter custom JS here"
+        saved={jsSaved}
       />
 
-      <Section
-        title="Reload Customizations"
+      <SectionCard
+        title="Reload customizations"
         description="Reload custom CSS and JS from disk. Useful if you edited the files externally."
-        buttonText="Reload CSS & JS"
-        onClick={handleReloadCustom}
-        buttonColor="blue"
-      />
+      >
+        <div className="flex items-center gap-3">
+          <ActionButton variant="neutral" onClick={handleReloadCustom}>
+            Reload CSS & JS
+          </ActionButton>
+          {reloadMsg && <StatusBanner tone="info">{reloadMsg}</StatusBanner>}
+        </div>
+      </SectionCard>
 
-      <Section
-        title="Session Management"
+      <SectionCard
+        title="Session management"
         description="Re-initialize the WhatsApp connection. Use this if you're experiencing sync issues."
-        buttonText="Re-initialize Connection"
-        onClick={handleReinitialize}
-        buttonColor="gray"
-      />
+      >
+        <ActionButton variant="neutral" onClick={handleReinitialize}>
+          Re-initialize connection
+        </ActionButton>
+      </SectionCard>
 
-      {/* Proxy configuration */}
-      <div className="mb-8 border-t border-gray-200 dark:border-gray-700 pt-6">
-        <h3 className="text-lg font-medium mb-2 text-light-text dark:text-dark-text">Proxy</h3>
-        <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
-          Set a SOCKS5 or HTTP proxy for the WhatsApp connection.
-        </p>
-        <div className="flex gap-2">
-          <input
-            className="flex-1 rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] text-light-text dark:text-dark-text"
+      <SectionCard
+        title="Proxy"
+        description="Set a SOCKS5 or HTTP proxy for the WhatsApp connection"
+      >
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <TextField
             value={proxyURL}
             onChange={e => setProxyURL(e.target.value)}
             placeholder="socks5://127.0.0.1:1080"
           />
-          <button
+          <ActionButton
+            variant="neutral"
+            disabled={proxyBusy || !proxyURL.trim()}
             onClick={async () => {
               setProxyBusy(true)
-              setProxyResult("")
+              setProxyResult(null)
               try {
                 await SetProxy(proxyURL)
                 setProxyResult("Proxy set!")
@@ -127,117 +223,52 @@ const AdvancedScreen = () => {
                 setProxyBusy(false)
               }
             }}
-            disabled={proxyBusy || !proxyURL.trim()}
-            className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
           >
-            {proxyBusy ? "Setting…" : "Set Proxy"}
-          </button>
+            {proxyBusy ? "Setting…" : "Set proxy"}
+          </ActionButton>
         </div>
         {proxyResult && (
-          <p
-            className={`mt-2 text-xs ${proxyResult === "Proxy set!" ? "text-green-500" : "text-red-500"}`}
-          >
+          <StatusBanner tone={proxyResult === "Proxy set!" ? "success" : "error"}>
             {proxyResult}
-          </p>
+          </StatusBanner>
         )}
-      </div>
+      </SectionCard>
 
-      {/* Sticker Pack Fetch */}
-      <div className="mb-8 border-t border-gray-200 dark:border-gray-700 pt-6">
-        <h3 className="text-lg font-medium mb-2 text-light-text dark:text-dark-text">
-          Sticker Pack
-        </h3>
-        <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
-          Fetch a sticker pack by its ID to download all stickers.
-        </p>
-        <div className="flex gap-2">
-          <input
-            className="flex-1 rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] text-light-text dark:text-dark-text"
+      <SectionCard
+        title="Sticker pack"
+        description="Fetch a sticker pack by its ID to download all stickers"
+      >
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <TextField
             value={stickerPackID}
             onChange={e => setStickerPackID(e.target.value)}
             placeholder="Sticker pack ID"
           />
-          <button
+          <ActionButton
+            variant="neutral"
+            disabled={stickerBusy || !stickerPackID.trim()}
             onClick={async () => {
               setStickerBusy(true)
-              setStickerResult("")
+              setStickerResult(null)
               try {
                 await FetchStickerPack(stickerPackID.trim())
-                setStickerResult(`Fetched pack successfully`)
+                setStickerResult("Fetched pack successfully")
               } catch (err) {
                 setStickerResult(String(err))
               } finally {
                 setStickerBusy(false)
               }
             }}
-            disabled={stickerBusy || !stickerPackID.trim()}
-            className="rounded-lg bg-purple-500 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600 disabled:opacity-50"
           >
             {stickerBusy ? "Fetching…" : "Fetch"}
-          </button>
+          </ActionButton>
         </div>
         {stickerResult && (
-          <p
-            className={`mt-2 text-xs ${stickerResult.startsWith("Fetched") ? "text-green-500" : "text-red-500"}`}
-          >
+          <StatusBanner tone={stickerResult.startsWith("Fetched") ? "success" : "error"}>
             {stickerResult}
-          </p>
+          </StatusBanner>
         )}
-      </div>
-    </>
-  )
-}
-
-function CodeEditor({ title, value, onChange, onSave, placeholder }: any) {
-  return (
-    <div className="mb-8">
-      <h3 className="text-lg font-medium mb-2 text-light-text dark:text-dark-text">{title}</h3>
-      <textarea
-        className="w-full h-40 p-3 bg-white dark:bg-dark-tertiary border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono text-light-text dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-green-500"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-      />
-      <button
-        onClick={onSave}
-        className="mt-2 px-4 py-2 bg-[#21c063] text-white rounded hover:bg-[#1b9a58] transition-colors"
-      >
-        Save {title}
-      </button>
-    </div>
-  )
-}
-
-function Section({
-  title,
-  description,
-  buttonText,
-  onClick,
-  buttonColor,
-}: {
-  title: string
-  description: string
-  buttonText: string
-  onClick: () => void
-  buttonColor: "blue" | "gray"
-}) {
-  const colors = {
-    blue: "bg-blue-500 hover:bg-blue-600 text-white",
-    gray: "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white",
-  }
-
-  return (
-    <div className="mb-8 border-t border-gray-200 dark:border-gray-700 pt-6">
-      <h3 className="text-lg font-medium mb-2 text-light-text dark:text-dark-text">{title}</h3>
-      <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
-        {description}
-      </p>
-      <button
-        onClick={onClick}
-        className={`px-4 py-2 rounded transition-colors ${colors[buttonColor]}`}
-      >
-        {buttonText}
-      </button>
+      </SectionCard>
     </div>
   )
 }
