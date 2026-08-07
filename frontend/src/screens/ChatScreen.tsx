@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState, memo } from "react"
+import { useEffect, useRef, useCallback, useState, memo, useLayoutEffect } from "react"
 import clsx from "clsx"
 import {
   GetChatList,
@@ -733,6 +733,19 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   }, [setSelfAvatar])
 
   const [chatMenu, setChatMenu] = useState<{ x: number; y: number; chat: ChatItem } | null>(null)
+  const chatMenuRef = useRef<HTMLDivElement | null>(null)
+
+  // Keep the context menu inside the viewport: clamp its position once the
+  // rendered size is known (a right-click near the edge would otherwise push
+  // the menu off-screen).
+  useLayoutEffect(() => {
+    if (!chatMenu || !chatMenuRef.current) return
+    const rect = chatMenuRef.current.getBoundingClientRect()
+    const x = Math.min(chatMenu.x, window.innerWidth - rect.width - 8)
+    const y = Math.min(chatMenu.y, window.innerHeight - rect.height - 8)
+    chatMenuRef.current.style.left = `${Math.max(8, x)}px`
+    chatMenuRef.current.style.top = `${Math.max(8, y)}px`
+  }, [chatMenu])
 
   const handleChatContextMenu = useCallback((e: React.MouseEvent, chat: ChatItem) => {
     e.preventDefault()
@@ -1092,6 +1105,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
     <div className="flex h-screen bg-light-secondary dark:bg-dark-bg overflow-hidden">
       {chatMenu && (
         <div
+          ref={chatMenuRef}
           className="fixed z-50 min-w-36 rounded-lg border border-gray-200 dark:border-dark-border bg-white py-1 shadow-lg dark:border-white/10 dark:bg-dark-secondary"
           style={{ top: chatMenu.y, left: chatMenu.x }}
         >

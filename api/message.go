@@ -867,6 +867,17 @@ func (a *Api) SendShareContact(chatJID, displayName, phone string) (string, erro
 		}
 		return -1
 	}, phone)
+	if (displayName == "" || digits == "") && strings.Contains(phone, "@") {
+		// A JID was passed instead of a phone number (LID-only contacts carry
+		// no phone in the frontend store). Resolve it to a phone number via
+		// the canonical user JID.
+		if jid, err := types.ParseJID(phone); err == nil {
+			jid = canonicalUserJID(a.ctx, a.waClient, jid)
+			if jid.Server == types.DefaultUserServer {
+				digits = jid.User
+			}
+		}
+	}
 	if displayName == "" || digits == "" {
 		return "", fmt.Errorf("contact needs a name and a phone number")
 	}

@@ -94,6 +94,14 @@ export function MediaContent({
   const placeholderRef = useRef<HTMLDivElement | null>(null)
   const openLightbox = useUIStore(s => s.openLightbox)
 
+  // Voice-note (PTT) playback state. The audio element only exists once the
+  // data URL is fetched; pendingPlayRef bridges the download gesture to an
+  // auto-play once the element mounts.
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const pendingPlayRef = useRef(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)
+
   // Reserve the final layout box before the media loads. Only images and GIF
   // videos swap a placeholder for an inline element, so only they can shift.
   const messageBody = message.Content?.[`${type}Message`] as MediaMessageContent | undefined
@@ -180,6 +188,15 @@ export function MediaContent({
       return
     }
   }, [message.Content, message.Info.ID, sentMediaCache, type])
+
+  // Once the voice note's audio element mounts after a fetch, resume the play
+  // gesture that started the download so the clip starts immediately.
+  useEffect(() => {
+    if (pendingPlayRef.current && mediaSrc && audioRef.current) {
+      pendingPlayRef.current = false
+      void audioRef.current.play().catch(() => {})
+    }
+  }, [mediaSrc])
 
   // Auto-download image/sticker media once it's visible on screen — covers both
   // "already visible when the chat opens" and "scrolled into view". Debounced so
@@ -330,15 +347,65 @@ export function MediaContent({
       const secs = seconds % 60
       const durationStr = `${minutes}:${secs.toString().padStart(2, "0")}`
       if (isPTT) {
+        const togglePlay = () => {
+          const audio = audioRef.current
+          if (!audio) return
+          if (audio.paused) void audio.play().catch(() => {})
+          else audio.pause()
+        }
+        const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+          const audio = audioRef.current
+          if (!audio || !audio.duration) return
+          const rect = e.currentTarget.getBoundingClientRect()
+          const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
+          audio.currentTime = ratio * audio.duration
+          setProgress(ratio * 100)
+        }
         return (
           <div className="flex items-center gap-3 w-75 h-14 rounded-lg bg-gray-200 dark:bg-gray-800 px-4">
-            <button className="shrink-0 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white">
-              <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
-              </svg>
+            <audio
+              ref={audioRef}
+              src={mediaSrc}
+              preload="metadata"
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onEnded={e => {
+                e.currentTarget.currentTime = 0
+                setProgress(0)
+                setIsPlaying(false)
+              }}
+              onTimeUpdate={e => {
+                const total = e.currentTarget.duration || 0
+                if (total) setProgress((e.currentTarget.currentTime / total) * 100)
+              }}
+            />
+            <button
+              onClick={togglePlay}
+              className="shrink-0 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
+              aria-label={isPlaying ? "Pause voice note" : "Play voice note"}
+              title={isPlaying ? "Pause" : "Play"}
+            >
+              {isPlaying ? (
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              )}
             </button>
-            <div className="flex-1 h-1 bg-gray-400 dark:bg-gray-600 rounded-full overflow-hidden">
-              <div className="w-0 h-full bg-[#21c063] rounded-full" />
+            <div
+              onClick={seek}
+              className="flex-1 h-1 bg-gray-400 dark:bg-gray-600 rounded-full overflow-hidden cursor-pointer"
+              role="slider"
+              aria-label="Voice note progress"
+              aria-valuenow={Math.round(progress)}
+            >
+              <div
+                className="h-full bg-[#21c063] rounded-full"
+                style={{ width: `${progress}%` }}
+              />
             </div>
             <span className="text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted tabular-nums shrink-0">
               {durationStr}
@@ -389,6 +456,7 @@ export function MediaContent({
   }
 
   if (type === "audio") {
+    const isPTT = messageBody?.ptt
     return (
       <div
         ref={placeholderRef}
@@ -396,10 +464,24 @@ export function MediaContent({
       >
         {loading ? (
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500" />
+        ) : isPTT ? (
+          <button
+            onClick={() => {
+              pendingPlayRef.current = true
+              void handleDownload()
+            }}
+            className="bg-black/50 p-2 rounded-full text-white hover:bg-black/70"
+            title="Play voice note"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </button>
         ) : (
           <button
             onClick={() => void handleDownload()}
             className="bg-black/50 p-2 rounded-full text-white hover:bg-black/70"
+            title="Download audio"
           >
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />

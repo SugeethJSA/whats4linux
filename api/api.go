@@ -63,6 +63,8 @@ type Api struct {
 	workerWg       sync.WaitGroup
 	healthCheckCtx context.CancelFunc
 	healthCheckWg  sync.WaitGroup
+	pinFlushCtx    context.CancelFunc
+	pinFlushWg     sync.WaitGroup
 }
 
 // repairGroupNames heals whats4linux_groups rows that are missing or were
@@ -383,6 +385,62 @@ func (a *Api) stopConnectionHealthCheck() {
 	}
 }
 
+// startPinExpiryFlush periodically deletes timed pinned messages whose
+// duration has elapsed (reads filter them, but the rows used to accumulate
+// forever). Runs once at startup, then hourly — the shortest WhatsApp pin
+// duration is 24 hours, so an hour of slack is safe.
+func (a *Api) startPinExpiryFlush() {
+	a.lifecycleMu.Lock()
+	if a.pinFlushCtx != nil {
+		a.lifecycleMu.Unlock()
+		return
+	}
+	ctx, cancel := context.WithCancel(a.ctx)
+	a.pinFlushCtx = cancel
+	a.lifecycleMu.Unlock()
+
+	a.pinFlushWg.Add(1)
+	go func() {
+		defer a.pinFlushWg.Done()
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+
+		flush := func() {
+			if a.isShuttingDown() || a.messageStore == nil {
+				return
+			}
+			removed, err := a.messageStore.FlushExpiredPinnedMessages()
+			if err != nil {
+				slog.Warn(fmt.Sprintf("Pin expiry flush failed: %v", err), "source", "pins")
+			} else if removed > 0 {
+				slog.Info(fmt.Sprintf("Flushed %d expired pinned messages", removed), "source", "pins")
+			}
+		}
+
+		flush()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				flush()
+			}
+		}
+	}()
+}
+
+func (a *Api) stopPinExpiryFlush() {
+	a.lifecycleMu.Lock()
+	cancel := a.pinFlushCtx
+	a.pinFlushCtx = nil
+	a.lifecycleMu.Unlock()
+
+	if cancel != nil {
+		cancel()
+		a.pinFlushWg.Wait()
+	}
+}
+
 func (a *Api) OnSecondInstanceLaunch(_ options.SecondInstanceData) {
 	runtime.WindowUnminimise(a.ctx)
 	runtime.Show(a.ctx)
@@ -390,6 +448,7 @@ func (a *Api) OnSecondInstanceLaunch(_ options.SecondInstanceData) {
 
 func (a *Api) Shutdown(_ context.Context) {
 	a.stopConnectionHealthCheck()
+	a.stopPinExpiryFlush()
 
 	a.taskMu.Lock()
 	a.shuttingDown = true
@@ -788,6 +847,8 @@ func (a *Api) mainEventHandler(evt any) {
 		}
 		// Start connection health monitoring
 		a.startConnectionHealthCheck()
+		// Start periodic cleanup of expired message pins
+		a.startPinExpiryFlush()
 	case *events.HistorySync:
 		// whatsmeow delivers past conversations here after linking. Process
 		// in a background goroutine so thousands of messages don't block the

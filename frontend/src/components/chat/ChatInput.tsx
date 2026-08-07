@@ -17,6 +17,7 @@ import type { Message } from "../../store/types"
 import { useContactStore } from "../../store/useContactStore"
 import { useUIStore } from "../../store"
 import { registerShortcut } from "../../lib/shortcuts"
+import { htmlToPlainText } from "../../lib/utils"
 import { PollDialog } from "./PollDialog"
 import { ContactShareDialog } from "./ContactShareDialog"
 import { Modal } from "../common/Modal"
@@ -195,6 +196,20 @@ export function ChatInput({
     if (screen !== "chats") return
     return registerShortcut("attach-menu", () => setAttachMenuOpen(v => !v))
   }, [screen])
+
+  // Close the emoji picker when clicking anywhere outside it (or its toggle
+  // button, whose own click toggles it closed).
+  useEffect(() => {
+    if (!showEmojiPicker) return
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (emojiPickerRef.current?.contains(target)) return
+      if (emojiButtonRef.current?.contains(target)) return
+      onToggleEmojiPicker()
+    }
+    document.addEventListener("mousedown", onMouseDown)
+    return () => document.removeEventListener("mousedown", onMouseDown)
+  }, [showEmojiPicker, emojiPickerRef, emojiButtonRef, onToggleEmojiPicker])
   const avatarCacheRef = useRef<Record<string, string>>({})
   const suggestionsRef = useRef<HTMLDivElement>(null)
   const backdropRef = useRef<HTMLDivElement>(null)
@@ -409,10 +424,7 @@ export function ChatInput({
             )}
             {senderLabel}
           </div>
-          <div
-            className="line-clamp-2 opacity-80"
-            dangerouslySetInnerHTML={{ __html: previewText }}
-          />
+          <div className="line-clamp-2 opacity-80">{htmlToPlainText(previewText)}</div>
         </div>
         <button
           onClick={onCancelReply}

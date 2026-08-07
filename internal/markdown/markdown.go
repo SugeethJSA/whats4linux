@@ -1,6 +1,5 @@
 package markdown
 
-// TODO :  triple backtick blocks
 import (
 	"html"
 	"regexp"
@@ -47,7 +46,13 @@ func openTag(tag string) string {
 }
 
 func closeTag(tag string) string {
-	return "</" + tag + ">"
+	// Tokens can carry attributes (e.g. `span class="inline-code"`); a
+	// closing tag must only contain the element name.
+	name := tag
+	if i := strings.IndexByte(tag, ' '); i >= 0 {
+		name = tag[:i]
+	}
+	return "</" + name + ">"
 }
 
 func isWord(r rune) bool {
@@ -153,15 +158,21 @@ func isUnorderedList(line string) (bool, string) {
 	return false, ""
 }
 
-// line parser (for quotes and lists[pending])
+// line parser (for quotes, lists and fenced code blocks)
 func MarkdownLinesToHTML(s string) string {
 	lines := strings.Split(s, "\n")
 	var out strings.Builder
 
+	inCode := false
+	firstCodeLine := false
 	inQuote := false
 	inUL := false
 
 	closeAll := func() {
+		if inCode {
+			out.WriteString("</code></pre>")
+			inCode = false
+		}
 		if inUL {
 			out.WriteString("</ul>")
 			inUL = false
@@ -174,7 +185,32 @@ func MarkdownLinesToHTML(s string) string {
 
 	for _, line := range lines {
 		line = strings.TrimRight(line, "\r")
-		if strings.TrimSpace(line) == "" {
+		trimmed := strings.TrimSpace(line)
+
+		// fenced code block: ``` toggles it; content lines are escaped raw
+		// (no inline formatting, no linkification)
+		if strings.HasPrefix(trimmed, "```") {
+			if !inCode {
+				closeAll()
+				out.WriteString(`<pre class="code-block"><code>`)
+				inCode = true
+				firstCodeLine = true
+			} else {
+				out.WriteString("</code></pre>")
+				inCode = false
+			}
+			continue
+		}
+		if inCode {
+			if !firstCodeLine {
+				out.WriteString("\n")
+			}
+			firstCodeLine = false
+			out.WriteString(html.EscapeString(line))
+			continue
+		}
+
+		if trimmed == "" {
 			closeAll()
 			out.WriteString("<br>")
 			continue
@@ -205,7 +241,7 @@ func MarkdownLinesToHTML(s string) string {
 
 		// normal line
 		closeAll()
-		if strings.TrimSpace(line) != "" {
+		if trimmed != "" {
 			out.WriteString("<p>")
 			out.WriteString(ParseInline(line))
 			out.WriteString("</p>")

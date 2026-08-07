@@ -35,7 +35,12 @@ import { LRUCache } from "../../lib/lruCache"
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
 const EmojiPicker = lazy(() => import("./EmojiPickerLazy"))
 
+// Per-session "already voted" marks. Chat-scoped keys avoid a vote in one chat
+// showing "Voted ✓" for a same-ID message elsewhere; capped so it can't grow
+// without bound (rows remount constantly under Virtuoso, so module state is
+// required for persistence).
 const votedPollKeys = new Set<string>()
+const MAX_VOTED_KEYS = 500
 
 interface MessageItemProps {
   message: Message
@@ -162,16 +167,23 @@ export function MessageItem({
 
   const myReaction = reactions.find(r => isMe(r.sender_id))?.emoji
 
-  const sendReaction = (emoji: string) => {
+  const sendReaction = async (emoji: string) => {
+    const previous = myReaction ?? ""
     const finalEmoji = myReaction === emoji ? "" : emoji
-    if (chatId.endsWith("@newsletter")) {
-      const serverID = parseInt(message.Info.ID, 10) || 0
-      NewsletterSendReaction(chatId, serverID, finalEmoji).catch(() => {})
-    } else {
-      const senderJID = isFromMe ? "" : message.Info.Sender
-      SendReaction(chatId, senderJID, message.Info.ID, finalEmoji).catch(() => {})
-    }
     addReactionToMessage(chatId, message.Info.ID, finalEmoji, "me")
+    try {
+      if (chatId.endsWith("@newsletter")) {
+        const serverID = parseInt(message.Info.ID, 10) || 0
+        await NewsletterSendReaction(chatId, serverID, finalEmoji)
+      } else {
+        const senderJID = isFromMe ? "" : message.Info.Sender
+        await SendReaction(chatId, senderJID, message.Info.ID, finalEmoji)
+      }
+    } catch (err) {
+      console.error("SendReaction failed:", err)
+      // Roll back the optimistic reaction so the UI matches the server.
+      addReactionToMessage(chatId, message.Info.ID, previous, "me")
+    }
     setShowReactionPicker(false)
     setShowFullEmoji(false)
   }
@@ -224,10 +236,18 @@ export function MessageItem({
     method(chatId, message.Info.ID).catch((e: any) => console.error("Delete message failed:", e))
   }
 
-  const handleStar = () => {
-    StarMessage(chatId, message.Info.ID, true).catch((e: any) =>
-      console.error("Star message failed:", e),
-    )
+  const isStarred = useMessageStore(state => state.starredIds.has(message.Info.ID))
+  const toggleStarred = useMessageStore(state => state.toggleStarred)
+
+  const handleStar = async () => {
+    const target = !isStarred
+    toggleStarred(message.Info.ID, target)
+    try {
+      await StarMessage(chatId, message.Info.ID, target)
+    } catch (e) {
+      console.error("Star message failed:", e)
+      toggleStarred(message.Info.ID, !target)
+    }
   }
 
   const [pollVoteOpen, setPollVoteOpen] = useState(false)
@@ -366,7 +386,7 @@ export function MessageItem({
           )}
           {htmlContent.includes('class="msg-poll"') && (
             <>
-              {votedPollKeys.has(message.Info.ID) ? (
+              {votedPollKeys.has(`${chatId}:${message.Info.ID}`) ? (
                 <div className="mt-2 w-full rounded-lg border border-green-500/30 bg-green-500/5 px-3 py-1.5 text-sm text-green-600 dark:text-green-400 text-center">
                   Voted ✓
                 </div>
@@ -393,7 +413,13 @@ export function MessageItem({
                       ?.map((o: string) => o.replace(/○\s*/, "").trim()) || []
                   }
                   onClose={() => setPollVoteOpen(false)}
-                  onVote={() => votedPollKeys.add(message.Info.ID)}
+                  onVote={() => {
+                    votedPollKeys.add(`${chatId}:${message.Info.ID}`)
+                    if (votedPollKeys.size > MAX_VOTED_KEYS) {
+                      const first = votedPollKeys.values().next().value
+                      if (first !== undefined) votedPollKeys.delete(first)
+                    }
+                  }}
                 />
               )}
             </>
@@ -663,6 +689,7 @@ export function MessageItem({
             onDelete={handleDelete}
             onForward={() => onForward?.(message.Info.ID)}
             onStar={handleStar}
+            isStarred={isStarred}
           />
           {!isAnnounceGroup && !isFromMe && chatId.endsWith("@g.us") && firstInGroup && (
             <div className="flex items-baseline justify-between gap-4 mb-0.5 pt-0.5">

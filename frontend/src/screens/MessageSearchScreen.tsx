@@ -48,9 +48,13 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const suggestionRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // Incremented per request so a slow, stale response can never overwrite the
+  // results of a newer query (or the cleared state after the query emptied).
+  const searchGenerationRef = useRef(0)
 
   const doSearch = useCallback(
     async (q: string, filter: string, sender: string, off: number, append: boolean) => {
+      const generation = ++searchGenerationRef.current
       if (!q.trim()) {
         setResults([])
         setHasMore(true)
@@ -67,14 +71,16 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
           limit: PAGE_SIZE,
           offset: off,
         })
+        if (generation !== searchGenerationRef.current) return
         const items: SearchResult[] = res ?? []
         setResults(prev => (append ? [...prev, ...items] : items))
         setHasMore(items.length >= PAGE_SIZE)
         setOffset(off + items.length)
       } catch (e: any) {
+        if (generation !== searchGenerationRef.current) return
         setError(e?.message || "Search failed")
       } finally {
-        setLoading(false)
+        if (generation === searchGenerationRef.current) setLoading(false)
       }
     },
     [],

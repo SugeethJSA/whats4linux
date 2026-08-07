@@ -6,10 +6,12 @@ const MAX_MSGS_PER_CHAT = 200
 
 interface MessageStore {
   messages: Record<string, Message[]>
+  starredIds: Set<string>
   setMessages: (chatId: string, messages: Message[]) => void
   prependMessages: (chatId: string, messages: Message[]) => void
   updateMessage: (chatId: string, message: Message) => void
   addReactionToMessage: (chatId: string, messageId: string, emoji: string, senderId: string) => void
+  toggleStarred: (messageId: string, starred: boolean) => void
   clearMessages: (chatId: string) => void
   trimAllChats: () => void
   addPendingMessage: (chatId: string, message: Message) => void
@@ -22,6 +24,7 @@ interface MessageStore {
 export const useMessageStore = create<MessageStore>()(
   immer(set => ({
     messages: {},
+    starredIds: new Set(),
 
     setMessages: (chatId, messages) =>
       set(state => {
@@ -126,6 +129,14 @@ export const useMessageStore = create<MessageStore>()(
         msgs[idx] = { ...msgs[idx], receiptStatus: status }
       }),
 
+    // Session-level star state (the backend syncs stars to WhatsApp app state
+    // but never reads them back, so persistence is scoped to this session).
+    toggleStarred: (messageId, starred) =>
+      set(state => {
+        if (starred) state.starredIds.add(messageId)
+        else state.starredIds.delete(messageId)
+      }),
+
     removePendingMessage: (chatId, tempId) =>
       set(state => {
         const msgs = state.messages[chatId]
@@ -136,6 +147,7 @@ export const useMessageStore = create<MessageStore>()(
     reset: () =>
       set(state => {
         state.messages = {}
+        state.starredIds = new Set()
       }),
   })),
 )

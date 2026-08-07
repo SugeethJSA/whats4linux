@@ -52,14 +52,14 @@ Frontend:
 
 ## Phase 4 — Bug batch
 
-- [ ] 4.1 `MessageMenu` Save-media-to-disk passes message ID
-- [ ] 4.2 QuotedMessage XSS: escape remote text; audit 8 dangerouslySetInnerHTML sites
-- [ ] 4.3 Reactions rollback + un-star + clear `votedPollKeys`
-- [ ] 4.4 Voice-note playback (real onClick + progress + audio element)
-- [ ] 4.5 Emoji picker outside-click close
-- [ ] 4.6 MarkRead dedupe; typing-timer cleanup; search request-generation guard; context-menu viewport clamp; canvas null-safe
-- [ ] 4.7 ContactShareDialog JID/phone resolution
-- [ ] 4.8 Backend: pinned-message expiry flush; markdown triple-backtick fences
+- [x] 4.1 `MessageMenu` Save-media-to-disk passes message ID — VERIFIED ALREADY FIXED: menu already sends `messageId`; backend `DownloadMediaToFile(messageID string) error` (api/media.go:417) matches; no code change
+- [x] 4.2 QuotedMessage XSS — `QuotedMessage.tsx` + ChatInput reply preview now render quote text through `htmlToPlainText` (lib/utils), replacing `dangerouslySetInnerHTML` on raw remote content; audited all 8 sites — DB-loaded conversation/caption values are pre-escaped by backend `MarkdownLinesToHTML` (escape-first) so remaining sites are safe
+- [x] 4.3 Reactions rollback + un-star + clear `votedPollKeys` — `sendReaction` optimistic w/ rollback via `addReactionToMessage(previous)`; `toggleStarred(messageId, starred)` in useMessageStore (`starredIds: Set`, cleared on reset); MessageItem `handleStar` toggles w/ rollback, menu label Star/Unstar, `isStarred` prop; `votedPollKeys` keyed `${chatId}:${message.Info.ID}` + MAX_VOTED_KEYS=500 eviction; star-last shortcut toggles (also fixed stray `}` at MessageItem:190 caught by tsc)
+- [x] 4.4 Voice-note playback — MediaContent PTT branch: real `<audio>` element, play/pause toggle (icon swaps), live progress bar (onTimeUpdate), click-to-seek, autoplay bridged from the placeholder play button after fetch; non-PTT audio unchanged
+- [x] 4.5 Emoji picker outside-click close — ChatInput document `mousedown` listener closes picker when click is outside `emojiPickerRef`/`emojiButtonRef` (ESC-close already existed in hook)
+- [x] 4.6 (all five) — MarkRead dedupes via `markedReadIdsRef` (IDs acked once, reset per chat, retry on failure); typing-presence timer cleared on unmount; MessageSearchScreen `searchGenerationRef` discards stale responses + invalidation on empty query; ChatScreen context menu clamped to viewport via useLayoutEffect measured size; LoginScreen canvas check VERIFIED ALREADY SAFE (`if (!canvasRef.current) return` + `if (ctx)`)
+- [x] 4.7 ContactShareDialog JID/phone resolution — frontend falls back to `phoneFromJID(c.jid)` when `c.phno` empty; backend `SendShareContact` resolves a passed JID (incl. `@lid`) to a phone via `canonicalUserJID` before building the vCard
+- [x] 4.8 Backend — pin expiry flush: `FlushExpiredPinnedMessages` store method + `DeleteExpiredPinnedMessages` query (deletes `expiry > 0 AND pinned_at + expiry <= now`), hourly goroutine `startPinExpiryFlush` on connect, stopped in Shutdown; markdown triple-backtick fences → `<pre class="code-block"><code>` (escaped raw lines, no inline parsing, unterminated fence auto-closes) + `.code-block` CSS (light/dark); tests added; bonus fix: `closeTag` emitted malformed `</span class="inline-code">` — now element-name only (caught by new test)
 
 ## Phase 5 — Performance
 

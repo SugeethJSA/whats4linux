@@ -23,4 +23,10 @@ const (
 	DELETE FROM pinned_messages
 	WHERE message_id = ?;
 	`
+	// Removes timed pins whose duration has elapsed. expiry <= 0 means "pin
+	// forever" and is never flushed.
+	DeleteExpiredPinnedMessages = `
+	DELETE FROM pinned_messages
+	WHERE expiry > 0 AND pinned_at + expiry <= ?;
+	`
 )

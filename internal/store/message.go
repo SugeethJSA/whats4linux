@@ -2100,6 +2100,18 @@ func (ms *MessageStore) ApplyMessagePin(chatJID, senderJID, messageID string, pi
 	return err
 }
 
+// FlushExpiredPinnedMessages deletes timed pins whose duration has elapsed,
+// keeping the pinned_messages table from accumulating dead rows (reads already
+// filter them, but nothing else cleaned them up). Returns the number of rows
+// removed.
+func (ms *MessageStore) FlushExpiredPinnedMessages() (int64, error) {
+	res, err := ms.db.Exec(query.DeleteExpiredPinnedMessages, time.Now().Unix())
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 // SetChatPinned stores whether a chat is pinned in the chat list.
 func (ms *MessageStore) SetChatPinned(chatJID string, pinned bool, ts int64) error {
 	if pinned {

@@ -26,6 +26,7 @@ interface MessageMenuProps {
   onDelete?: () => void
   onForward?: () => void
   onStar?: () => void
+  isStarred?: boolean
 }
 
 // Same pin glyph as the chat list, sized for menu rows.
@@ -49,6 +50,7 @@ export function MessageMenu({
   onDelete,
   onForward,
   onStar,
+  isStarred = false,
 }: MessageMenuProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
@@ -302,7 +304,7 @@ export function MessageMenu({
               className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
             >
               <StarIcon />
-              <span>Star</span>
+              <span>{isStarred ? "Unstar" : "Star"}</span>
             </button>
             {onDelete && (
               <button

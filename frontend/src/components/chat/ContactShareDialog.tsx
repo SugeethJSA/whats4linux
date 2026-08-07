@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { FetchContacts, SendShareContact, SearchContacts } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { Modal } from "../common/Modal"
+import { phoneFromJID } from "../../lib/utils"
 
 export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClose: () => void }) {
   const [contacts, setContacts] = useState<api.Contact[]>([])
@@ -55,11 +56,14 @@ export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClos
 
   const share = async (c: api.Contact) => {
     if (sendingJid) return
-    const name = c.full_name || c.push_name || c.phno
+    const name = c.full_name || c.push_name || c.phno || c.jid
+    // Some contact stores only carry a JID (e.g. synced LID entries); derive
+    // the phone number from it rather than sending an empty string.
+    const phone = c.phno || phoneFromJID(c.jid)
     setSendingJid(c.jid)
     setError("")
     try {
-      await SendShareContact(chatId, name, c.phno)
+      await SendShareContact(chatId, name, phone)
       onClose()
     } catch (err) {
       console.error("Failed to share contact:", err)

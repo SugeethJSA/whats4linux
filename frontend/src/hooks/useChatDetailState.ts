@@ -54,6 +54,10 @@ export function useChatDetailState(chatId: string, onBack?: () => void) {
   const [forwardTarget, setForwardTarget] = useState<string | null>(null)
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
 
+  // IDs already acknowledged via MarkRead, so the read-receipt effect doesn't
+  // re-send the whole message list on every message append/edit.
+  const markedReadIdsRef = useRef<Set<string>>(new Set())
+
   const [mentionableContacts, setMentionableContacts] = useState<any[]>([])
   const [selectedMentions, setSelectedMentions] = useState<any[]>([])
   const [isAnnounceGroup, setIsAnnounceGroup] = useState(false)
@@ -239,7 +243,12 @@ export function useChatDetailState(chatId: string, onBack?: () => void) {
       registerShortcut("star-last", () => {
         const msg = lastMessage()
         if (msg?.Info?.ID) {
-          StarMessage(chatId, msg.Info.ID, true).catch(err => console.error("Star failed:", err))
+          const target = !useMessageStore.getState().starredIds.has(msg.Info.ID)
+          useMessageStore.getState().toggleStarred(msg.Info.ID, target)
+          StarMessage(chatId, msg.Info.ID, target).catch(err => {
+            console.error("Star failed:", err)
+            useMessageStore.getState().toggleStarred(msg.Info.ID, !target)
+          })
         }
       }),
       // Quote the last own message and edit it in place (WhatsApp Ctrl+ArrowUp).
@@ -415,14 +424,33 @@ export function useChatDetailState(chatId: string, onBack?: () => void) {
 
   useEffect(() => {
     if (isAtBottom) {
-      const messageIds = chatMessages.map((m: any) => m?.Info?.ID).filter((id: any) => !!id)
+      const messageIds = chatMessages
+        .map((m: any) => m?.Info?.ID)
+        .filter((id: any) => !!id && !markedReadIdsRef.current.has(id))
       if (messageIds.length > 0) {
-        MarkRead(chatId, messageIds, "read-msg").catch(err => {
-          console.error("Failed to mark messages as read:", err)
-        })
+        MarkRead(chatId, messageIds, "read-msg")
+          .then(() => {
+            messageIds.forEach(id => markedReadIdsRef.current.add(id))
+          })
+          .catch(err => {
+            console.error("Failed to mark messages as read:", err)
+          })
       }
     }
   }, [isAtBottom, chatId, chatMessages])
+
+  // A new chat starts with a clean read-receipt slate.
+  useEffect(() => {
+    markedReadIdsRef.current = new Set()
+  }, [chatId])
+
+  // Clear a pending "paused" presence timer when leaving the chat; otherwise
+  // the timeout fires after unmount and touches unmounted state.
+  useEffect(() => {
+    return () => {
+      if (typingTimeout) clearTimeout(typingTimeout)
+    }
+  }, [typingTimeout])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value
