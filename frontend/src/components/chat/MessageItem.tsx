@@ -17,15 +17,14 @@ import { ReactionBubble } from "./Reactions"
 import { LinkPreview } from "./LinkPreview"
 import clsx from "clsx"
 import { MessageMenu } from "./MessageMenu"
-import { ForwardDialog } from "./ForwardDialog"
 import { PollVoteDialog } from "./PollVoteDialog"
 import {
   ClockPendingIcon,
   BlueTickIcon,
   ForwardedIcon,
   DownloadIcon,
-  UserAvatar,
 } from "../../assets/svgs/chat_icons"
+import { Avatar } from "../common/Avatar"
 import { useContactStore } from "../../store/useContactStore"
 import { useMessageStore } from "../../store"
 import type { Message } from "../../store/types"
@@ -46,6 +45,7 @@ interface MessageItemProps {
   sentMediaCache: React.MutableRefObject<Map<string, string>>
   onReply?: (message: Message) => void
   onQuotedClick?: (messageId: string) => void
+  onForward?: (messageId: string) => void
   highlightedMessageId?: string | null
   isAnnounceGroup?: boolean
 }
@@ -74,9 +74,7 @@ function SenderAvatar({ jid }: { jid: string }) {
   }, [jid])
 
   return (
-    <div className="w-7 h-7 ml-3 rounded-full overflow-hidden bg-gray-300 dark:bg-gray-600 shrink-0 self-start flex items-center justify-center text-gray-500 dark:text-light-muted dark:text-dark-muted [&_svg]:w-5 [&_svg]:h-5">
-      {url ? <img src={url} className="w-full h-full object-cover" /> : <UserAvatar />}
-    </div>
+    <Avatar name={jid} avatar={url || undefined} size="xs" className="ml-3 self-start" fallback="person" />
   )
 }
 
@@ -100,6 +98,7 @@ export function MessageItem({
   sentMediaCache,
   onReply,
   onQuotedClick,
+  onForward,
   highlightedMessageId,
   isAnnounceGroup = false,
 }: MessageItemProps) {
@@ -231,8 +230,6 @@ export function MessageItem({
     )
   }
 
-  const [forwardTarget, setForwardTarget] = useState<string | null>(null)
-  const handleForward = () => setForwardTarget(message.Info.ID)
   const [pollVoteOpen, setPollVoteOpen] = useState(false)
 
   const INVITE_LINK_RE = /chat\.whatsapp\.com\/([A-Za-z0-9_-]+)/
@@ -664,17 +661,9 @@ export function MessageItem({
             onReact={handleReact}
             onEdit={handleEdit}
             onDelete={handleDelete}
-            onForward={handleForward}
+            onForward={() => onForward?.(message.Info.ID)}
             onStar={handleStar}
           />
-          {forwardTarget === message.Info.ID && (
-            <ForwardDialog
-              sourceJID={chatId}
-              messageID={message.Info.ID}
-              onClose={() => setForwardTarget(null)}
-            />
-          )}
-
           {!isAnnounceGroup && !isFromMe && chatId.endsWith("@g.us") && firstInGroup && (
             <div className="flex items-baseline justify-between gap-4 mb-0.5 pt-0.5">
               <span className="text-[11px] font-semibold truncate" style={{ color: senderColor }}>

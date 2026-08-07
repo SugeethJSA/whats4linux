@@ -19,6 +19,7 @@ import { useUIStore } from "../../store"
 import { registerShortcut } from "../../lib/shortcuts"
 import { PollDialog } from "./PollDialog"
 import { ContactShareDialog } from "./ContactShareDialog"
+import { Modal } from "../common/Modal"
 
 const EmojiPicker = lazy(() => import("./EmojiPickerLazy"))
 interface ChatInputProps {
@@ -641,17 +642,14 @@ export function ChatInput({
       {pollOpen && <PollDialog chatId={chatId} onClose={() => setPollOpen(false)} />}
       {contactOpen && <ContactShareDialog chatId={chatId} onClose={() => setContactOpen(false)} />}
       {locationOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setLocationOpen(false)}
+        <Modal
+          onClose={() => setLocationOpen(false)}
+          overlayClass="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          cardClass="w-[360px] rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
         >
-          <div
-            className="w-[360px] rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
-            onClick={e => e.stopPropagation()}
-          >
-            <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">
-              Send location
-            </h2>
+          <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">
+            Send location
+          </h2>
             <p className="mb-3 text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted">
               Share your current location or enter coordinates.
             </p>
@@ -699,8 +697,7 @@ export function ChatInput({
                 Send
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

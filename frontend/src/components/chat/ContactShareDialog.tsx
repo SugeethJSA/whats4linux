@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { FetchContacts, SendShareContact, SearchContacts } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
+import { Modal } from "../common/Modal"
 
 export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClose: () => void }) {
   const [contacts, setContacts] = useState<api.Contact[]>([])
@@ -52,18 +53,6 @@ export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClos
     }
   }, [search])
 
-  // Capture-phase ESC so the chat's own ESC handler doesn't fire too.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation()
-        onClose()
-      }
-    }
-    window.addEventListener("keydown", onKey, true)
-    return () => window.removeEventListener("keydown", onKey, true)
-  }, [onClose])
-
   const share = async (c: api.Contact) => {
     if (sendingJid) return
     const name = c.full_name || c.push_name || c.phno
@@ -80,17 +69,14 @@ export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClos
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
+    <Modal
+      onClose={onClose}
+      overlayClass="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      cardClass="flex max-h-[70vh] w-[420px] max-w-[90vw] flex-col rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
     >
-      <div
-        className="flex max-h-[70vh] w-[420px] max-w-[90vw] flex-col rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
-        onClick={e => e.stopPropagation()}
-      >
-        <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">
-          Share contact
-        </h2>
+      <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">
+        Share contact
+      </h2>
 
         <input
           autoFocus
@@ -132,7 +118,6 @@ export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClos
             ))
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

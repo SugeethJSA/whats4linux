@@ -11,25 +11,25 @@ export const InfoIcon = () => (
 )
 
 export const BlockIcon = () => (
-  <svg viewBox="0 0 24 24" width="20" height="20" fill="CurrentColor">
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-4.42 3.58-8 8-8 1.85 0 3.55.63 4.9 1.69L5.69 16.9C4.63 15.55 4 13.85 4 12zm8 8c-1.85 0-3.55-.63-4.9-1.69L18.31 7.1C19.37 8.45 20 10.15 20 12c0 4.42-3.58 8-8 8z" />
   </svg>
 )
 
 export const ExitGroupIcon = () => (
-  <svg viewBox="0 0 24 24" width="20" height="20" fill="CurrentColor">
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
     <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
   </svg>
 )
 
 export const MuteIcon = () => (
-  <svg viewBox="0 0 24 24" width="20" height="20" fill="CurrentColor">
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
     <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z" />
   </svg>
 )
 
 export const DisappearingMessagesIcon = () => (
-  <svg viewBox="0 0 24 24" height="20" fill="CurrentColor">
+  <svg viewBox="0 0 24 24" height="20" fill="currentColor">
     <path
       d="M12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22C12.0547 22 12.1094 21.9996 12.1639 21.9987C12.7775 21.9888 13.2669 21.4834 13.257 20.8698C13.2471 20.2563 12.7417 19.7669 12.1281 19.7767C12.0855 19.7774 12.0428 19.7778 12 19.7778C7.70445 19.7778 4.22222 16.2955 4.22222 12C4.22222 7.70445 7.70445 4.22222 12 4.22222C12.0428 4.22222 12.0855 4.22257 12.1281 4.22325C12.7417 4.23314 13.2471 3.74375 13.257 3.13018C13.2669 2.51661 12.7775 2.0112 12.1639 2.00132C12.1094 2.00044 12.0547 2 12 2Z"
       fill="currentColor"
@@ -59,7 +59,7 @@ export const DisappearingMessagesIcon = () => (
 )
 
 export const ReportIcon = () => (
-  <svg viewBox="0 0 24 24" width="20" height="20" fill="CurrentColor">
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
     <path d="M15.73 3H8.27L3 8.27v7.46L8.27 21h7.46L21 15.73V8.27L15.73 3zM12 17.3c-.72 0-1.3-.58-1.3-1.3 0-.72.58-1.3 1.3-1.3.72 0 1.3.58 1.3 1.3 0 .72-.58 1.3-1.3 1.3zm1-4.3h-2V7h2v6z" />
   </svg>
 )

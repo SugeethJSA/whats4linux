@@ -42,6 +42,8 @@ import {
 } from "../assets/svgs/chat_icons"
 import { SearchIcon } from "../assets/svgs/settings_icons"
 import { GoBackIcon } from "../assets/svgs/header_icons"
+import { SearchPill } from "../components/common/SearchPill"
+import { Avatar } from "../components/common/Avatar"
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -100,18 +102,7 @@ const SearchBar = ({
   placeholder = "Search or start new chat",
 }: SearchBarProps) => (
   <div className="px-3 py-2 bg-light-bg dark:bg-dark-bg">
-    <div className="bg-light-tertiary dark:bg-dark-secondary rounded-full flex items-center px-4 py-2">
-      <div className="text-gray-500 dark:text-light-muted dark:text-dark-muted mr-4">
-        <SearchIcon />
-      </div>
-      <input
-        type="text"
-        placeholder={placeholder}
-        className="bg-transparent border-none outline-none text-sm w-full text-light-text dark:text-dark-text placeholder-gray-500"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-      />
-    </div>
+    <SearchPill value={value} onChange={onChange} placeholder={placeholder} />
   </div>
 )
 
@@ -126,49 +117,6 @@ const PeopleIcon = ({
     <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
   </svg>
 )
-
-// Memoized ChatAvatar — pastel placeholder when no photo (matches WA).
-const MemoizedChatAvatar = memo(
-  ({
-    avatar,
-    type,
-    name,
-    jid,
-    dark,
-  }: {
-    avatar?: string
-    type: "group" | "contact"
-    name: string
-    jid?: string
-    dark?: boolean
-  }) => {
-    if (avatar) {
-      return <img src={avatar} alt={name} className="w-full h-full object-cover" />
-    }
-    const bg = getAvatarColor(jid || name, dark)
-    return (
-      <div
-        className="w-full h-full flex items-center justify-center"
-        style={{ backgroundColor: bg }}
-      >
-        {type === "group" ? (
-          <PeopleIcon size={26} color={AVATAR_ICON_COLOR} />
-        ) : (
-          <svg
-            viewBox="0 0 48 48"
-            className="w-full h-full p-1.5"
-            fill={AVATAR_ICON_COLOR}
-            aria-hidden
-          >
-            <path d="M24 23q-1.857 0-3.178-1.322Q19.5 20.357 19.5 18.5t1.322-3.178T24 14t3.178 1.322Q28.5 16.643 28.5 18.5t-1.322 3.178T24 23m-6.75 10q-.928 0-1.59-.66-.66-.662-.66-1.59v-.9q0-.956.492-1.758A3.3 3.3 0 0 1 16.8 26.87a16.7 16.7 0 0 1 3.544-1.308q1.8-.435 3.656-.436 1.856 0 3.656.436T31.2 26.87q.816.422 1.308 1.223T33 29.85v.9q0 .928-.66 1.59-.662.66-1.59.66z" />
-          </svg>
-        )}
-      </div>
-    )
-  },
-)
-
-MemoizedChatAvatar.displayName = "MemoizedChatAvatar"
 
 /**
  * WhatsApp community stacked avatar: rounded-square community badge behind a
@@ -278,15 +226,14 @@ const ChatListItemContent = memo(
             dark={dark}
           />
         ) : (
-          <div className="w-12 h-12 rounded-full mr-4 shrink-0 overflow-hidden flex items-center justify-center">
-            <MemoizedChatAvatar
-              avatar={chat.avatar}
-              type={chat.type}
-              name={chat.name}
-              jid={chat.id}
-              dark={dark}
-            />
-          </div>
+          <Avatar
+            name={chat.name}
+            jid={chat.id}
+            avatar={chat.avatar}
+            size="md"
+            className="mr-4"
+            fallback={chat.type === "group" ? "group" : "person"}
+          />
         )}
         <div className="flex-1 min-w-0">
           {communityName && (

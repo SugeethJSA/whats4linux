@@ -200,3 +200,12 @@ export function htmlToPlainText(html: string): string {
   temp.innerHTML = formatted
   return (temp.innerText || temp.textContent || "").trim()
 }
+
+export function blobToDataURL(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
+}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { CreateGroup, FetchContacts } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
+import { Modal } from "../common/Modal"
 
 export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
   const [contacts, setContacts] = useState<api.Contact[]>([])
@@ -32,17 +33,6 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
       cancelled = true
     }
   }, [])
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation()
-        onClose()
-      }
-    }
-    window.addEventListener("keydown", onKey, true)
-    return () => window.removeEventListener("keydown", onKey, true)
-  }, [onClose])
 
   const toggle = (jid: string) => {
     setSelected(prev => {
@@ -80,15 +70,12 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
     "text-light-text dark:text-dark-text placeholder-gray-500"
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
+    <Modal
+      onClose={onClose}
+      overlayClass="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      cardClass="flex max-h-[80vh] w-[420px] max-w-[90vw] flex-col rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
     >
-      <div
-        className="flex max-h-[80vh] w-[420px] max-w-[90vw] flex-col rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
-        onClick={e => e.stopPropagation()}
-      >
-        <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">New group</h2>
+      <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">New group</h2>
 
         <input
           autoFocus
@@ -171,7 +158,6 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
             {creating ? "Creating…" : `Create group (${selected.size})`}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

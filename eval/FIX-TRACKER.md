@@ -40,15 +40,15 @@ Frontend:
 
 ## Phase 3 — Component extraction
 
-- [ ] 3.1 `components/common/Modal.tsx`; rewrite 10 dialogs onto it
-- [ ] 3.2 ChatInfo: 4 inline toggles → `ToggleButton`
-- [ ] 3.3 `SearchPill` shared (ChatScreen + MessageSearchScreen)
-- [ ] 3.4 `Avatar` component (dedupe ~8 fallback blocks)
-- [ ] 3.5 `LinkRow` + `SectionCard` in ui-kit (settings screens)
-- [ ] 3.6 Split ChatInfo.tsx (Contact/Group/Participant/MediaGrid + events hook)
-- [ ] 3.7 ChatDetail: `useChatDetailState(chatId)` + `useSendMessage` (fix all-video send + ghost pending)
-- [ ] 3.8 Single ForwardDialog mount
-- [ ] 3.9 Fix 5 `CurrentColor` icons; delete 8 unused icons
+- [x] 3.1 `components/common/Modal.tsx`; rewrite 10 dialogs onto it — Modal uses createPortal + capture-phase ESC stopPropagation + backdrop click; dialogs: CreateGroup, CreateChannel, Poll, PollVote, ContactShare, InviteLink, Forward, Communities x2, ChatInput location; per-dialog ESC effects + createPortal imports removed (InviteLinkDialog kept Enter, ESC now via Modal); note: ChatScreen SubscribeChannelDialog still raw (defer)
+- [x] 3.2 ChatInfo: 4 inline toggles → `ToggleButton` (+ `disabled` prop added)
+- [x] 3.3 `SearchPill` shared (ChatScreen + MessageSearchScreen); SettingsScreen search kept (different style)
+- [x] 3.4 `Avatar` component (memo; xs/sm/md/lg; initial/person/group fallbacks; dark-aware); migrated ChatScreen chat list (deleted MemoizedChatAvatar), ForwardDialog, MessageItem SenderAvatar
+- [x] 3.5 `LinkRow` + `SectionCard` in ui-kit; migrated AccountSettingsScreen (SectionCard), HelpAndFeedback (deleted local LinkRow), KeyBoardShortCuts (RowList)
+- [~] 3.6 ChatInfo split — done scoped: `components/chat/ParticipantList.tsx` extracted (own member-manage state + `onMembersChanged` callback) + `wa:chat_mute_update` via `useWailsEvent`; full Contact/Group/MediaGrid file split intentionally skipped (churn vs value)
+- [x] 3.7 ChatDetail: `useChatDetailState(chatId, onBack)` (all local state/refs/effects + message loading callbacks; ChatDetail slimmed 812→~330 lines) + `useSendMessage` hook (hooks/useSendMessage.ts) — fixes all-video send (type now derived: image/video/gif/audio/document) + ghost pending (failed send removes optimistic bubble via new `removePendingMessage` store action); `blobToDataURL` moved to lib/utils; tsc + 69 tests + eslint 0 errors green
+- [x] 3.8 Single ForwardDialog mount — forward target lifted to ChatDetail (`forwardTarget` state); MessageItem/MessageList thread `onForward(messageId)`; menu forward + Ctrl+Shift+F shortcut share one mount
+- [x] 3.9 Icon fixes — deviation from eval counts: `fill="CurrentColor"` fixed in 6 icons (chat_icons ForwardedIcon; chat_info_icons Block/ExitGroup/Mute/DisappearingMessages/Report — other svgs already used correct casing); deleted 3 actually-unused icons (ReplyPrivatelyIcon, MessageIcon, LogIcon — verified 0 references; eval's "8 unused" was stale)
 
 ## Phase 4 — Bug batch
 

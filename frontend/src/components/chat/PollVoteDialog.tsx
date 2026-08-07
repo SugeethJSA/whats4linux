@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { SendPollVote } from "../../../wailsjs/go/api/Api"
+import { Modal } from "../common/Modal"
 
 interface PollVoteDialogProps {
   chatId: string
@@ -49,15 +50,12 @@ export function PollVoteDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
+    <Modal
+      onClose={onClose}
+      overlayClass="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      cardClass="w-[360px] max-w-[90vw] rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
     >
-      <div
-        className="w-[360px] max-w-[90vw] rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
-        onClick={e => e.stopPropagation()}
-      >
-        <h3 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">Vote</h3>
+      <h3 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">Vote</h3>
         <p className="text-sm text-gray-900 dark:text-gray-100 mb-3 font-medium">{question}</p>
         {done ? (
           <p className="text-sm text-green-600 dark:text-green-400 mb-3">Vote submitted!</p>
@@ -96,7 +94,6 @@ export function PollVoteDialog({
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

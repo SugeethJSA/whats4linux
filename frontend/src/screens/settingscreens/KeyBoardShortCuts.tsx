@@ -1,4 +1,4 @@
-import { SettingsCard } from "../../components/settings/ui-kit"
+import { RowList } from "../../components/settings/ui-kit"
 
 interface Shortcut {
   name: string
@@ -104,13 +104,11 @@ const KeyBoardShortCuts = () => {
             <div className="mb-1.5 px-1 text-[12px] font-semibold uppercase tracking-wide text-light-muted dark:text-dark-muted">
               {category}
             </div>
-            <SettingsCard>
-              <div className="divide-y divide-black/[0.04] dark:divide-white/[0.06]">
-                {items.map((sc, index) => (
-                  <ShortcutRow key={index} {...sc} />
-                ))}
-              </div>
-            </SettingsCard>
+            <RowList>
+              {items.map((sc, index) => (
+                <ShortcutRow key={index} {...sc} />
+              ))}
+            </RowList>
           </div>
         )
       })}

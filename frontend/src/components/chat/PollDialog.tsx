@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { SendPoll } from "../../../wailsjs/go/api/Api"
+import { Modal } from "../common/Modal"
 
 const MAX_OPTIONS = 12
 
@@ -9,19 +10,6 @@ export function PollDialog({ chatId, onClose }: { chatId: string; onClose: () =>
   const [multiple, setMultiple] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState("")
-
-  // Close on ESC in the capture phase so the chat's own ESC handler
-  // (which closes the whole chat) never sees the event.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation()
-        onClose()
-      }
-    }
-    window.addEventListener("keydown", onKey, true)
-    return () => window.removeEventListener("keydown", onKey, true)
-  }, [onClose])
 
   const setOption = (i: number, v: string) =>
     setOptions(prev => prev.map((o, idx) => (idx === i ? v : o)))
@@ -56,17 +44,14 @@ export function PollDialog({ chatId, onClose }: { chatId: string; onClose: () =>
     "text-light-text dark:text-dark-text placeholder-gray-500"
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
+    <Modal
+      onClose={onClose}
+      overlayClass="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      cardClass="w-[420px] max-w-[90vw] rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
     >
-      <div
-        className="w-[420px] max-w-[90vw] rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
-        onClick={e => e.stopPropagation()}
-      >
-        <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">
-          Create poll
-        </h2>
+      <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">
+        Create poll
+      </h2>
 
         <input
           autoFocus
@@ -134,7 +119,6 @@ export function PollDialog({ chatId, onClose }: { chatId: string; onClose: () =>
             {sending ? "Sending…" : "Send poll"}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

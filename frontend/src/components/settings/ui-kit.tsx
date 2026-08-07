@@ -307,6 +307,88 @@ export function StatusBanner({
   )
 }
 
+/** Card with an optional title/description header above its content. */
+export function SectionCard({
+  title,
+  description,
+  children,
+  className,
+}: {
+  title?: string
+  description?: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <SettingsCard className={className}>
+      {(title || description) && (
+        <div className="border-b border-black/[0.04] px-5 py-4 dark:border-white/[0.06]">
+          {title && (
+            <h3 className="text-[15px] font-semibold text-light-text dark:text-dark-text">
+              {title}
+            </h3>
+          )}
+          {description && (
+            <p className="mt-0.5 text-[13px] text-light-muted dark:text-dark-muted">
+              {description}
+            </p>
+          )}
+        </div>
+      )}
+      <div className="space-y-3 p-5">{children}</div>
+    </SettingsCard>
+  )
+}
+
+/** Tappable row that opens a URL or triggers an action. */
+export function LinkRow({
+  title,
+  description,
+  href,
+  onClick,
+  icon,
+  badge,
+}: {
+  title: string
+  description: string
+  href?: string
+  onClick?: () => void
+  icon?: ReactNode
+  badge?: string
+}) {
+  const handleClick = () => {
+    if (onClick) onClick()
+    else if (href) window.open(href, "_blank")
+  }
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+    >
+      {icon && (
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black/[0.04] text-light-muted dark:bg-white/[0.06] dark:text-dark-muted">
+          {icon}
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 text-sm font-medium text-light-text dark:text-dark-text">
+          {title}
+          {badge && (
+            <span className="rounded-full bg-[#21c063]/15 px-2 py-0.5 text-[11px] font-semibold text-[#21c063]">
+              {badge}
+            </span>
+          )}
+        </div>
+        <div className="mt-0.5 truncate text-[13px] text-light-muted dark:text-dark-muted">
+          {description}
+        </div>
+      </div>
+      <ChevronIcon className="shrink-0 text-light-muted/60 dark:text-dark-muted/60" />
+    </button>
+  )
+}
+
 export function PageHeader({
   icon,
   title,

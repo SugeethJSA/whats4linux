@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react"
-import { createPortal } from "react-dom"
 import { ForwardMessage } from "../../../wailsjs/go/api/Api"
 import { useChatStore } from "../../store/useChatStore"
 import { formatPhone, phoneFromJID } from "../../lib/utils"
+import { Modal } from "../common/Modal"
+import { Avatar } from "../common/Avatar"
 
 interface ForwardDialogProps {
   sourceJID: string
@@ -35,15 +36,12 @@ export function ForwardDialog({ sourceJID, messageID, onClose }: ForwardDialogPr
     .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={e => {
-        if (e.target === e.currentTarget) onClose()
-      }}
+  return (
+    <Modal
+      onClose={onClose}
+      cardClass="bg-white dark:bg-dark-secondary rounded-2xl w-96 max-h-[80vh] flex flex-col shadow-xl"
     >
-      <div className="bg-white dark:bg-dark-secondary rounded-2xl w-96 max-h-[80vh] flex flex-col shadow-xl">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Forward message
           </h2>
@@ -67,13 +65,7 @@ export function ForwardDialog({ sourceJID, messageID, onClose }: ForwardDialogPr
               onClick={() => handleForward(chat.id)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-left"
             >
-              <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-sm font-semibold text-gray-700 dark:text-gray-200 shrink-0">
-                {chat.avatar ? (
-                  <img src={chat.avatar} className="w-10 h-10 rounded-full object-cover" alt="" />
-                ) : (
-                  (chat.name || "?").charAt(0).toUpperCase()
-                )}
-              </div>
+              <Avatar name={chat.name} avatar={chat.avatar} size="sm" />
               <div className="min-w-0">
                 <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                   {chat.name}
@@ -93,8 +85,6 @@ export function ForwardDialog({ sourceJID, messageID, onClose }: ForwardDialogPr
             Cancel
           </button>
         </div>
-      </div>
-    </div>,
-    document.body,
+    </Modal>
   )
 }

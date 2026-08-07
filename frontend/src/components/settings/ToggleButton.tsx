@@ -7,9 +7,10 @@ import { useEase } from "../../store/useAppSettingsStore"
 interface ToggleButtonProps {
   isEnabled: boolean
   onToggle: () => void
+  disabled?: boolean
 }
 
-const ToggleButton = ({ isEnabled, onToggle }: ToggleButtonProps) => {
+const ToggleButton = ({ isEnabled, onToggle, disabled }: ToggleButtonProps) => {
   const circleRef = useRef<HTMLDivElement>(null)
 
   const ease = useEase("ToggleButton", "slide")
@@ -32,9 +33,10 @@ const ToggleButton = ({ isEnabled, onToggle }: ToggleButtonProps) => {
 
   return (
     <div
-      onClick={onToggle}
+      onClick={disabled ? undefined : onToggle}
       className={clsx(
-        "h-7 w-12 rounded-full flex items-center px-1 cursor-pointer shrink-0 transition-colors duration-300",
+        "h-7 w-12 rounded-full flex items-center px-1 shrink-0 transition-colors duration-300",
+        disabled && "opacity-40 pointer-events-none",
         isEnabled
           ? "bg-toggle-bg dark:bg-toggle-dark-bg"
           : "bg-toggle-closed dark:bg-toggle-dark-closed",

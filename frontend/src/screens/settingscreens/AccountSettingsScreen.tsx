@@ -9,64 +9,13 @@ import {
 } from "../../../wailsjs/go/api/Api"
 import type { ReactNode } from "react"
 import {
-  SettingsCard,
   TextField,
   ActionButton,
   StatusBanner,
-  ChevronIcon,
+  SectionCard,
+  RowList,
+  LinkRow,
 } from "../../components/settings/ui-kit"
-
-function CardSection({
-  title,
-  description,
-  children,
-}: {
-  title: string
-  description: string
-  children: ReactNode
-}) {
-  return (
-    <SettingsCard>
-      <div className="border-b border-black/[0.04] px-5 py-4 dark:border-white/[0.06]">
-        <h3 className="text-[15px] font-semibold text-light-text dark:text-dark-text">{title}</h3>
-        <p className="mt-0.5 text-[13px] text-light-muted dark:text-dark-muted">{description}</p>
-      </div>
-      <div className="space-y-3 p-5">{children}</div>
-    </SettingsCard>
-  )
-}
-
-function LinkRow({
-  title,
-  description,
-  href,
-  onNavigate,
-}: {
-  title: string
-  description: string
-  href?: string
-  onNavigate?: () => void
-}) {
-  const handleClick = () => {
-    if (onNavigate) onNavigate()
-    else if (href) window.open(href, "_blank")
-  }
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
-    >
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium text-light-text dark:text-dark-text">{title}</div>
-        <div className="mt-0.5 text-[13px] text-light-muted dark:text-dark-muted">
-          {description}
-        </div>
-      </div>
-      <ChevronIcon className="shrink-0 text-light-muted/60 dark:text-dark-muted/60" />
-    </button>
-  )
-}
 
 const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode) => void }) => {
   const [statusText, setStatusText] = useState("")
@@ -125,7 +74,7 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
 
   return (
     <div className="flex flex-col gap-5">
-      <CardSection title="Status" description="Set your profile status message">
+      <SectionCard title="Status" description="Set your profile status message">
         <div className="flex flex-col gap-2 sm:flex-row">
           <TextField
             value={statusText}
@@ -137,9 +86,9 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
           </ActionButton>
         </div>
         {statusSaved && <StatusBanner tone="success">Status updated</StatusBanner>}
-      </CardSection>
+      </SectionCard>
 
-      <CardSection
+      <SectionCard
         title="Push name"
         description="Name shown to others before they add you"
       >
@@ -154,18 +103,18 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
           </ActionButton>
         </div>
         {pushNameSaved && <StatusBanner tone="success">Push name updated</StatusBanner>}
-      </CardSection>
+      </SectionCard>
 
-      <CardSection
+      <SectionCard
         title="Contact QR link"
         description="Share your contact link so others can add you on WhatsApp"
       >
         <ActionButton variant="primary" onClick={handleGetQRLink} disabled={qrBusy}>
           {qrBusy ? "Loading…" : qrLink ? "Copied to clipboard!" : "Get my contact link"}
         </ActionButton>
-      </CardSection>
+      </SectionCard>
 
-      <CardSection
+      <SectionCard
         title="Resolve contact QR"
         description="Scan or paste a WhatsApp contact QR code link"
       >
@@ -197,9 +146,9 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
           </ActionButton>
         </div>
         {resolveResult && <StatusBanner tone={resolveResult.tone}>{resolveResult.text}</StatusBanner>}
-      </CardSection>
+      </SectionCard>
 
-      <CardSection
+      <SectionCard
         title="Resolve business message link"
         description="Paste a business message link to resolve the business info"
       >
@@ -231,31 +180,29 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
           </ActionButton>
         </div>
         {bizLinkResult && <StatusBanner tone={bizLinkResult.tone}>{bizLinkResult.text}</StatusBanner>}
-      </CardSection>
+      </SectionCard>
 
-      <SettingsCard>
-        <div className="divide-y divide-black/[0.04] dark:divide-white/[0.06]">
-          <LinkRow
-            title="How to delete my account"
-            description="Learn how to permanently delete your WhatsApp account"
-            href="https://faq.whatsapp.com/2138577903196467/?cms_platform=android&lang=en"
-          />
-          <LinkRow
-            title="Security notifications"
-            description="Learn about end-to-end encryption and security alerts"
-            onNavigate={() =>
-              onNavigate?.(
-                <div>
-                  <h2 className="mb-2 text-xl font-semibold tracking-tight text-light-text dark:text-dark-text">
-                    Security Notifications
-                  </h2>
-                  <SecurityNotificationsScreen />
-                </div>,
-              )
-            }
-          />
-        </div>
-      </SettingsCard>
+      <RowList>
+        <LinkRow
+          title="How to delete my account"
+          description="Learn how to permanently delete your WhatsApp account"
+          href="https://faq.whatsapp.com/2138577903196467/?cms_platform=android&lang=en"
+        />
+        <LinkRow
+          title="Security notifications"
+          description="Learn about end-to-end encryption and security alerts"
+          onClick={() =>
+            onNavigate?.(
+              <div>
+                <h2 className="mb-2 text-xl font-semibold tracking-tight text-light-text dark:text-dark-text">
+                  Security Notifications
+                </h2>
+                <SecurityNotificationsScreen />
+              </div>,
+            )
+          }
+        />
+      </RowList>
     </div>
   )
 }

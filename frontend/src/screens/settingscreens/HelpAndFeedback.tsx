@@ -1,7 +1,4 @@
-import {
-  SettingsCard,
-  ChevronIcon,
-} from "../../components/settings/ui-kit"
+import { SettingsCard, RowList, LinkRow } from "../../components/settings/ui-kit"
 
 const LinksIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -27,95 +24,50 @@ const BugIcon = () => (
   </svg>
 )
 
-function LinkRow({
-  title,
-  description,
-  href,
-  icon,
-  badge,
-}: {
-  title: string
-  description: string
-  href?: string
-  icon: React.ReactNode
-  badge?: string
-}) {
-  const open = () => href && window.open(href, "_blank")
-  return (
-    <button
-      type="button"
-      onClick={open}
-      className="flex w-full cursor-pointer items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
-    >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black/[0.04] text-light-muted dark:bg-white/[0.06] dark:text-dark-muted">
-        {icon}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 text-sm font-medium text-light-text dark:text-dark-text">
-          {title}
-          {badge && (
-            <span className="rounded-full bg-[#21c063]/15 px-2 py-0.5 text-[11px] font-semibold text-[#21c063]">
-              {badge}
-            </span>
-          )}
-        </div>
-        <div className="mt-0.5 truncate text-[13px] text-light-muted dark:text-dark-muted">
-          {description}
-        </div>
-      </div>
-      <ChevronIcon className="shrink-0 text-light-muted/60 dark:text-dark-muted/60" />
-    </button>
-  )
-}
-
 const HelpAndFeedback = () => {
   return (
     <div className="flex flex-col gap-6">
-      <SettingsCard>
-        <div className="divide-y divide-black/[0.04] dark:divide-white/[0.06]">
-          <LinkRow
-            title="Help centre"
-            description="Get answers to common questions about using Whatsapp"
-            href="https://faq.whatsapp.com/"
-            icon={<DocsIcon />}
-          />
-          <LinkRow
-            title="How to use Whatsapp on computer"
-            description="Learn about linking this device with your phone"
-            href="https://faq.whatsapp.com/2098951377590750"
-            icon={<LinksIcon />}
-          />
-          <LinkRow
-            title="Privacy and security"
-            description="Learn how your messages are kept private and secure"
-            href="https://www.whatsapp.com/security/"
-            icon={<LinksIcon />}
-          />
-        </div>
-      </SettingsCard>
+      <RowList>
+        <LinkRow
+          title="Help centre"
+          description="Get answers to common questions about using Whatsapp"
+          href="https://faq.whatsapp.com/"
+          icon={<DocsIcon />}
+        />
+        <LinkRow
+          title="How to use Whatsapp on computer"
+          description="Learn about linking this device with your phone"
+          href="https://faq.whatsapp.com/2098951377590750"
+          icon={<LinksIcon />}
+        />
+        <LinkRow
+          title="Privacy and security"
+          description="Learn how your messages are kept private and secure"
+          href="https://www.whatsapp.com/security/"
+          icon={<LinksIcon />}
+        />
+      </RowList>
 
-      <SettingsCard>
-        <div className="divide-y divide-black/[0.04] dark:divide-white/[0.06]">
-          <LinkRow
-            title="Contact us"
-            description="Reach out to our support team with a question or concern"
-            href="https://www.whatsapp.com/contact/"
-            icon={<MailIcon />}
-          />
-          <LinkRow
-            title="Report a problem"
-            description="File a bug report or send feedback about the app"
-            icon={<BugIcon />}
-            badge="New"
-          />
-          <LinkRow
-            title="Privacy policy"
-            description="Read the Whatsapp privacy policy and terms of service"
-            href="https://www.whatsapp.com/legal/privacy-policy"
-            icon={<DocsIcon />}
-          />
-        </div>
-      </SettingsCard>
+      <RowList>
+        <LinkRow
+          title="Contact us"
+          description="Reach out to our support team with a question or concern"
+          href="https://www.whatsapp.com/contact/"
+          icon={<MailIcon />}
+        />
+        <LinkRow
+          title="Report a problem"
+          description="File a bug report or send feedback about the app"
+          icon={<BugIcon />}
+          badge="New"
+        />
+        <LinkRow
+          title="Privacy policy"
+          description="Read the Whatsapp privacy policy and terms of service"
+          href="https://www.whatsapp.com/legal/privacy-policy"
+          icon={<DocsIcon />}
+        />
+      </RowList>
 
       <SettingsCard className="p-5">
         <div className="flex items-center gap-3">

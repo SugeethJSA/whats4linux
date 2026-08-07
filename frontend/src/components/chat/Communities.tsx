@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import clsx from "clsx"
-import { createPortal } from "react-dom"
 import {
   GetCommunityList,
   GetCommunityDetails,
@@ -12,6 +11,7 @@ import { api } from "../../../wailsjs/go/models"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
 import { getAvatarColor, AVATAR_ICON_COLOR } from "../../lib/utils"
 import { useAppSettingsStore } from "../../store/useAppSettingsStore"
+import { Modal } from "../common/Modal"
 
 /** Communities empty-state illustration. */
 const CommunitiesEmptyIcon = () => (
@@ -251,17 +251,11 @@ function CreateSubGroupDialog({
     }
   }
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={e => {
-        if (e.target === e.currentTarget) onClose()
-      }}
+  return (
+    <Modal
+      onClose={onClose}
+      cardClass="bg-white dark:bg-dark-secondary rounded-2xl w-96 p-6 shadow-xl"
     >
-      <div
-        className="bg-white dark:bg-dark-secondary rounded-2xl w-96 p-6 shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
           New Group in {communityName}
         </h2>
@@ -290,9 +284,7 @@ function CreateSubGroupDialog({
             {loading ? "Creating..." : "Create"}
           </button>
         </div>
-      </div>
-    </div>,
-    document.body,
+    </Modal>
   )
 }
 
@@ -579,17 +571,11 @@ function CreateCommunityDialog({ onClose }: { onClose: () => void }) {
     }
   }
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={e => {
-        if (e.target === e.currentTarget) onClose()
-      }}
+  return (
+    <Modal
+      onClose={onClose}
+      cardClass="bg-white dark:bg-dark-secondary rounded-2xl w-96 p-6 shadow-xl"
     >
-      <div
-        className="bg-white dark:bg-dark-secondary rounded-2xl w-96 p-6 shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
           Create Community
         </h2>
@@ -622,9 +608,7 @@ function CreateCommunityDialog({ onClose }: { onClose: () => void }) {
             {loading ? "Creating..." : "Create"}
           </button>
         </div>
-      </div>
-    </div>,
-    document.body,
+    </Modal>
   )
 }
 

@@ -14,6 +14,7 @@ interface MessageStore {
   trimAllChats: () => void
   addPendingMessage: (chatId: string, message: Message) => void
   updatePendingMessageToSent: (chatId: string, tempId: string, message: Message) => void
+  removePendingMessage: (chatId: string, tempId: string) => void
   updateMessageReceipt: (chatId: string, messageId: string, status: string) => void
   reset: () => void
 }
@@ -123,6 +124,13 @@ export const useMessageStore = create<MessageStore>()(
         const idx = msgs.findIndex(m => m.Info?.ID === messageId)
         if (idx < 0) return
         msgs[idx] = { ...msgs[idx], receiptStatus: status }
+      }),
+
+    removePendingMessage: (chatId, tempId) =>
+      set(state => {
+        const msgs = state.messages[chatId]
+        if (!msgs) return
+        state.messages[chatId] = msgs.filter(m => m.tempId !== tempId)
       }),
 
     reset: () =>

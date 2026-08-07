@@ -23,9 +23,6 @@ import {
   ClearChat,
   GetBusinessProfile,
   SetGroupPhoto,
-  RemoveGroupParticipants,
-  PromoteGroupParticipants,
-  DemoteGroupParticipants,
   SetGroupAnnounce,
   SetGroupLocked,
   GetMyJID,
@@ -39,15 +36,12 @@ import {
   UnlinkGroupFromCommunity,
   GetCommunityList,
   IsOnWhatsApp,
-  AddGroupParticipants,
-  FetchContacts,
   GetDisappearingTimer,
   GetUserInfo,
   GetNewsletterInfo,
   NewsletterToggleMute,
 } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
-import { EventsOn } from "../../../wailsjs/runtime/runtime"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
 import ToggleButton from "../settings/ToggleButton"
 import { useMuteStore } from "../../store/useMuteStore"
@@ -55,6 +49,8 @@ import { useChatStore } from "../../store/useChatStore"
 import { useMessageStore } from "../../store/useMessageStore"
 import { GetCachedAvatar } from "../../../wailsjs/go/api/Api"
 import { InviteLinkDialog } from "./InviteLinkDialog"
+import { ParticipantList } from "./ParticipantList"
+import { useWailsEvent } from "../../hooks/useWailsEvent"
 
 interface ChatInfoProps {
   chatId: string
@@ -75,10 +71,9 @@ export function ChatInfo({
 }: ChatInfoProps) {
   const [contactInfo, setContactInfo] = useState<api.Contact | null>(null)
   const [groupInfo, setGroupInfo] = useState<api.Group | null>(null)
-  const [businessInfo, setBusinessInfo] = useState<Record<string, any> | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [showAllParticipants, setShowAllParticipants] = useState(false)
-  const [muted, setMutedState] = useState(false)
+const [businessInfo, setBusinessInfo] = useState<Record<string, any> | null>(null)
+const [loading, setLoading] = useState(true)
+const [muted, setMutedState] = useState(false)
   const [muteBusy, setMuteBusy] = useState(false)
   const [blocked, setBlocked] = useState(false)
   const [actionBusy, setActionBusy] = useState(false)
@@ -91,10 +86,9 @@ export function ChatInfo({
   const [showJoinDialog, setShowJoinDialog] = useState(false)
   const [myJid, setMyJid] = useState("")
   const [isAdmin, setIsAdmin] = useState(false)
-  const [groupLocked, setGroupLocked] = useState(false)
-  const [groupAnnounce, setGroupAnnounce] = useState(false)
-  const [participantBusy, setParticipantBusy] = useState<string | null>(null)
-  const [topicEdit, setTopicEdit] = useState(false)
+const [groupLocked, setGroupLocked] = useState(false)
+const [groupAnnounce, setGroupAnnounce] = useState(false)
+const [topicEdit, setTopicEdit] = useState(false)
   const [topicDraft, setTopicDraft] = useState("")
   const [memberAddMode, setMemberAddMode] = useState("all_member_add")
   const [joinApproval, setJoinApproval] = useState(false)
@@ -116,18 +110,13 @@ export function ChatInfo({
     verified_name?: string
   } | null>(null)
   const [userInfoBusy, setUserInfoBusy] = useState(false)
-  const [linkError, setLinkError] = useState("")
-  const [showAddParticipant, setShowAddParticipant] = useState(false)
-  const [addSearch, setAddSearch] = useState("")
-  const [addResults, setAddResults] = useState<any[]>([])
-  const [addBusy, setAddBusy] = useState(false)
-  const [newsletterInfo, setNewsletterInfo] = useState<{
+const [linkError, setLinkError] = useState("")
+const [newsletterInfo, setNewsletterInfo] = useState<{
     name?: string
     description?: string
     subscriber_count?: number
   } | null>(null)
   const [newsletterMuted, setNewsletterMuted] = useState(false)
-  const MAX_VISIBLE = 10
 
   const DISAPPEAR_OPTIONS = [
     { value: 0, label: "Off" },
@@ -145,7 +134,6 @@ export function ChatInfo({
 
   useEffect(() => {
     if (isOpen) {
-      setShowAllParticipants(false)
       if (chatType === "contact") {
         GetBlockList()
           .then(list => {
@@ -174,17 +162,16 @@ export function ChatInfo({
         console.error("Failed to load mute state:", err)
       })
 
-    const unsub = EventsOn("wa:chat_mute_update", (data: { chatId: string; muted: boolean }) => {
-      if (data?.chatId === chatId) {
-        setMutedState(!!data.muted)
-      }
-    })
-
     return () => {
       cancelled = true
-      unsub()
     }
   }, [isOpen, chatId])
+
+  useWailsEvent<{ chatId: string; muted: boolean }>("wa:chat_mute_update", data => {
+    if (data?.chatId === chatId) {
+      setMutedState(!!data.muted)
+    }
+  })
 
   // Load disappearing timer value when panel opens
   useEffect(() => {
@@ -448,15 +435,11 @@ export function ChatInfo({
   }
 
   const participants = groupInfo?.group_participants ?? []
-  const sortedParticipants = participants.sort((a, b) => {
+  const sortedParticipants = [...participants].sort((a, b) => {
     if (a.is_admin && !b.is_admin) return -1
     if (!a.is_admin && b.is_admin) return 1
     return 0
   })
-  const visibleParticipants = showAllParticipants
-    ? sortedParticipants
-    : sortedParticipants.slice(0, MAX_VISIBLE)
-  const hasMore = (groupInfo?.participant_count ?? sortedParticipants.length) > MAX_VISIBLE
 
   if (!isOpen) return null
 
@@ -790,213 +773,21 @@ export function ChatInfo({
               </button>
             </div>
 
-            {/* Group Participants */}
+            {/* Group Participants + Add members */}
             {chatType === "group" && groupInfo && (
-              <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
-                <span className="w-full p-4 flex items-center justify-between transition-colors">
-                  <span className="text-gray-900 dark:text-gray-100">
-                    {groupInfo.participant_count} members
-                  </span>
-                </span>
-
-                <div className="max-h-96 overflow-y-auto">
-                  {visibleParticipants.map((participant: any) => (
-                    <div
-                      key={participant.contact.jid}
-                      className="flex items-center gap-3 p-3 rounded-xl m-2 hover:bg-gray-100 dark:hover:bg-dark-tertiary"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-white font-bold overflow-hidden">
-                        {participant.contact.avatar_url ? (
-                          <img
-                            src={participant.contact.avatar_url}
-                            alt={participant.contact.push_name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <UserAvatar />
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="text-gray-900 dark:text-gray-100 font-medium truncate">
-                          {participant.contact.full_name ||
-                            (participant.contact.push_name
-                              ? "~ " + participant.contact.push_name
-                              : participant.contact.phno || "")}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">
-                          {participant.contact.phno}
-                        </p>
-                      </div>
-
-                      {participant.is_admin && (
-                        <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-[#C8ECC5] shrink-0">
-                          Admin
-                        </span>
-                      )}
-
-                      {isAdmin && participant.contact.jid !== myJid && (
-                        <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-                          {participant.is_admin ? (
-                            <button
-                              onClick={async () => {
-                                setParticipantBusy(participant.contact.jid)
-                                try {
-                                  await DemoteGroupParticipants(chatId, [participant.contact.jid])
-                                  loadInfo()
-                                } catch (e) {
-                                  console.error("Failed to demote:", e)
-                                } finally {
-                                  setParticipantBusy(null)
-                                }
-                              }}
-                              disabled={participantBusy === participant.contact.jid}
-                              className="text-xs px-2 py-1 rounded bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400 disabled:opacity-50"
-                            >
-                              Demote
-                            </button>
-                          ) : (
-                            <>
-                              <button
-                                onClick={async () => {
-                                  setParticipantBusy(participant.contact.jid)
-                                  try {
-                                    await PromoteGroupParticipants(chatId, [
-                                      participant.contact.jid,
-                                    ])
-                                    loadInfo()
-                                  } catch (e) {
-                                    console.error("Failed to promote:", e)
-                                  } finally {
-                                    setParticipantBusy(null)
-                                  }
-                                }}
-                                disabled={participantBusy === participant.contact.jid}
-                                className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 disabled:opacity-50"
-                              >
-                                Promote
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  if (
-                                    !confirm(
-                                      `Remove ${participant.contact.full_name || participant.contact.push_name} from the group?`,
-                                    )
-                                  )
-                                    return
-                                  setParticipantBusy(participant.contact.jid)
-                                  try {
-                                    await RemoveGroupParticipants(chatId, [participant.contact.jid])
-                                    loadInfo()
-                                  } catch (e) {
-                                    console.error("Failed to remove:", e)
-                                  } finally {
-                                    setParticipantBusy(null)
-                                  }
-                                }}
-                                disabled={participantBusy === participant.contact.jid}
-                                className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 disabled:opacity-50"
-                              >
-                                Remove
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  {hasMore && !showAllParticipants && (
-                    <button
-                      onClick={() => setShowAllParticipants(true)}
-                      className="w-full p-3 text-sm font-medium text-blue-600 dark:text-green hover:bg-gray-100 dark:hover:bg-dark-tertiary"
-                    >
-                      View all members ({groupInfo.participant_count - MAX_VISIBLE} more)
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Add Participants */}
-            {chatType === "group" && isAdmin && (
-              <div className="border-b border-gray-200 dark:border-dark-tertiary">
-                <button
-                  onClick={async () => {
-                    setShowAddParticipant(!showAddParticipant)
-                    if (!showAddParticipant) {
-                      try {
-                        const contacts = await FetchContacts()
-                        setAddResults(contacts)
-                      } catch {
-                        /* ignore */
-                      }
-                    }
-                  }}
-                  className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors"
-                >
-                  <span className="text-gray-900 dark:text-gray-100 font-medium">Add members</span>
-                </button>
-                {showAddParticipant && (
-                  <div className="mx-4 mb-3">
-                    <input
-                      autoFocus
-                      className="w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] text-light-text dark:text-dark-text mb-2"
-                      value={addSearch}
-                      onChange={e => {
-                        const q = e.target.value
-                        setAddSearch(q)
-                        FetchContacts()
-                          .then(all => {
-                            const filtered = all.filter(
-                              (c: any) =>
-                                c.jid &&
-                                !groupInfo?.group_participants?.some(
-                                  (p: any) => p.contact.jid === c.jid,
-                                ) &&
-                                (c.full_name || c.push_name || c.phno || "")
-                                  .toLowerCase()
-                                  .includes(q.toLowerCase()),
-                            )
-                            setAddResults(filtered)
-                          })
-                          .catch(() => {})
-                      }}
-                      placeholder="Search contacts..."
-                    />
-                    <div className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 dark:border-dark-border">
-                      {addResults.length === 0 && (
-                        <p className="p-3 text-sm text-gray-500 dark:text-dark-muted">
-                          No contacts to add
-                        </p>
-                      )}
-                      {addResults.map((c: any) => (
-                        <button
-                          key={c.jid}
-                          onClick={async () => {
-                            setAddBusy(true)
-                            try {
-                              await AddGroupParticipants(chatId, [c.jid])
-                              setGroupInfo(null)
-                              loadInfo()
-                              setShowAddParticipant(false)
-                              setAddSearch("")
-                            } catch (e) {
-                              console.error("Failed to add participant:", e)
-                            } finally {
-                              setAddBusy(false)
-                            }
-                          }}
-                          disabled={addBusy}
-                          className="w-full px-3 py-2 text-left text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-dark-tertiary disabled:opacity-50 border-b border-gray-100 dark:border-dark-tertiary last:border-0"
-                        >
-                          {c.full_name || c.push_name || c.phno || c.jid}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <ParticipantList
+                chatId={chatId}
+                participants={sortedParticipants}
+                participantCount={
+                  groupInfo.participant_count ?? sortedParticipants.length
+                }
+                isAdmin={isAdmin}
+                myJid={myJid}
+                onMembersChanged={() => {
+                  setGroupInfo(null)
+                  loadInfo()
+                }}
+              />
             )}
             {/* Newsletter Info */}
             {chatId.endsWith("@newsletter") && newsletterInfo && (
@@ -1126,8 +917,9 @@ export function ChatInfo({
                 {/* Group announce toggle */}
                 <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors">
                   <span className="text-sm text-gray-900 dark:text-gray-100">Send Messages</span>
-                  <button
-                    onClick={async () => {
+                  <ToggleButton
+                    isEnabled={groupAnnounce}
+                    onToggle={async () => {
                       const next = !groupAnnounce
                       setGroupAnnounce(next)
                       try {
@@ -1138,16 +930,7 @@ export function ChatInfo({
                       }
                     }}
                     disabled={!isAdmin}
-                    className={`relative w-10 h-5 rounded-full transition-colors disabled:opacity-40 ${
-                      groupAnnounce ? "bg-[#21c063]" : "bg-gray-300 dark:bg-gray-600"
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                        groupAnnounce ? "translate-x-5" : ""
-                      }`}
-                    />
-                  </button>
+                  />
                 </div>
                 <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
                   {groupAnnounce
@@ -1158,8 +941,9 @@ export function ChatInfo({
                 {/* Group locked toggle */}
                 <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors">
                   <span className="text-sm text-gray-900 dark:text-gray-100">Lock Group</span>
-                  <button
-                    onClick={async () => {
+                  <ToggleButton
+                    isEnabled={groupLocked}
+                    onToggle={async () => {
                       const next = !groupLocked
                       setGroupLocked(next)
                       try {
@@ -1170,16 +954,7 @@ export function ChatInfo({
                       }
                     }}
                     disabled={!isAdmin}
-                    className={`relative w-10 h-5 rounded-full transition-colors disabled:opacity-40 ${
-                      groupLocked ? "bg-[#21c063]" : "bg-gray-300 dark:bg-gray-600"
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                        groupLocked ? "translate-x-5" : ""
-                      }`}
-                    />
-                  </button>
+                  />
                 </div>
                 <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
                   {groupLocked ? "Group info locked by admins" : "Anyone can edit group info"}
@@ -1235,20 +1010,10 @@ export function ChatInfo({
                       <span className="text-sm text-gray-900 dark:text-gray-100">
                         Member Add Mode
                       </span>
-                      <button
-                        onClick={handleToggleMemberAddMode}
-                        className={`relative w-10 h-5 rounded-full transition-colors ${
-                          memberAddMode === "admin_add"
-                            ? "bg-[#21c063]"
-                            : "bg-gray-300 dark:bg-gray-600"
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                            memberAddMode === "admin_add" ? "translate-x-5" : ""
-                          }`}
-                        />
-                      </button>
+                      <ToggleButton
+                        isEnabled={memberAddMode === "admin_add"}
+                        onToggle={handleToggleMemberAddMode}
+                      />
                     </div>
                     <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
                       {memberAddMode === "admin_add"
@@ -1265,18 +1030,10 @@ export function ChatInfo({
                       <span className="text-sm text-gray-900 dark:text-gray-100">
                         Join Approval
                       </span>
-                      <button
-                        onClick={handleToggleJoinApproval}
-                        className={`relative w-10 h-5 rounded-full transition-colors ${
-                          joinApproval ? "bg-[#21c063]" : "bg-gray-300 dark:bg-gray-600"
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                            joinApproval ? "translate-x-5" : ""
-                          }`}
-                        />
-                      </button>
+                      <ToggleButton
+                        isEnabled={joinApproval}
+                        onToggle={handleToggleJoinApproval}
+                      />
                     </div>
                     <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
                       {joinApproval

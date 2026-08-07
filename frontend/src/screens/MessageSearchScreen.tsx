@@ -3,6 +3,7 @@ import clsx from "clsx"
 import { SearchMessages, GetSearchSuggestions } from "../../wailsjs/go/api/Api"
 import { useChatStore } from "../store/useChatStore"
 import { GoBackIcon } from "../assets/svgs/header_icons"
+import { SearchPill } from "../components/common/SearchPill"
 
 interface SearchResult {
   chat_jid: string
@@ -137,14 +138,13 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
         >
           <GoBackIcon />
         </button>
-        <div className="flex-1 bg-light-tertiary dark:bg-dark-secondary rounded-full flex items-center px-4 py-2">
-          <input
-            ref={inputRef}
-            type="text"
+        <div className="flex-1">
+          <SearchPill
+            inputRef={inputRef}
+            showIcon={false}
             placeholder="Search messages..."
-            className="bg-transparent border-none outline-none text-sm w-full text-light-text dark:text-dark-text placeholder-gray-500"
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={setQuery}
           />
         </div>
 
