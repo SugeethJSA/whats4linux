@@ -13,6 +13,7 @@ import HelpAndFeedback from "./settingscreens/HelpAndFeedback"
 import LogOut from "./settingscreens/LogOut"
 import AdvancedScreen from "./settingscreens/AdvancedScreen"
 import { useSelfAvatarStore } from "../store/useSelfAvatarStore.ts"
+import { useT } from "../lib/i18n"
 import {
   AccountIcon,
   BackIcon,
@@ -41,8 +42,8 @@ type SettingsCategory =
 
 interface SettingsItem {
   id: SettingsCategory
-  label: string
-  description?: string
+  labelKey: string
+  descKey?: string
   icon: ReactNode
   screen: ReactNode
   danger?: boolean
@@ -51,63 +52,63 @@ interface SettingsItem {
 const settingsItems: SettingsItem[] = [
   {
     id: "general",
-    label: "General",
-    description: "Startup and Close",
+    labelKey: "settings.cat.general",
+    descKey: "settings.cat.general.desc",
     icon: <SettingsIcon className="w-5 h-5" />,
     screen: <GeneralSettingsScreen />,
   },
   {
     id: "account",
-    label: "Account",
-    description: "Security notifications, account info",
+    labelKey: "settings.cat.account",
+    descKey: "settings.cat.account.desc",
     icon: <AccountIcon />,
     screen: null,
   },
   {
     id: "privacy",
-    label: "Privacy",
-    description: "Blocked contacts, disappearing messages",
+    labelKey: "settings.cat.privacy",
+    descKey: "settings.cat.privacy.desc",
     icon: <LockIcon />,
     screen: <PrivacySettingsScreen />,
   },
   {
     id: "chats",
-    label: "Chats",
-    description: "Theme, wallpaper, chat settings",
+    labelKey: "settings.cat.chats",
+    descKey: "settings.cat.chats.desc",
     icon: <ChatIcon />,
     screen: <ChatsSettingsScreen />,
   },
   {
     id: "notifications",
-    label: "Notifications",
-    description: "Messages, groups, sounds",
+    labelKey: "settings.cat.notifications",
+    descKey: "settings.cat.notifications.desc",
     icon: <BellIcon />,
     screen: <NotificationsSettingsScreen />,
   },
   {
     id: "shortcuts",
-    label: "Keyboard shortcuts",
-    description: "Quick actions",
+    labelKey: "settings.cat.shortcuts",
+    descKey: "settings.cat.shortcuts.desc",
     icon: <KeyboardIcon />,
     screen: <KeyBoardShortCuts />,
   },
   {
     id: "help",
-    label: "Help and feedback",
-    description: "Help centre, contact us, privacy policy",
+    labelKey: "settings.cat.help",
+    descKey: "settings.cat.help.desc",
     icon: <HelpIcon />,
     screen: <HelpAndFeedback />,
   },
   {
     id: "advanced",
-    label: "Advanced",
-    description: "CSS & JS editor, Developer options",
+    labelKey: "settings.cat.advanced",
+    descKey: "settings.cat.advanced.desc",
     icon: <DotsIcon />,
     screen: <AdvancedScreen />,
   },
   {
     id: "logout",
-    label: "Log out",
+    labelKey: "settings.cat.logout",
     danger: true,
     icon: <LogoutIcon />,
     screen: <LogOut />,
@@ -115,6 +116,7 @@ const settingsItems: SettingsItem[] = [
 ]
 
 export function SettingsScreen({ onBack }: { onBack: () => void }) {
+  const t = useT()
   const [selectedCategory, setSelectedCategory] = useState<SettingsCategory | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [profile, setProfile] = useState<api.Contact | null>(null)
@@ -160,10 +162,10 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
           </div>
           <div>
             <h2 className="text-xl font-semibold tracking-tight text-light-text dark:text-dark-text">
-              Settings
+              {t("settings.title")}
             </h2>
             <p className="mt-1 text-sm text-light-muted dark:text-dark-muted">
-              Select a category to get started
+              {t("settings.subtitle")}
             </p>
           </div>
         </div>
@@ -178,7 +180,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
             className="mb-5 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-medium text-light-muted transition-colors hover:bg-black/[0.04] hover:text-light-text dark:text-dark-muted dark:hover:bg-white/[0.06] dark:hover:text-dark-text"
           >
             <ChevronBack />
-            Back
+            {t("settings.back")}
           </button>
           <div className="animate-slide-in-right">{nestedScreen}</div>
         </div>
@@ -191,7 +193,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
       <div className="w-full overflow-y-auto px-6 py-6 lg:px-10">
         <div className="mx-auto max-w-3xl animate-slide-in-right">
           <h2 className="mb-6 text-2xl font-semibold tracking-tight text-light-text dark:text-dark-text">
-            {currentItem?.label}
+            {currentItem ? t(currentItem.labelKey) : ""}
           </h2>
           <div className={clsx(!currentItem?.danger && "max-w-2xl")}>
             {selectedCategory === "account" ? (
@@ -206,12 +208,13 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
   }
 
   const filteredItems = settingsItems.filter(item =>
-    item.label.toLowerCase().includes(searchTerm.toLowerCase()),
+    t(item.labelKey).toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
   return (
     <div className="flex h-screen overflow-hidden bg-light-secondary dark:bg-dark-bg">
       <Sidebar
+        t={t}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         profile={profile}
@@ -237,6 +240,7 @@ function ChevronBack() {
 }
 
 function Sidebar({
+  t,
   searchTerm,
   onSearchChange,
   profile,
@@ -253,19 +257,19 @@ function Sidebar({
           <button
             onClick={onBack}
             className="rounded-xl p-2 text-light-muted transition-colors hover:bg-black/[0.05] hover:text-light-text dark:text-dark-muted dark:hover:bg-white/[0.07] dark:hover:text-dark-text"
-            title="Back to chats"
+            title={t("settings.backToChats")}
           >
             <BackIcon />
           </button>
           <h1 className="text-lg font-semibold tracking-tight text-light-text dark:text-dark-text">
-            Settings
+            {t("settings.title")}
           </h1>
         </div>
         <div className="group flex items-center gap-2.5 rounded-xl bg-light-secondary px-3 py-2 transition-all focus-within:ring-2 focus-within:ring-[#21c063]/25 dark:bg-dark-tertiary">
           <SearchIcon className="h-4 w-4 shrink-0 text-light-muted dark:text-dark-muted" />
           <input
             type="text"
-            placeholder="Search settings"
+            placeholder={t("settings.search.placeholder")}
             className="w-full bg-transparent text-sm text-light-text outline-none placeholder:text-light-muted/70 dark:text-dark-text dark:placeholder:text-dark-muted/60"
             value={searchTerm}
             onChange={e => onSearchChange(e.target.value)}
@@ -274,7 +278,7 @@ function Sidebar({
             <button
               onClick={() => onSearchChange("")}
               className="text-light-muted/70 transition-colors hover:text-light-text dark:text-dark-muted/70 dark:hover:text-dark-text"
-              title="Clear search"
+              title={t("settings.clearSearch")}
             >
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                 <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
@@ -284,17 +288,18 @@ function Sidebar({
         </div>
       </div>
 
-      <ProfileCard profile={profile} avatar={avatar} />
+      <ProfileCard t={t} profile={profile} avatar={avatar} />
 
       <div className="mt-1 flex-1 overflow-y-auto pb-3">
         {items.length === 0 ? (
           <p className="px-5 py-6 text-center text-sm text-light-muted dark:text-dark-muted">
-            No settings match "{searchTerm}"
+            {t("settings.noResults", { term: searchTerm })}
           </p>
         ) : (
           items.map((item: SettingsItem) => (
             <SettingsMenuItem
               key={item.id}
+              t={t}
               item={item}
               isSelected={selectedCategory === item.id}
               onClick={() => onSelectCategory(item.id)}
@@ -306,7 +311,15 @@ function Sidebar({
   )
 }
 
-function ProfileCard({ profile, avatar }: { profile: api.Contact | null; avatar?: string | null }) {
+function ProfileCard({
+  t,
+  profile,
+  avatar,
+}: {
+  t: (key: string, params?: Record<string, string | number>) => string
+  profile: api.Contact | null
+  avatar?: string | null
+}) {
   const avatarSrc = avatar || profile?.avatar_url || null
   return (
     <div className="mx-3 mb-1 overflow-hidden rounded-2xl border border-black/[0.06] bg-white transition-all hover:shadow-md dark:border-white/[0.08] dark:bg-dark-secondary">
@@ -314,14 +327,14 @@ function ProfileCard({ profile, avatar }: { profile: api.Contact | null; avatar?
       <div className="-mt-8 flex items-end gap-3 px-4 pb-3.5">
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-light-tertiary ring-4 ring-white dark:bg-dark-elevated dark:ring-dark-secondary">
           {avatarSrc ? (
-            <img src={avatarSrc} alt="Profile" className="h-full w-full object-cover" />
+            <img src={avatarSrc} alt={t("settings.profileAlt")} className="h-full w-full object-cover" />
           ) : (
             <UserIcon />
           )}
         </div>
         <div className="min-w-0 pb-0.5">
           <div className="truncate text-sm font-semibold text-light-text dark:text-dark-text">
-            {profile?.push_name || "Your Name"}
+            {profile?.push_name || t("settings.yourName")}
           </div>
           <div className="truncate text-[12px] text-light-muted dark:text-dark-muted">
             {profile?.phno}
@@ -333,10 +346,12 @@ function ProfileCard({ profile, avatar }: { profile: api.Contact | null; avatar?
 }
 
 function SettingsMenuItem({
+  t,
   item,
   isSelected,
   onClick,
 }: {
+  t: (key: string, params?: Record<string, string | number>) => string
   item: SettingsItem
   isSelected: boolean
   onClick: () => void
@@ -377,11 +392,11 @@ function SettingsMenuItem({
                 : "text-light-text dark:text-dark-text",
           )}
         >
-          {item.label}
+          {t(item.labelKey)}
         </div>
-        {item.description && (
+        {item.descKey && (
           <div className="truncate text-[12px] text-light-muted dark:text-dark-muted">
-            {item.description}
+            {t(item.descKey)}
           </div>
         )}
       </div>

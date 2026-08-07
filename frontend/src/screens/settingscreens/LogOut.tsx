@@ -1,23 +1,20 @@
 import { useState } from "react"
 import { Logout } from "../../../wailsjs/go/api/Api"
 import { ActionButton, SettingsCard } from "../../components/settings/ui-kit"
+import { useT } from "../../lib/i18n"
 
 const LogOut = () => {
+  const t = useT()
   const [busy, setBusy] = useState(false)
 
   const handleLogout = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to log out? You will need to scan a QR code again to reconnect.",
-      )
-    )
-      return
+    if (!confirm(t("settings.logout.confirm"))) return
     setBusy(true)
     try {
       await Logout()
     } catch (err) {
       console.error("Logout failed:", err)
-      alert("Logout failed: " + String(err))
+      alert(t("settings.logout.failed", { error: String(err) }))
     } finally {
       setBusy(false)
     }
@@ -33,14 +30,13 @@ const LogOut = () => {
           </svg>
         </div>
         <h2 className="mt-4 text-xl font-bold tracking-tight text-light-text dark:text-dark-text">
-          Log out
+          {t("settings.logout.title")}
         </h2>
         <p className="mt-1.5 text-sm leading-relaxed text-light-muted dark:text-dark-muted">
-          Logging out will disconnect your session and require scanning a QR code or entering a
-          pairing code to reconnect.
+          {t("settings.logout.description")}
         </p>
         <ActionButton variant="danger" onClick={handleLogout} disabled={busy} className="mt-5">
-          {busy ? "Logging out…" : "Log out"}
+          {busy ? t("settings.logout.busy") : t("settings.logout.button")}
         </ActionButton>
       </SettingsCard>
     </div>

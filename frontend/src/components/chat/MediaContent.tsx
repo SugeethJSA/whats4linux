@@ -3,6 +3,7 @@ import { GetCachedImage, DownloadMedia, GetVideoThumbnail } from "../../../wails
 import { useUIStore } from "../../store"
 import type { Message, MediaMessageContent } from "../../store/types"
 import { LRUCache } from "../../lib/lruCache"
+import { useT } from "../../lib/i18n"
 
 // TODO: fix word wrap for longer words in content
 
@@ -78,6 +79,7 @@ export function MediaContent({
   onImageClick,
   onDownload,
 }: MediaContentProps) {
+  const t = useT()
   // Seed from the module caches so a remounted row paints its final content
   // immediately instead of placeholder-then-swap.
   const [mediaSrc, setMediaSrc] = useState<string | null>(
@@ -287,7 +289,8 @@ export function MediaContent({
                 onDownload()
               }}
               className="absolute top-2 right-2 p-2 bg-black/70 hover:bg-black/90 rounded-full text-white transition-colors"
-              title="Download image"
+              title={t("a11y.download")}
+              aria-label={t("a11y.download")}
             >
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                 <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
@@ -382,8 +385,8 @@ export function MediaContent({
             <button
               onClick={togglePlay}
               className="shrink-0 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
-              aria-label={isPlaying ? "Pause voice note" : "Play voice note"}
-              title={isPlaying ? "Pause" : "Play"}
+              aria-label={isPlaying ? t("a11y.pause") : t("a11y.play")}
+              title={isPlaying ? t("a11y.pause") : t("a11y.play")}
             >
               {isPlaying ? (
                 <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
@@ -438,7 +441,8 @@ export function MediaContent({
           <button
             onClick={() => void handleDownload()}
             className="bg-black/50 p-2 rounded-full text-white hover:bg-black/70"
-            title="Download GIF"
+            title={t("a11y.download")}
+            aria-label={t("a11y.download")}
           >
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
@@ -471,7 +475,8 @@ export function MediaContent({
               void handleDownload()
             }}
             className="bg-black/50 p-2 rounded-full text-white hover:bg-black/70"
-            title="Play voice note"
+            title={t("a11y.play")}
+            aria-label={t("a11y.play")}
           >
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <path d="M8 5v14l11-7z" />
@@ -481,7 +486,8 @@ export function MediaContent({
           <button
             onClick={() => void handleDownload()}
             className="bg-black/50 p-2 rounded-full text-white hover:bg-black/70"
-            title="Download audio"
+            title={t("a11y.download")}
+            aria-label={t("a11y.download")}
           >
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
@@ -509,6 +515,8 @@ export function MediaContent({
         <button
           onClick={() => void handleDownload()}
           className="bg-black/50 p-3 rounded-full text-white hover:bg-black/70"
+          title={t("a11y.download")}
+          aria-label={t("a11y.download")}
         >
           <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
             <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />

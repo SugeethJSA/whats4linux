@@ -1,56 +1,62 @@
 import { RowList } from "../../components/settings/ui-kit"
+import { useT } from "../../lib/i18n"
 
 interface Shortcut {
-  name: string
+  nameKey: string
   shortcut: string[]
   /** Hidden when the underlying feature doesn't exist in this app yet. */
   unsupported?: boolean
-  category: string
+  categoryKey: string
 }
 
 const shortcuts: Shortcut[] = [
-  { name: "Open chat", shortcut: ["Ctrl", "1..9"], category: "Chats" },
-  { name: "Next chat", shortcut: ["Ctrl", "]"], category: "Chats" },
-  { name: "Previous chat", shortcut: ["Ctrl", "["], category: "Chats" },
-  { name: "Close chat", shortcut: ["Escape"], category: "Chats" },
-  { name: "Mark as unread", shortcut: ["Ctrl", "Shift", "U"], category: "Chats" },
-  { name: "Mute", shortcut: ["Ctrl", "Shift", "M"], category: "Chats" },
-  { name: "Archive chat", shortcut: ["Ctrl", "Shift", "A"], category: "Chats" },
-  { name: "Pin chat", shortcut: ["Ctrl", "Alt", "Shift", "P"], category: "Chats" },
-  { name: "Label chat", shortcut: ["Ctrl", "Shift", "L"], category: "Chats" },
-  { name: "Block chat", shortcut: ["Ctrl", "Shift", "B"], category: "Chats" },
-  { name: "New chat", shortcut: ["Ctrl", "Alt", "N"], category: "Chats" },
-  { name: "New group", shortcut: ["Ctrl", "Shift", "N"], category: "Search" },
-  { name: "Search chats", shortcut: ["Ctrl", "Alt", "/"], category: "Search" },
-  { name: "Search in chat", shortcut: ["Ctrl", "Shift", "F"], category: "Search" },
-  { name: "Open chat info", shortcut: ["Alt", "I"], category: "Messaging" },
-  { name: "Reply", shortcut: ["Alt", "R"], category: "Messaging" },
-  { name: "Reply privately", shortcut: ["Ctrl", "Alt", "R"], category: "Messaging" },
-  { name: "Forward", shortcut: ["Ctrl", "Alt", "D"], category: "Messaging" },
-  { name: "Edit last message", shortcut: ["Ctrl", "ArrowUp"], category: "Messaging" },
-  { name: "Star message", shortcut: ["Alt", "8"], category: "Messaging" },
-  { name: "Emoji panel", shortcut: ["Ctrl", "Alt", "E"], category: "Messaging" },
-  { name: "Open attachment dropdown", shortcut: ["Alt", "A"], category: "Messaging" },
-  { name: "Settings", shortcut: ["Alt", "S"], category: "General" },
-  { name: "Profile and About", shortcut: ["Ctrl", "Alt", "P"], category: "General" },
+  { nameKey: "settings.shortcuts.openChat", shortcut: ["Ctrl", "1..9"], categoryKey: "settings.shortcuts.cat.chats" },
+  { nameKey: "settings.shortcuts.nextChat", shortcut: ["Ctrl", "]"], categoryKey: "settings.shortcuts.cat.chats" },
+  { nameKey: "settings.shortcuts.prevChat", shortcut: ["Ctrl", "["], categoryKey: "settings.shortcuts.cat.chats" },
+  { nameKey: "settings.shortcuts.closeChat", shortcut: ["Escape"], categoryKey: "settings.shortcuts.cat.chats" },
+  { nameKey: "settings.shortcuts.markUnread", shortcut: ["Ctrl", "Shift", "U"], categoryKey: "settings.shortcuts.cat.chats" },
+  { nameKey: "settings.shortcuts.mute", shortcut: ["Ctrl", "Shift", "M"], categoryKey: "settings.shortcuts.cat.chats" },
+  { nameKey: "settings.shortcuts.archive", shortcut: ["Ctrl", "Shift", "A"], categoryKey: "settings.shortcuts.cat.chats" },
+  { nameKey: "settings.shortcuts.pin", shortcut: ["Ctrl", "Alt", "Shift", "P"], categoryKey: "settings.shortcuts.cat.chats" },
+  { nameKey: "settings.shortcuts.labelChat", shortcut: ["Ctrl", "Shift", "L"], categoryKey: "settings.shortcuts.cat.chats" },
+  { nameKey: "settings.shortcuts.blockChat", shortcut: ["Ctrl", "Shift", "B"], categoryKey: "settings.shortcuts.cat.chats" },
+  { nameKey: "settings.shortcuts.newChat", shortcut: ["Ctrl", "Alt", "N"], categoryKey: "settings.shortcuts.cat.chats" },
+  { nameKey: "settings.shortcuts.newGroup", shortcut: ["Ctrl", "Shift", "N"], categoryKey: "settings.shortcuts.cat.search" },
+  { nameKey: "settings.shortcuts.searchChats", shortcut: ["Ctrl", "Alt", "/"], categoryKey: "settings.shortcuts.cat.search" },
+  { nameKey: "settings.shortcuts.searchInChat", shortcut: ["Ctrl", "Shift", "F"], categoryKey: "settings.shortcuts.cat.search" },
+  { nameKey: "settings.shortcuts.openChatInfo", shortcut: ["Alt", "I"], categoryKey: "settings.shortcuts.cat.messaging" },
+  { nameKey: "settings.shortcuts.reply", shortcut: ["Alt", "R"], categoryKey: "settings.shortcuts.cat.messaging" },
+  { nameKey: "settings.shortcuts.replyPrivately", shortcut: ["Ctrl", "Alt", "R"], categoryKey: "settings.shortcuts.cat.messaging" },
+  { nameKey: "settings.shortcuts.forward", shortcut: ["Ctrl", "Alt", "D"], categoryKey: "settings.shortcuts.cat.messaging" },
+  { nameKey: "settings.shortcuts.editLast", shortcut: ["Ctrl", "ArrowUp"], categoryKey: "settings.shortcuts.cat.messaging" },
+  { nameKey: "settings.shortcuts.starMessage", shortcut: ["Alt", "8"], categoryKey: "settings.shortcuts.cat.messaging" },
+  { nameKey: "settings.shortcuts.emojiPanel", shortcut: ["Ctrl", "Alt", "E"], categoryKey: "settings.shortcuts.cat.messaging" },
+  { nameKey: "settings.shortcuts.attachmentDropdown", shortcut: ["Alt", "A"], categoryKey: "settings.shortcuts.cat.messaging" },
+  { nameKey: "settings.shortcuts.settings", shortcut: ["Alt", "S"], categoryKey: "settings.shortcuts.cat.general" },
+  { nameKey: "settings.shortcuts.profileAbout", shortcut: ["Ctrl", "Alt", "P"], categoryKey: "settings.shortcuts.cat.general" },
   // Unsupported: hidden from the list but preserved for future features.
-  { name: "Lock app", shortcut: ["Alt", "L"], category: "General", unsupported: true },
-  { name: "Start PTT recording", shortcut: ["Ctrl", "Alt", "Shift", "R"], category: "Messaging", unsupported: true },
-  { name: "Pause PTT recording", shortcut: ["Alt", "P"], category: "Messaging", unsupported: true },
-  { name: "Send PTT", shortcut: ["Ctrl", "Enter"], category: "Messaging", unsupported: true },
-  { name: "Zoom in", shortcut: ["Ctrl", "+"], category: "General", unsupported: true },
-  { name: "Zoom out", shortcut: ["Ctrl", "-"], category: "General", unsupported: true },
-  { name: "Zoom reset", shortcut: ["Ctrl", "0"], category: "General", unsupported: true },
-  { name: "Increase speed of selected voice message", shortcut: ["Shift", "."], category: "Messaging", unsupported: true },
-  { name: "Decrease speed of selected voice message", shortcut: ["Shift", ","], category: "Messaging", unsupported: true },
-  { name: "GIF panel", shortcut: ["Ctrl", "Alt", "G"], category: "Search", unsupported: true },
-  { name: "Sticker panel", shortcut: ["Ctrl", "Alt", "S"], category: "Search", unsupported: true },
-  { name: "Extended search", shortcut: ["Alt", "K"], category: "Search", unsupported: true },
+  { nameKey: "settings.shortcuts.lockApp", shortcut: ["Alt", "L"], categoryKey: "settings.shortcuts.cat.general", unsupported: true },
+  { nameKey: "settings.shortcuts.startPTT", shortcut: ["Ctrl", "Alt", "Shift", "R"], categoryKey: "settings.shortcuts.cat.messaging", unsupported: true },
+  { nameKey: "settings.shortcuts.pausePTT", shortcut: ["Alt", "P"], categoryKey: "settings.shortcuts.cat.messaging", unsupported: true },
+  { nameKey: "settings.shortcuts.sendPTT", shortcut: ["Ctrl", "Enter"], categoryKey: "settings.shortcuts.cat.messaging", unsupported: true },
+  { nameKey: "settings.shortcuts.zoomIn", shortcut: ["Ctrl", "+"], categoryKey: "settings.shortcuts.cat.general", unsupported: true },
+  { nameKey: "settings.shortcuts.zoomOut", shortcut: ["Ctrl", "-"], categoryKey: "settings.shortcuts.cat.general", unsupported: true },
+  { nameKey: "settings.shortcuts.zoomReset", shortcut: ["Ctrl", "0"], categoryKey: "settings.shortcuts.cat.general", unsupported: true },
+  { nameKey: "settings.shortcuts.incSpeed", shortcut: ["Shift", "."], categoryKey: "settings.shortcuts.cat.messaging", unsupported: true },
+  { nameKey: "settings.shortcuts.decSpeed", shortcut: ["Shift", ","], categoryKey: "settings.shortcuts.cat.messaging", unsupported: true },
+  { nameKey: "settings.shortcuts.gifPanel", shortcut: ["Ctrl", "Alt", "G"], categoryKey: "settings.shortcuts.cat.search", unsupported: true },
+  { nameKey: "settings.shortcuts.stickerPanel", shortcut: ["Ctrl", "Alt", "S"], categoryKey: "settings.shortcuts.cat.search", unsupported: true },
+  { nameKey: "settings.shortcuts.extendedSearch", shortcut: ["Alt", "K"], categoryKey: "settings.shortcuts.cat.search", unsupported: true },
 ]
 
 const supportedShortcuts = shortcuts.filter(s => !s.unsupported)
 
-const CATEGORIES = ["Chats", "Search", "Messaging", "General"]
+const CATEGORY_KEYS = [
+  "settings.shortcuts.cat.chats",
+  "settings.shortcuts.cat.search",
+  "settings.shortcuts.cat.messaging",
+  "settings.shortcuts.cat.general",
+]
 
 function Keycap({ children }: { children: string }) {
   return (
@@ -77,10 +83,10 @@ export const SingleShortcut = ({ name, shortcut }: { name: string; shortcut: str
   )
 }
 
-function ShortcutRow({ name, shortcut }: Shortcut) {
+function ShortcutRow({ t, nameKey, shortcut }: { t: (key: string) => string; nameKey: string; shortcut: string[] }) {
   return (
     <div className="flex items-center justify-between gap-4 px-5 py-3 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
-      <div className="min-w-0 truncate text-sm text-light-text dark:text-dark-text">{name}</div>
+      <div className="min-w-0 truncate text-sm text-light-text dark:text-dark-text">{t(nameKey)}</div>
       <div className="flex shrink-0 items-center gap-1">
         {shortcut.map((key, index) => (
           <span key={index} className="flex items-center gap-1">
@@ -94,19 +100,20 @@ function ShortcutRow({ name, shortcut }: Shortcut) {
 }
 
 const KeyBoardShortCuts = () => {
+  const t = useT()
   return (
     <div className="flex flex-col gap-6">
-      {CATEGORIES.map(category => {
-        const items = supportedShortcuts.filter(s => s.category === category)
+      {CATEGORY_KEYS.map(categoryKey => {
+        const items = supportedShortcuts.filter(s => s.categoryKey === categoryKey)
         if (items.length === 0) return null
         return (
-          <div key={category}>
+          <div key={categoryKey}>
             <div className="mb-1.5 px-1 text-[12px] font-semibold uppercase tracking-wide text-light-muted dark:text-dark-muted">
-              {category}
+              {t(categoryKey)}
             </div>
             <RowList>
               {items.map((sc, index) => (
-                <ShortcutRow key={index} {...sc} />
+                <ShortcutRow key={index} t={t} nameKey={sc.nameKey} shortcut={sc.shortcut} />
               ))}
             </RowList>
           </div>

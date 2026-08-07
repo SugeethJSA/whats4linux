@@ -1,4 +1,5 @@
 import { SettingsCard, RowList, LinkRow } from "../../components/settings/ui-kit"
+import { useT } from "../../lib/i18n"
 
 const LinksIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -25,24 +26,25 @@ const BugIcon = () => (
 )
 
 const HelpAndFeedback = () => {
+  const t = useT()
   return (
     <div className="flex flex-col gap-6">
       <RowList>
         <LinkRow
-          title="Help centre"
-          description="Get answers to common questions about using Whatsapp"
+          title={t("settings.help.helpCentre")}
+          description={t("settings.help.helpCentre.desc")}
           href="https://faq.whatsapp.com/"
           icon={<DocsIcon />}
         />
         <LinkRow
-          title="How to use Whatsapp on computer"
-          description="Learn about linking this device with your phone"
+          title={t("settings.help.howToUse")}
+          description={t("settings.help.howToUse.desc")}
           href="https://faq.whatsapp.com/2098951377590750"
           icon={<LinksIcon />}
         />
         <LinkRow
-          title="Privacy and security"
-          description="Learn how your messages are kept private and secure"
+          title={t("settings.help.privacySecurity")}
+          description={t("settings.help.privacySecurity.desc")}
           href="https://www.whatsapp.com/security/"
           icon={<LinksIcon />}
         />
@@ -50,20 +52,20 @@ const HelpAndFeedback = () => {
 
       <RowList>
         <LinkRow
-          title="Contact us"
-          description="Reach out to our support team with a question or concern"
+          title={t("settings.help.contactUs")}
+          description={t("settings.help.contactUs.desc")}
           href="https://www.whatsapp.com/contact/"
           icon={<MailIcon />}
         />
         <LinkRow
-          title="Report a problem"
-          description="File a bug report or send feedback about the app"
+          title={t("settings.help.reportProblem")}
+          description={t("settings.help.reportProblem.desc")}
           icon={<BugIcon />}
-          badge="New"
+          badge={t("settings.help.new")}
         />
         <LinkRow
-          title="Privacy policy"
-          description="Read the Whatsapp privacy policy and terms of service"
+          title={t("settings.help.privacyPolicy")}
+          description={t("settings.help.privacyPolicy.desc")}
           href="https://www.whatsapp.com/legal/privacy-policy"
           icon={<DocsIcon />}
         />
@@ -81,7 +83,7 @@ const HelpAndFeedback = () => {
               whats4linux
             </div>
             <div className="text-[13px] text-light-muted dark:text-dark-muted">
-              Unofficial desktop client powered by the WhatsApp protocol
+              {t("settings.help.appTagline")}
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { SwitchRow, RowList, SettingsCard } from "../../../components/settings/ui-kit"
+import { useT } from "../../../lib/i18n"
 
 const ShieldIcon = () => (
   <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
@@ -6,15 +7,16 @@ const ShieldIcon = () => (
   </svg>
 )
 
-const PRIVATE_ITEMS = [
-  "Text and Voice messages",
-  "Audio and Video calls",
-  "Photos, videos and documents",
-  "Location sharing",
-  "Status updates",
+const PRIVATE_ITEM_KEYS = [
+  "settings.security.item1",
+  "settings.security.item2",
+  "settings.security.item3",
+  "settings.security.item4",
+  "settings.security.item5",
 ]
 
 export function SecurityNotificationsScreen() {
+  const t = useT()
   return (
     <div className="flex flex-col gap-5">
       <SettingsCard className="p-6">
@@ -22,17 +24,15 @@ export function SecurityNotificationsScreen() {
           <ShieldIcon />
         </div>
         <div className="mt-4 text-lg font-semibold text-light-text dark:text-dark-text">
-          Your chats and calls are private
+          {t("settings.security.yourChatsPrivate")}
         </div>
         <p className="mt-1.5 text-sm leading-relaxed text-light-muted dark:text-dark-muted">
-          End-to-end encryption keeps your personal messages and calls between you and the people
-          you choose. No one outside of the chat, not even WhatsApp, can read, listen to, or share
-          them. This includes your:
+          {t("settings.security.e2ee")}
         </p>
         <div className="mt-4 grid gap-1.5">
-          {PRIVATE_ITEMS.map(item => (
+          {PRIVATE_ITEM_KEYS.map(itemKey => (
             <div
-              key={item}
+              key={itemKey}
               className="flex items-center gap-2.5 rounded-xl bg-black/[0.03] px-3.5 py-2 text-sm text-light-text dark:bg-white/[0.04] dark:text-dark-text"
             >
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#21c063]/15 text-[#21c063]">
@@ -40,7 +40,7 @@ export function SecurityNotificationsScreen() {
                   <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                 </svg>
               </span>
-              {item}
+              {t(itemKey)}
             </div>
           ))}
         </div>
@@ -48,7 +48,7 @@ export function SecurityNotificationsScreen() {
           onClick={() => window.open("https://www.whatsapp.com/security/?lg=en", "_blank")}
           className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-[#21c063] transition-colors hover:underline"
         >
-          Learn more
+          {t("settings.security.learnMore")}
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
             <path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" />
           </svg>
@@ -57,16 +57,12 @@ export function SecurityNotificationsScreen() {
 
       <div>
         <div className="mb-1.5 px-1 text-[12px] font-semibold uppercase tracking-wide text-light-muted dark:text-dark-muted">
-          Security alerts
+          {t("settings.security.alerts")}
         </div>
         <RowList>
           <SwitchRow
-            title="Show security notifications on this computer"
-            description={
-              "Get notified when your security code changes for a contact's phone. If you have " +
-              "multiple devices, this setting must be enabled on each device where you want to " +
-              "get notifications."
-            }
+            title={t("settings.security.showNotifications")}
+            description={t("settings.security.showNotifications.desc")}
             enabled={true}
             onToggle={() => {}}
           />

@@ -17,6 +17,7 @@ import {
   ActionButton,
   StatusBanner,
 } from "../../components/settings/ui-kit"
+import { useT } from "../../lib/i18n"
 
 function CodeEditorCard({
   title,
@@ -35,6 +36,7 @@ function CodeEditorCard({
   placeholder: string
   saved: boolean
 }) {
+  const t = useT()
   return (
     <SettingsCard>
       <div className="border-b border-black/[0.04] px-5 py-4 dark:border-white/[0.06]">
@@ -50,8 +52,8 @@ function CodeEditorCard({
           className="h-40 w-full resize-y rounded-xl border border-black/[0.08] bg-light-secondary p-3 font-mono text-[13px] leading-relaxed text-light-text outline-none transition-all placeholder:text-light-muted/60 focus:border-[#21c063] focus:ring-2 focus:ring-[#21c063]/20 dark:border-white/[0.1] dark:bg-dark-tertiary dark:text-dark-text dark:placeholder:text-dark-muted/50"
         />
         <div className="flex items-center gap-3">
-          <ActionButton onClick={onSave}>Save {title}</ActionButton>
-          {saved && <StatusBanner tone="success">Applied and saved</StatusBanner>}
+          <ActionButton onClick={onSave}>{t("settings.advanced.save", { title })}</ActionButton>
+          {saved && <StatusBanner tone="success">{t("settings.advanced.applied")}</StatusBanner>}
         </div>
       </div>
     </SettingsCard>
@@ -79,6 +81,7 @@ function SectionCard({
 }
 
 const AdvancedScreen = () => {
+  const t = useT()
   const [customCSS, setCustomCSS] = useState("")
   const [customJS, setCustomJS] = useState("")
   const [proxyURL, setProxyURL] = useState("")
@@ -144,12 +147,12 @@ const AdvancedScreen = () => {
     setCustomJS(js)
     applyCustomCode(css, "custom-css", "style")
     applyCustomCode(js, "custom-js", "script")
-    setReloadMsg("Custom CSS and JS reloaded from disk")
+    setReloadMsg(t("settings.advanced.reloadDone"))
   }
 
   const handleReinitialize = async () => {
     await Reinitialize()
-    setReloadMsg("Connection re-initialized")
+    setReloadMsg(t("settings.advanced.sessionDone"))
   }
 
   return (
@@ -158,55 +161,55 @@ const AdvancedScreen = () => {
       <EaseVisualizer />
 
       <CodeEditorCard
-        title="Custom CSS"
-        description="Inject custom styles that are applied across the entire app"
+        title={t("settings.advanced.cssTitle")}
+        description={t("settings.advanced.cssDesc")}
         value={customCSS}
         onChange={setCustomCSS}
         onSave={handleSaveCSS}
-        placeholder="/* Enter custom CSS here */"
+        placeholder={t("settings.advanced.cssPlaceholder")}
         saved={cssSaved}
       />
 
       <CodeEditorCard
-        title="Custom JS"
-        description="Inject custom scripts for advanced tweaks and experiments"
+        title={t("settings.advanced.jsTitle")}
+        description={t("settings.advanced.jsDesc")}
         value={customJS}
         onChange={setCustomJS}
         onSave={handleSaveJS}
-        placeholder="// Enter custom JS here"
+        placeholder={t("settings.advanced.jsPlaceholder")}
         saved={jsSaved}
       />
 
       <SectionCard
-        title="Reload customizations"
-        description="Reload custom CSS and JS from disk. Useful if you edited the files externally."
+        title={t("settings.advanced.reloadTitle")}
+        description={t("settings.advanced.reloadDesc")}
       >
         <div className="flex items-center gap-3">
           <ActionButton variant="neutral" onClick={handleReloadCustom}>
-            Reload CSS & JS
+            {t("settings.advanced.reloadButton")}
           </ActionButton>
           {reloadMsg && <StatusBanner tone="info">{reloadMsg}</StatusBanner>}
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Session management"
-        description="Re-initialize the WhatsApp connection. Use this if you're experiencing sync issues."
+        title={t("settings.advanced.sessionTitle")}
+        description={t("settings.advanced.sessionDesc")}
       >
         <ActionButton variant="neutral" onClick={handleReinitialize}>
-          Re-initialize connection
+          {t("settings.advanced.sessionButton")}
         </ActionButton>
       </SectionCard>
 
       <SectionCard
-        title="Proxy"
-        description="Set a SOCKS5 or HTTP proxy for the WhatsApp connection"
+        title={t("settings.advanced.proxyTitle")}
+        description={t("settings.advanced.proxyDesc")}
       >
         <div className="flex flex-col gap-2 sm:flex-row">
           <TextField
             value={proxyURL}
             onChange={e => setProxyURL(e.target.value)}
-            placeholder="socks5://127.0.0.1:1080"
+            placeholder={t("settings.advanced.proxyPlaceholder")}
           />
           <ActionButton
             variant="neutral"
@@ -216,7 +219,7 @@ const AdvancedScreen = () => {
               setProxyResult(null)
               try {
                 await SetProxy(proxyURL)
-                setProxyResult("Proxy set!")
+                setProxyResult(t("settings.advanced.proxySet"))
               } catch (err) {
                 setProxyResult(String(err))
               } finally {
@@ -224,25 +227,25 @@ const AdvancedScreen = () => {
               }
             }}
           >
-            {proxyBusy ? "Setting…" : "Set proxy"}
+            {proxyBusy ? t("settings.advanced.settingProxy") : t("settings.advanced.setProxy")}
           </ActionButton>
         </div>
         {proxyResult && (
-          <StatusBanner tone={proxyResult === "Proxy set!" ? "success" : "error"}>
+          <StatusBanner tone={proxyResult === t("settings.advanced.proxySet") ? "success" : "error"}>
             {proxyResult}
           </StatusBanner>
         )}
       </SectionCard>
 
       <SectionCard
-        title="Sticker pack"
-        description="Fetch a sticker pack by its ID to download all stickers"
+        title={t("settings.advanced.stickerTitle")}
+        description={t("settings.advanced.stickerDesc")}
       >
         <div className="flex flex-col gap-2 sm:flex-row">
           <TextField
             value={stickerPackID}
             onChange={e => setStickerPackID(e.target.value)}
-            placeholder="Sticker pack ID"
+            placeholder={t("settings.advanced.stickerPlaceholder")}
           />
           <ActionButton
             variant="neutral"
@@ -252,7 +255,7 @@ const AdvancedScreen = () => {
               setStickerResult(null)
               try {
                 await FetchStickerPack(stickerPackID.trim())
-                setStickerResult("Fetched pack successfully")
+                setStickerResult(t("settings.advanced.fetched"))
               } catch (err) {
                 setStickerResult(String(err))
               } finally {
@@ -260,11 +263,11 @@ const AdvancedScreen = () => {
               }
             }}
           >
-            {stickerBusy ? "Fetching…" : "Fetch"}
+            {stickerBusy ? t("settings.advanced.fetching") : t("settings.advanced.fetch")}
           </ActionButton>
         </div>
         {stickerResult && (
-          <StatusBanner tone={stickerResult.startsWith("Fetched") ? "success" : "error"}>
+          <StatusBanner tone={stickerResult === t("settings.advanced.fetched") ? "success" : "error"}>
             {stickerResult}
           </StatusBanner>
         )}

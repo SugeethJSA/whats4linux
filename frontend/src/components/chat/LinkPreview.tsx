@@ -97,6 +97,14 @@ export function LinkPreview({
   return (
     <div
       onClick={() => resolved.url && BrowserOpenURL(resolved.url)}
+      onKeyDown={e => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          if (resolved.url) BrowserOpenURL(resolved.url)
+        }
+      }}
+      role="link"
+      tabIndex={0}
       className="mt-1 max-w-72 overflow-hidden rounded-lg bg-black/10 dark:bg-dark-bg/25 cursor-pointer"
     >
       {/* Fixed height: an unconstrained image resizes the card (and the row)

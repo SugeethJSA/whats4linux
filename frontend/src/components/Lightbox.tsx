@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react"
 import clsx from "clsx"
 import { useUIStore } from "../store"
+import { useT } from "../lib/i18n"
 
 // Full-screen image viewer. Click the backdrop or × or Esc to close; click the
 // image to toggle zoom.
 export function Lightbox() {
+  const t = useT()
   const src = useUIStore(s => s.lightboxSrc)
   const kind = useUIStore(s => s.lightboxKind)
   const close = useUIStore(s => s.closeLightbox)
@@ -29,7 +31,8 @@ export function Lightbox() {
     >
       <button
         onClick={close}
-        title="Close (Esc)"
+        title={t("a11y.closeLightbox")}
+        aria-label={t("a11y.closeLightbox")}
         className="absolute right-4 top-3 text-3xl leading-none text-white/80 hover:text-white"
       >
         ×

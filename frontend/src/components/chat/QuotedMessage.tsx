@@ -67,7 +67,15 @@ export function QuotedMessage({
     <div
       className="bg-black/5 dark:bg-dark-bg/25 rounded-lg p-2 mb-1.5 border-l-4 text-xs cursor-pointer hover:bg-black/10 dark:hover:bg-black/35 transition-colors"
       style={{ borderLeftColor: accentColor }}
+      role="button"
+      tabIndex={0}
       onClick={handleClick}
+      onKeyDown={e => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          handleClick()
+        }
+      }}
     >
       {/* Reserve a fixed-height area for the name so the quoted message height doesn't jump when name resolves */}
       <div className="mb-1 h-4 flex items-center overflow-hidden">

@@ -6,6 +6,7 @@ import { useAppSettingsStore } from "../../store/useAppSettingsStore"
 import ToggleButton from "./ToggleButton"
 import DropDown from "./DropDown"
 import { DEFAULT_EASES } from "../../theme.config"
+import { useT } from "../../lib/i18n"
 
 gsap.registerPlugin(CustomEase, PathEditor)
 
@@ -34,6 +35,7 @@ const COMPONENTS = {
 } as const
 
 const GSAPMasterVisualizer = () => {
+  const t = useT()
   const [component, setComponent] = useState<keyof typeof COMPONENTS | null>(null)
   const [prop, setProp] = useState<string | null>(null)
   const eases = useAppSettingsStore(s => s.eases)
@@ -185,7 +187,7 @@ const GSAPMasterVisualizer = () => {
       {/* SIDEBAR */}
       <div className="w-1/4 space-y-6">
         <DropDown
-          title="Component"
+          title={t("settings.advanced.component")}
           elements={Object.keys(COMPONENTS)}
           onToggle={v => {
             setComponent(v as any)
@@ -194,12 +196,16 @@ const GSAPMasterVisualizer = () => {
         />
         {component && (
           <DropDown
-            title="Animation"
+            title={t("settings.advanced.animation")}
             elements={[...COMPONENTS[component]]}
             onToggle={v => setProp(v)}
           />
         )}
-        <DropDown title="Presets" elements={Object.keys(PRESETS)} onToggle={handlePresetChange} />
+        <DropDown
+          title={t("settings.advanced.presets")}
+          elements={Object.keys(PRESETS)}
+          onToggle={handlePresetChange}
+        />
 
         {component && (
           <div className="flex flex-col gap-2">
@@ -216,7 +222,7 @@ const GSAPMasterVisualizer = () => {
                 setDirty(false)
               }}
             >
-              Save Changes
+              {t("settings.advanced.saveChanges")}
             </button>
             <button
               disabled={!prop}
@@ -227,7 +233,7 @@ const GSAPMasterVisualizer = () => {
                 setDirty(true)
               }}
             >
-              Reset to Default
+              {t("settings.advanced.resetDefault")}
             </button>
           </div>
         )}
@@ -294,10 +300,14 @@ const GSAPMasterVisualizer = () => {
 
       {/* PREVIEW PANEL */}
       <div className="w-1/4 flex items-center justify-center border-l border-[#42433d]/30">
-        {!component && <div className="opacity-40 text-sm">Pick a component to preview</div>}
-        {component === "ToggleButton" && <ToggleButton isEnabled={true} onToggle={() => {}} />}
-        {component === "DropDown" && (
-          <DropDown title="Preview" elements={["Option 1", "Option 2"]} onToggle={() => {}} />
+  {!component && <div className="opacity-40 text-sm">{t("settings.advanced.pickComponentPreview")}</div>}
+  {component === "ToggleButton" && <ToggleButton isEnabled={true} onToggle={() => {}} />}
+  {component === "DropDown" && (
+    <DropDown
+      title={t("settings.advanced.preview")}
+      elements={[t("settings.advanced.option", { n: 1 }), t("settings.advanced.option", { n: 2 })]}
+      onToggle={() => {}}
+    />
         )}
       </div>
     </div>

@@ -19,6 +19,7 @@ import { useUIStore } from "../../store"
 import { registerShortcut } from "../../lib/shortcuts"
 import { htmlToPlainText } from "../../lib/utils"
 import { loadAvatar } from "../../lib/avatarCache"
+import { useT } from "../../lib/i18n"
 import { PollDialog } from "./PollDialog"
 import { ContactShareDialog } from "./ContactShareDialog"
 import { Modal } from "../common/Modal"
@@ -177,6 +178,7 @@ export function ChatInput({
   sendAsGif,
   onToggleSendAsGif,
 }: ChatInputProps) {
+  const t = useT()
   const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([])
   const [attachMenuOpen, setAttachMenuOpen] = useState(false)
   const [pollOpen, setPollOpen] = useState(false)
@@ -531,7 +533,15 @@ export function ChatInput({
                   return (
                     <div
                       key={contact.phno}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => handleSuggestionClick(contact)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          handleSuggestionClick(contact)
+                        }
+                      }}
                       className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-2"
                     >
                       <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 overflow-hidden flex items-center justify-center shrink-0">
@@ -641,6 +651,7 @@ export function ChatInput({
         <button
           onClick={onSendMessage}
           disabled={!hasContent}
+          aria-label={t("a11y.send")}
           className={clsx(
             "mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white shadow-sm transition-all duration-200",
             hasContent

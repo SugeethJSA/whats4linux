@@ -3,6 +3,7 @@ import { RowList, SwitchRow } from "../../components/settings/ui-kit"
 import { useAppSettingsStore } from "../../store/useAppSettingsStore"
 import { GetNotificationsEnabled, SetNotificationsEnabled } from "../../../wailsjs/go/api/Api"
 import { EventsOn } from "../../../wailsjs/runtime/runtime"
+import { useT } from "../../lib/i18n"
 import type { ReactNode } from "react"
 
 const BellIcon = () => (
@@ -47,6 +48,7 @@ function SectionCard({ title, children }: { title: string; children: ReactNode }
 }
 
 const NotificationsSettingsScreen = () => {
+  const t = useT()
   const {
     showPreviews,
     showReactionNotifications,
@@ -102,65 +104,65 @@ const NotificationsSettingsScreen = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <SectionCard title="Messages & groups">
+      <SectionCard title={t("settings.notifications.messagesGroups")}>
         <SwitchRow
-          title="Message notifications"
-          description="Show desktop notifications for incoming messages"
+          title={t("settings.notifications.messageNotifications")}
+          description={t("settings.notifications.messageNotifications.desc")}
           icon={<BellIcon />}
           enabled={desktopNotifications}
           onToggle={handleToggleDesktopNotifications}
         />
         <SwitchRow
-          title="Show previews"
-          description="Show a preview of the message text in notifications"
+          title={t("settings.notifications.showPreviews")}
+          description={t("settings.notifications.showPreviews.desc")}
           icon={<EyeIcon />}
           enabled={showPreviews}
           onToggle={() => updateSetting("showPreviews", !showPreviews)}
         />
         <SwitchRow
-          title="Show reaction notifications"
-          description="Get notified when a message you sent receives a reaction"
+          title={t("settings.notifications.reactionNotifications")}
+          description={t("settings.notifications.reactionNotifications.desc")}
           icon={<HeartIcon />}
           enabled={showReactionNotifications}
           onToggle={() => updateSetting("showReactionNotifications", !showReactionNotifications)}
         />
         <SwitchRow
-          title="Status reactions"
-          description="Show notifications when you get likes on a status"
+          title={t("settings.notifications.statusReactions")}
+          description={t("settings.notifications.statusReactions.desc")}
           icon={<HeartIcon />}
           enabled={statusReactions}
           onToggle={() => updateSetting("statusReactions", !statusReactions)}
         />
       </SectionCard>
 
-      <SectionCard title="Calls">
+      <SectionCard title={t("settings.notifications.calls")}>
         <SwitchRow
-          title="Call notifications"
-          description="Show notifications for incoming calls"
+          title={t("settings.notifications.callNotifications")}
+          description={t("settings.notifications.callNotifications.desc")}
           icon={<PhoneIcon />}
           enabled={callNotifications}
           onToggle={() => updateSetting("callNotifications", !callNotifications)}
         />
         <SwitchRow
-          title="Incoming calls"
-          description="Play sounds for incoming calls"
+          title={t("settings.notifications.incomingCalls")}
+          description={t("settings.notifications.incomingCalls.desc")}
           icon={<SoundIcon />}
           enabled={incomingCallSounds}
           onToggle={() => updateSetting("incomingCallSounds", !incomingCallSounds)}
         />
       </SectionCard>
 
-      <SectionCard title="Sounds">
+      <SectionCard title={t("settings.notifications.sounds")}>
         <SwitchRow
-          title="Incoming sounds"
-          description="Play sounds for incoming messages"
+          title={t("settings.notifications.incomingSounds")}
+          description={t("settings.notifications.incomingSounds.desc")}
           icon={<SoundIcon />}
           enabled={incomingSounds}
           onToggle={() => updateSetting("incomingSounds", !incomingSounds)}
         />
         <SwitchRow
-          title="Outgoing sounds"
-          description="Play sounds for outgoing messages"
+          title={t("settings.notifications.outgoingSounds")}
+          description={t("settings.notifications.outgoingSounds.desc")}
           icon={<SoundIcon />}
           enabled={outgoingSounds}
           onToggle={() => updateSetting("outgoingSounds", !outgoingSounds)}

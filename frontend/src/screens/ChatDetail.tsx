@@ -9,6 +9,7 @@ import { ForwardDialog } from "../components/chat/ForwardDialog"
 import { useChatDetailState } from "../hooks/useChatDetailState"
 import { useSendMessage } from "../hooks/useSendMessage"
 import { blobToDataURL } from "../lib/utils"
+import { useT } from "../lib/i18n"
 import clsx from "clsx"
 import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
@@ -69,6 +70,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     handleInputChange,
   } = useChatDetailState(chatId, onBack)
 
+  const t = useT()
   const typingIndicators = useUIStore(state => state.typingIndicators)
   const chatInfoOpen = useUIStore(state => state.chatInfoOpen)
   const setChatInfoOpen = useUIStore(state => state.setChatInfoOpen)
@@ -190,6 +192,8 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
           <button
             ref={scrollButtonRef}
             onClick={() => scrollToBottom(false)}
+            aria-label={t("a11y.scrollToBottom")}
+            title={t("a11y.scrollToBottom")}
             className="absolute bottom-4 right-8 bg-white dark:bg-received-bubble-dark-bg p-2 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 z-100 hover:bg-gray-100 dark:hover:bg-[#2a3942]"
           >
             <svg

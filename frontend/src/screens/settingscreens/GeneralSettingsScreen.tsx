@@ -5,12 +5,9 @@ import {
   SettingRow,
 } from "../../components/settings/ui-kit"
 import { useAppSettingsStore } from "../../store/useAppSettingsStore"
+import { SUPPORTED_LANGUAGES, useT } from "../../lib/i18n"
 
-const LANGUAGE_OPTIONS = [
-  { value: "English", label: "English" },
-  { value: "Spanish", label: "Spanish" },
-  { value: "French", label: "French" },
-]
+const LANGUAGE_OPTIONS = SUPPORTED_LANGUAGES.map(lang => ({ value: lang, label: lang }))
 
 const FONT_OPTIONS = [
   { value: "80%", label: "80%" },
@@ -22,6 +19,7 @@ const FONT_OPTIONS = [
 ]
 
 const GeneralSettingsScreen = () => {
+  const t = useT()
   const { startAtLogin, minimizeToTray, language, fontSize, updateSetting } =
     useAppSettingsStore()
 
@@ -29,14 +27,14 @@ const GeneralSettingsScreen = () => {
     <div className="flex flex-col gap-5">
       <RowList>
         <SwitchRow
-          title="Start Whatsapp at login"
-          description="Launch Whatsapp automatically when you sign in to your computer"
+          title={t("settings.general.startAtLogin")}
+          description={t("settings.general.startAtLogin.desc")}
           enabled={startAtLogin}
           onToggle={() => updateSetting("startAtLogin", !startAtLogin)}
         />
         <SwitchRow
-          title="Minimize to system tray"
-          description="Keep Whatsapp running after closing the application window"
+          title={t("settings.general.tray")}
+          description={t("settings.general.tray.desc")}
           enabled={minimizeToTray}
           onToggle={() => updateSetting("minimizeToTray", !minimizeToTray)}
         />
@@ -44,8 +42,8 @@ const GeneralSettingsScreen = () => {
 
       <RowList>
         <SettingRow
-          title="Language"
-          description="Choose the language used by the app"
+          title={t("settings.general.language")}
+          description={t("settings.general.language.desc")}
           control={
             <SelectMenu
               value={language}
@@ -55,8 +53,8 @@ const GeneralSettingsScreen = () => {
           }
         />
         <SettingRow
-          title="Font size"
-          description="Adjust the size of text throughout the app"
+          title={t("settings.general.fontSize")}
+          description={t("settings.general.fontSize.desc")}
           control={
             <SelectMenu
               value={fontSize}
@@ -75,7 +73,7 @@ const GeneralSettingsScreen = () => {
         <span className="rounded-md border border-black/[0.08] px-1.5 py-0.5 text-[11px] font-semibold dark:border-white/[0.12]">
           + / -
         </span>
-        <span>Use these keys to increase or decrease the font size</span>
+        <span>{t("settings.general.fontHint")}</span>
       </div>
     </div>
   )

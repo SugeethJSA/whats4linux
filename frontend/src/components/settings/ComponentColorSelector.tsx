@@ -5,6 +5,7 @@ import { SingleShortcut } from "../../screens/settingscreens/KeyBoardShortCuts"
 import { MessagePreview } from "../chat/MessageItem"
 import { THEME, applyThemeColors } from "../../theme.config"
 import { useAppSettingsStore } from "../../store/useAppSettingsStore"
+import { useT } from "../../lib/i18n"
 
 type ThemeGroup = keyof typeof THEME
 type ThemeLabel<G extends ThemeGroup> = keyof (typeof THEME)[G]
@@ -12,6 +13,7 @@ type ThemeLabel<G extends ThemeGroup> = keyof (typeof THEME)[G]
 const isHex = (v: string) => /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v)
 
 const ComponentColorSelector = () => {
+  const t = useT()
   const { themeColors, updateThemeColor, theme } = useAppSettingsStore()
   const [selectedComponent, setSelectedComponent] = useState<ThemeGroup | null>(null)
   const [draft, setDraft] = useState<typeof themeColors | null>(null)
@@ -75,13 +77,13 @@ const ComponentColorSelector = () => {
       <div className="flex flex-col justify-between w-1/3">
         <div>
           <h3 className="text-sm font-bold opacity-50 mb-4 uppercase tracking-wider">
-            Customize Colors
+            {t("settings.advanced.colorsTitle")}
           </h3>
           <DropDown
             title=""
             elements={Object.keys(THEME)}
             onToggle={val => setSelectedComponent(val as ThemeGroup)}
-            placeholder="Select a component"
+            placeholder={t("settings.advanced.selectComponent")}
           />
         </div>
 
@@ -91,13 +93,13 @@ const ComponentColorSelector = () => {
               className="w-full py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium transition-all"
               onClick={saveChanges}
             >
-              Save Settings
+              {t("settings.advanced.saveSettings")}
             </button>
             <button
               className="w-full py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:opacity-80 transition-all text-sm"
               onClick={resetToDefaults}
             >
-              Reset to Defaults
+              {t("settings.advanced.resetDefaults")}
             </button>
           </div>
         )}
@@ -107,7 +109,7 @@ const ComponentColorSelector = () => {
       <div className="flex flex-col gap-4 w-1/3 border-x border-zinc-100 dark:border-zinc-800 px-8">
         {!selectedComponent ? (
           <div className="h-full flex items-center justify-center opacity-40 text-sm">
-            Pick a component to start editing
+            {t("settings.advanced.pickComponent")}
           </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -166,12 +168,12 @@ const ComponentColorSelector = () => {
       <div className="w-1/3 flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950/50 rounded-lg p-4">
         {!selectedComponent && (
           <span className="text-[10px] font-bold opacity-30 mb-4 uppercase tracking-widest">
-            Live Preview
+            {t("settings.advanced.livePreview")}
           </span>
         )}
         <div className="transform scale-110">
           {selectedComponent === "Keyboard Shortcut" && (
-            <SingleShortcut name="Command" shortcut={["Ctrl", "P"]} />
+            <SingleShortcut name={t("settings.shortcuts.settings")} shortcut={["Ctrl", "P"]} />
           )}
           {selectedComponent === "Button" && (
             <>
@@ -180,7 +182,11 @@ const ComponentColorSelector = () => {
             </>
           )}
           {selectedComponent === "DropDown" && (
-            <DropDown elements={["Option 1", "Option 2"]} title="Preview" onToggle={() => {}} />
+            <DropDown
+              elements={[t("settings.advanced.option", { n: 1 }), t("settings.advanced.option", { n: 2 })]}
+              title={t("settings.advanced.preview")}
+              onToggle={() => {}}
+            />
           )}
           {selectedComponent === "Chat Bubble" && <MessagePreview />}
         </div>

@@ -70,9 +70,9 @@ Frontend:
 
 ## Phase 6 — i18n & a11y baseline
 
-- [ ] 6.1 `lib/i18n.ts` + `t()`; wire `language` setting; migrate settings screens first
-- [ ] 6.2 aria-labels on icon-only buttons
-- [ ] 6.3 `role="switch"`/`aria-checked` toggles; keyboard support for clickable divs
+- [x] 6.1 `lib/i18n.ts` + `t()`; wire `language` setting; migrate settings screens first — new `lib/i18n.ts` (en/es/fr full message maps, `translate`/`t`/`useT`/`normalizeLanguage`, `SUPPORTED_LANGUAGES` matches General Settings options; `t()` reads `useAppSettingsStore` via `getState()` so it follows the `language` setting); migrated the settings shell (`SettingsScreen` — `settingsItems` now `labelKey`/`descKey`), all 9 settings screens (General, Privacy, Notifications, Chats, Account, Advanced, Help & Feedback, LogOut, Keyboard Shortcuts — shortcuts use `nameKey`/`categoryKey`), SecurityNotificationsScreen, and the ComponentColorSelector/ComponentEaseSelector; added `settings.advanced.saveChanges`/`resetDefault` keys
+- [x] 6.2 aria-labels on icon-only buttons — ChatHeader back, ChatInput send, MediaContent download/play/voice-note (all branches incl. GIF/audio/sticker placeholders, PTT play), Lightbox close (`a11y.*` keys, EN/ES/FR); ChatInfo back already had one (kept)
+- [x] 6.3 `role="switch"`/`aria-checked` toggles; keyboard support for clickable divs — `ToggleButton` (shared by ChatInfo mute/announce/locked/member-add/join-approval + all settings switches) now `role="switch"` + `aria-checked` + `tabIndex` + Enter/Space toggle; QuotedMessage, LinkPreview (`role="link"`), ChatInput mention suggestions got `tabIndex` + Enter/Space activation (ReactionBubble skipped — display-only, no click handler)
 
 ## Verification (run after each phase)
 

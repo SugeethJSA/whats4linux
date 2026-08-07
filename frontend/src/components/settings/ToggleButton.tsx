@@ -34,6 +34,17 @@ const ToggleButton = ({ isEnabled, onToggle, disabled }: ToggleButtonProps) => {
   return (
     <div
       onClick={disabled ? undefined : onToggle}
+      onKeyDown={e => {
+        if (disabled) return
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onToggle()
+        }
+      }}
+      role="switch"
+      aria-checked={isEnabled}
+      aria-disabled={disabled}
+      tabIndex={disabled ? -1 : 0}
       className={clsx(
         "h-7 w-12 rounded-full flex items-center px-1 shrink-0 transition-colors duration-300",
         disabled && "opacity-40 pointer-events-none",

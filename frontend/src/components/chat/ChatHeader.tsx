@@ -1,5 +1,6 @@
 import { GoBackIcon } from "../../assets/svgs/header_icons"
 import { InfoIcon } from "../../assets/svgs/chat_info_icons"
+import { useT } from "../../lib/i18n"
 
 interface ChatHeaderProps {
   chatName: string
@@ -30,6 +31,7 @@ export function ChatHeader({
   onCallClick,
   isTyping,
 }: ChatHeaderProps) {
+  const t = useT()
   return (
     <div
       className="flex items-center justify-between px-4 py-3 border-b chat-header-glass"
@@ -52,6 +54,7 @@ export function ChatHeader({
         {onBack && (
           <button
             onClick={onBack}
+            aria-label={t("a11y.back")}
             className="mr-2 p-1.5 rounded-full transition-colors md:hidden"
             style={{ color: "#8696a0" }}
           >

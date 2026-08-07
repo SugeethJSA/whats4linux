@@ -12,101 +12,102 @@ import {
   SelectMenu,
   SettingsCard,
 } from "../../components/settings/ui-kit"
+import { useT } from "../../lib/i18n"
 
 interface Setting {
   key: string
-  label: string
-  description: string
-  options: { value: string; label: string }[]
+  labelKey: string
+  descKey: string
+  options: { value: string; labelKey: string }[]
 }
 
 const SETTINGS: Setting[] = [
   {
     key: "last",
-    label: "Last seen & online",
-    description: "Who can see your last seen time and online status.",
+    labelKey: "settings.privacy.last",
+    descKey: "settings.privacy.last.desc",
     options: [
-      { value: "all", label: "Everyone" },
-      { value: "contacts", label: "My contacts" },
-      { value: "contact_blacklist", label: "My contacts except…" },
-      { value: "none", label: "Nobody" },
-      { value: "match_last_seen", label: "Same as last seen" },
+      { value: "all", labelKey: "settings.privacy.opt.everyone" },
+      { value: "contacts", labelKey: "settings.privacy.opt.contacts" },
+      { value: "contact_blacklist", labelKey: "settings.privacy.opt.contactsExcept" },
+      { value: "none", labelKey: "settings.privacy.opt.nobody" },
+      { value: "match_last_seen", labelKey: "settings.privacy.opt.sameAsLastSeen" },
     ],
   },
   {
     key: "profile",
-    label: "Profile photo",
-    description: "Who can see your profile photo.",
+    labelKey: "settings.privacy.profile",
+    descKey: "settings.privacy.profile.desc",
     options: [
-      { value: "all", label: "Everyone" },
-      { value: "contacts", label: "My contacts" },
-      { value: "contact_blacklist", label: "My contacts except…" },
-      { value: "none", label: "Nobody" },
+      { value: "all", labelKey: "settings.privacy.opt.everyone" },
+      { value: "contacts", labelKey: "settings.privacy.opt.contacts" },
+      { value: "contact_blacklist", labelKey: "settings.privacy.opt.contactsExcept" },
+      { value: "none", labelKey: "settings.privacy.opt.nobody" },
     ],
   },
   {
     key: "status",
-    label: "About",
-    description: "Who can see your about information.",
+    labelKey: "settings.privacy.about",
+    descKey: "settings.privacy.about.desc",
     options: [
-      { value: "all", label: "Everyone" },
-      { value: "contacts", label: "My contacts" },
-      { value: "contact_blacklist", label: "My contacts except…" },
-      { value: "none", label: "Nobody" },
+      { value: "all", labelKey: "settings.privacy.opt.everyone" },
+      { value: "contacts", labelKey: "settings.privacy.opt.contacts" },
+      { value: "contact_blacklist", labelKey: "settings.privacy.opt.contactsExcept" },
+      { value: "none", labelKey: "settings.privacy.opt.nobody" },
     ],
   },
   {
     key: "groupadd",
-    label: "Groups",
-    description: "Who can add you to groups.",
+    labelKey: "settings.privacy.groups",
+    descKey: "settings.privacy.groups.desc",
     options: [
-      { value: "all", label: "Everyone" },
-      { value: "contacts", label: "My contacts" },
-      { value: "contact_blacklist", label: "My contacts except…" },
+      { value: "all", labelKey: "settings.privacy.opt.everyone" },
+      { value: "contacts", labelKey: "settings.privacy.opt.contacts" },
+      { value: "contact_blacklist", labelKey: "settings.privacy.opt.contactsExcept" },
     ],
   },
   {
     key: "readreceipts",
-    label: "Read receipts",
-    description:
-      "Who can see when you read their messages. Read receipts are always sent for group chats.",
+    labelKey: "settings.privacy.readReceipts",
+    descKey: "settings.privacy.readReceipts.desc",
     options: [
-      { value: "all", label: "Everyone" },
-      { value: "none", label: "Nobody" },
+      { value: "all", labelKey: "settings.privacy.opt.everyone" },
+      { value: "none", labelKey: "settings.privacy.opt.nobody" },
     ],
   },
   {
     key: "online",
-    label: "Online status",
-    description: "Who can see when you are online.",
+    labelKey: "settings.privacy.online",
+    descKey: "settings.privacy.online.desc",
     options: [
-      { value: "all", label: "Everyone" },
-      { value: "contacts", label: "My contacts" },
-      { value: "contact_blacklist", label: "My contacts except…" },
-      { value: "none", label: "Match last seen" },
+      { value: "all", labelKey: "settings.privacy.opt.everyone" },
+      { value: "contacts", labelKey: "settings.privacy.opt.contacts" },
+      { value: "contact_blacklist", labelKey: "settings.privacy.opt.contactsExcept" },
+      { value: "none", labelKey: "settings.privacy.opt.matchLastSeen" },
     ],
   },
   {
     key: "calladd",
-    label: "Calls",
-    description: "Who can call you.",
+    labelKey: "settings.privacy.calls",
+    descKey: "settings.privacy.calls.desc",
     options: [
-      { value: "all", label: "Everyone" },
-      { value: "contacts", label: "My contacts" },
-      { value: "contact_blacklist", label: "My contacts except…" },
-      { value: "none", label: "Nobody" },
+      { value: "all", labelKey: "settings.privacy.opt.everyone" },
+      { value: "contacts", labelKey: "settings.privacy.opt.contacts" },
+      { value: "contact_blacklist", labelKey: "settings.privacy.opt.contactsExcept" },
+      { value: "none", labelKey: "settings.privacy.opt.nobody" },
     ],
   },
 ]
 
 const TIMER_OPTIONS = [
-  { value: "0", label: "Off" },
-  { value: "86400", label: "24 hours" },
-  { value: "604800", label: "7 days" },
-  { value: "7776000", label: "90 days" },
+  { value: "0", labelKey: "settings.privacy.timer.off" },
+  { value: "86400", labelKey: "settings.privacy.timer.24h" },
+  { value: "604800", labelKey: "settings.privacy.timer.7d" },
+  { value: "7776000", labelKey: "settings.privacy.timer.90d" },
 ]
 
 const PrivacySettingsScreen = () => {
+  const t = useT()
   const [values, setValues] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
@@ -132,7 +133,7 @@ const PrivacySettingsScreen = () => {
       })
       .catch(err => {
         console.error("Failed to load privacy settings:", err)
-        setError("Failed to load privacy settings")
+        setError(t("settings.privacy.loadError"))
       })
       .finally(() => !cancelled && setLoading(false))
 
@@ -150,6 +151,7 @@ const PrivacySettingsScreen = () => {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleChange = async (key: string, value: string) => {
@@ -164,7 +166,7 @@ const PrivacySettingsScreen = () => {
       setValues(prev => ({ ...prev, [key]: value }))
     } catch (err) {
       console.error(`Failed to set ${key}:`, err)
-      setError(`Failed to update ${key}`)
+      setError(t("settings.privacy.updateError", { key }))
     } finally {
       setBusy(null)
     }
@@ -185,7 +187,7 @@ const PrivacySettingsScreen = () => {
   return (
     <div className="flex flex-col gap-6">
       <p className="text-[13px] text-light-muted dark:text-dark-muted">
-        Control who can see your personal information.
+        {t("settings.privacy.intro")}
       </p>
 
       {loading && (
@@ -204,12 +206,12 @@ const PrivacySettingsScreen = () => {
       {!loading && (
         <SettingsCard>
           <SettingRow
-            title="Default disappearing timer"
-            description="Sets the default timer for new chats."
+            title={t("settings.privacy.timer")}
+            description={t("settings.privacy.timer.desc")}
             control={
               <SelectMenu
                 value={String(defaultTimer)}
-                options={TIMER_OPTIONS}
+                options={TIMER_OPTIONS.map(o => ({ value: o.value, label: t(o.labelKey) }))}
                 onChange={v => handleDefaultTimer(Number(v))}
                 disabled={timerBusy}
               />
@@ -223,12 +225,12 @@ const PrivacySettingsScreen = () => {
           {SETTINGS.map(s => (
             <div key={s.key}>
               <SettingRow
-                title={s.label}
-                description={s.description}
+                title={t(s.labelKey)}
+                description={t(s.descKey)}
                 control={
                   <SelectMenu
                     value={values[s.key] || ""}
-                    options={s.options}
+                    options={s.options.map(o => ({ value: o.value, label: t(o.labelKey) }))}
                     onChange={v => handleChange(s.key, v)}
                     disabled={busy === s.key}
                   />
@@ -238,7 +240,7 @@ const PrivacySettingsScreen = () => {
                 values[s.key] === "contact_blacklist" &&
                 statusBlacklist.length > 0 && (
                   <div className="px-4 pb-2.5 text-[12px] text-light-muted dark:text-dark-muted">
-                    Excluded: {statusBlacklist.join(", ")}
+                    {t("settings.privacy.excluded", { list: statusBlacklist.join(", ") })}
                   </div>
                 )}
             </div>

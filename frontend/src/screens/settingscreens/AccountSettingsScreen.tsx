@@ -16,8 +16,10 @@ import {
   RowList,
   LinkRow,
 } from "../../components/settings/ui-kit"
+import { useT } from "../../lib/i18n"
 
 const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode) => void }) => {
+  const t = useT()
   const [statusText, setStatusText] = useState("")
   const [statusSaved, setStatusSaved] = useState(false)
   const [qrLink, setQrLink] = useState("")
@@ -74,55 +76,59 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
 
   return (
     <div className="flex flex-col gap-5">
-      <SectionCard title="Status" description="Set your profile status message">
+      <SectionCard title={t("settings.account.status")} description={t("settings.account.status.desc")}>
         <div className="flex flex-col gap-2 sm:flex-row">
           <TextField
             value={statusText}
             onChange={e => setStatusText(e.target.value)}
-            placeholder="What's your status?"
+            placeholder={t("settings.account.status.placeholder")}
           />
           <ActionButton onClick={handleSaveStatus}>
-            {statusSaved ? "Saved" : "Set"}
+            {statusSaved ? t("settings.account.saved") : t("settings.account.set")}
           </ActionButton>
         </div>
-        {statusSaved && <StatusBanner tone="success">Status updated</StatusBanner>}
+        {statusSaved && <StatusBanner tone="success">{t("settings.account.statusUpdated")}</StatusBanner>}
       </SectionCard>
 
       <SectionCard
-        title="Push name"
-        description="Name shown to others before they add you"
+        title={t("settings.account.pushName")}
+        description={t("settings.account.pushName.desc")}
       >
         <div className="flex flex-col gap-2 sm:flex-row">
           <TextField
             value={pushName}
             onChange={e => setPushNameState(e.target.value)}
-            placeholder="Your push name"
+            placeholder={t("settings.account.pushName.placeholder")}
           />
           <ActionButton onClick={handleSavePushName}>
-            {pushNameSaved ? "Saved" : "Save"}
+            {pushNameSaved ? t("settings.account.saved") : t("settings.account.save")}
           </ActionButton>
         </div>
-        {pushNameSaved && <StatusBanner tone="success">Push name updated</StatusBanner>}
+        {pushNameSaved && <StatusBanner tone="success">{t("settings.account.pushNameUpdated")}</StatusBanner>}
       </SectionCard>
 
       <SectionCard
-        title="Contact QR link"
-        description="Share your contact link so others can add you on WhatsApp"
+        title={t("settings.account.qrLink")}
+        description={t("settings.account.qrLink.desc")}
       >
         <ActionButton variant="primary" onClick={handleGetQRLink} disabled={qrBusy}>
-          {qrBusy ? "Loading…" : qrLink ? "Copied to clipboard!" : "Get my contact link"}
+          {qrBusy
+            ? t("settings.account.loading")
+            : qrLink
+              ? t("settings.account.copied")
+              : t("settings.account.getMyLink")}
         </ActionButton>
       </SectionCard>
 
       <SectionCard
-        title="Resolve contact QR"
-        description="Scan or paste a WhatsApp contact QR code link"
+        title={t("settings.account.resolveQr")}
+        description={t("settings.account.resolveQr.desc")}
       >
         <div className="flex flex-col gap-2 sm:flex-row">
           <TextField
             value={resolveCode}
             onChange={e => setResolveCode(e.target.value)}
-            placeholder="https://wa.me/qr/..."
+            placeholder={t("settings.account.qrPlaceholder")}
           />
           <ActionButton
             disabled={resolveBusy || !resolveCode.trim()}
@@ -136,27 +142,27 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
                   text: `JID: ${result.jid}${result.push_name ? ` · ${result.push_name}` : ""}`,
                 })
               } catch {
-                setResolveResult({ tone: "error", text: "Failed to resolve QR code" })
+                setResolveResult({ tone: "error", text: t("settings.account.resolveFailed") })
               } finally {
                 setResolveBusy(false)
               }
             }}
           >
-            {resolveBusy ? "Resolving…" : "Resolve"}
+            {resolveBusy ? t("settings.account.resolving") : t("settings.account.resolve")}
           </ActionButton>
         </div>
         {resolveResult && <StatusBanner tone={resolveResult.tone}>{resolveResult.text}</StatusBanner>}
       </SectionCard>
 
       <SectionCard
-        title="Resolve business message link"
-        description="Paste a business message link to resolve the business info"
+        title={t("settings.account.resolveBiz")}
+        description={t("settings.account.resolveBiz.desc")}
       >
         <div className="flex flex-col gap-2 sm:flex-row">
           <TextField
             value={bizLinkCode}
             onChange={e => setBizLinkCode(e.target.value)}
-            placeholder="https://wa.me/message/..."
+            placeholder={t("settings.account.bizPlaceholder")}
           />
           <ActionButton
             disabled={bizLinkBusy || !bizLinkCode.trim()}
@@ -170,13 +176,13 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
                   text: `JID: ${result.jid}${result.push_name ? ` · ${result.push_name}` : ""}${result.verified_name ? ` ✓ ${result.verified_name}` : ""}`,
                 })
               } catch {
-                setBizLinkResult({ tone: "error", text: "Failed to resolve link" })
+                setBizLinkResult({ tone: "error", text: t("settings.account.bizFailed") })
               } finally {
                 setBizLinkBusy(false)
               }
             }}
           >
-            {bizLinkBusy ? "Resolving…" : "Resolve"}
+            {bizLinkBusy ? t("settings.account.resolving") : t("settings.account.resolve")}
           </ActionButton>
         </div>
         {bizLinkResult && <StatusBanner tone={bizLinkResult.tone}>{bizLinkResult.text}</StatusBanner>}
@@ -184,18 +190,18 @@ const AccountSettingsScreen = ({ onNavigate }: { onNavigate?: (anchor: ReactNode
 
       <RowList>
         <LinkRow
-          title="How to delete my account"
-          description="Learn how to permanently delete your WhatsApp account"
+          title={t("settings.account.deleteAccount")}
+          description={t("settings.account.deleteAccount.desc")}
           href="https://faq.whatsapp.com/2138577903196467/?cms_platform=android&lang=en"
         />
         <LinkRow
-          title="Security notifications"
-          description="Learn about end-to-end encryption and security alerts"
+          title={t("settings.account.securityNotifications")}
+          description={t("settings.account.securityNotifications.desc")}
           onClick={() =>
             onNavigate?.(
               <div>
                 <h2 className="mb-2 text-xl font-semibold tracking-tight text-light-text dark:text-dark-text">
-                  Security Notifications
+                  {t("settings.account.securityNotifications.heading")}
                 </h2>
                 <SecurityNotificationsScreen />
               </div>,
