@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react"
 import { CreateGroup, FetchContacts } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { Modal } from "../common/Modal"
+import { useT } from "../../lib/i18n"
 
 export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const [contacts, setContacts] = useState<api.Contact[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -26,13 +28,13 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
       })
       .catch(err => {
         console.error("Failed to load contacts:", err)
-        setError("Failed to load contacts")
+        setError(t("dialog.createGroup.failedLoad"))
       })
       .finally(() => !cancelled && setLoading(false))
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [t])
 
   const toggle = (jid: string) => {
     setSelected(prev => {
@@ -75,12 +77,14 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
       overlayClass="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       cardClass="flex max-h-[80vh] w-[420px] max-w-[90vw] flex-col rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
     >
-      <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">New group</h2>
+      <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">
+        {t("dialog.createGroup.title")}
+      </h2>
 
         <input
           autoFocus
           className={inputCls}
-          placeholder="Group subject"
+          placeholder={t("chat.info.groupSubject")}
           value={groupName}
           onChange={e => setGroupName(e.target.value)}
         />
@@ -88,7 +92,7 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
         <div className="relative mt-3">
           <input
             className={inputCls + " pl-8"}
-            placeholder="Search contacts"
+            placeholder={t("dialog.createGroup.searchContacts")}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -112,7 +116,7 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-6 text-center text-sm text-gray-500 dark:text-[#8696a0]">
-              No contacts found
+              {t("dialog.createGroup.noContacts")}
             </div>
           ) : (
             filtered.map(c => {
@@ -148,14 +152,16 @@ export function CreateGroupDialog({ onClose }: { onClose: () => void }) {
             onClick={onClose}
             className="rounded-lg px-4 py-2 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             onClick={handleCreate}
             disabled={!groupName.trim() || selected.size === 0 || creating}
             className="rounded-lg bg-[#21c063] px-4 py-2 text-sm font-medium text-[#0a1014] disabled:opacity-50"
           >
-            {creating ? "Creating…" : `Create group (${selected.size})`}
+            {creating
+              ? t("dialog.createGroup.creating")
+              : t("dialog.createGroup.create", { count: selected.size })}
           </button>
         </div>
     </Modal>

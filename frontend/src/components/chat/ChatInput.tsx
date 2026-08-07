@@ -92,7 +92,9 @@ interface FilePreviewProps {
   onToggleGif?: () => void
 }
 
-const FilePreview = ({ file, fileType, onRemove, gifEnabled, onToggleGif }: FilePreviewProps) => (
+const FilePreview = ({ file, fileType, onRemove, gifEnabled, onToggleGif }: FilePreviewProps) => {
+  const t = useT()
+  return (
   <div className="mb-2 flex items-center gap-2 rounded-xl bg-gray-100 p-2 dark:bg-gray-700">
     <div className="flex-1">
       <div className="flex items-center gap-2">
@@ -100,7 +102,7 @@ const FilePreview = ({ file, fileType, onRemove, gifEnabled, onToggleGif }: File
         <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{file.name}</span>
         {fileType === "gif" && (
           <span className="rounded bg-[#21c063]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-[#21c063]">
-            GIF
+            {t("chat.input.gif")}
           </span>
         )}
       </div>
@@ -111,7 +113,7 @@ const FilePreview = ({ file, fileType, onRemove, gifEnabled, onToggleGif }: File
     {(fileType === "video" || fileType === "gif") && onToggleGif && (
       <button
         onClick={onToggleGif}
-        title="Send as an animated GIF (loops instead of playing like a video)"
+        title={t("chat.input.gifTitle")}
         className={clsx(
           "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
           gifEnabled
@@ -119,23 +121,26 @@ const FilePreview = ({ file, fileType, onRemove, gifEnabled, onToggleGif }: File
             : "border-gray-300 dark:border-white/15 text-light-muted dark:text-dark-muted hover:bg-gray-200 dark:hover:bg-gray-600",
         )}
       >
-        GIF
+        {t("chat.input.gif")}
       </button>
     )}
-    <button onClick={onRemove} className="text-red-500 hover:text-red-600 p-1" title="Remove file">
+    <button onClick={onRemove} className="text-red-500 hover:text-red-600 p-1" title={t("chat.input.removeFile")}>
       ×
     </button>
   </div>
-)
+  )
+}
 
 interface ImagePreviewProps {
   imageSrc: string
   onRemove: () => void
 }
 
-const ImagePreview = ({ imageSrc, onRemove }: ImagePreviewProps) => (
+const ImagePreview = ({ imageSrc, onRemove }: ImagePreviewProps) => {
+  const t = useT()
+  return (
   <div className="mb-2 relative inline-block">
-    <img src={imageSrc} alt="Pasted" className="max-h-40 rounded-lg" />
+    <img src={imageSrc} alt={t("chat.input.pasted")} className="max-h-40 rounded-lg" />
     <button
       onClick={onRemove}
       className={clsx(
@@ -148,7 +153,8 @@ const ImagePreview = ({ imageSrc, onRemove }: ImagePreviewProps) => (
       ×
     </button>
   </div>
-)
+  )
+}
 
 export function ChatInput({
   chatId,
@@ -404,16 +410,16 @@ export function ChatInput({
     const previewText =
       content?.conversation ||
       content?.extendedTextMessage?.text ||
-      (content?.imageMessage ? "📷 Photo" : undefined) ||
-      (content?.videoMessage ? "🎥 Video" : undefined) ||
-      (content?.audioMessage ? "🎵 Audio" : undefined) ||
-      (content?.documentMessage ? "📄 Document" : undefined) ||
-      (content?.stickerMessage ? "Sticker" : undefined) ||
-      "Message"
+      (content?.imageMessage ? t("msg.type.photo") : undefined) ||
+      (content?.videoMessage ? t("msg.type.video") : undefined) ||
+      (content?.audioMessage ? t("msg.type.audio") : undefined) ||
+      (content?.documentMessage ? t("msg.type.document") : undefined) ||
+      (content?.stickerMessage ? t("msg.type.sticker") : undefined) ||
+      t("msg.type.message")
 
     const senderLabel = replyingTo.Info.IsFromMe
-      ? "You"
-      : senderName || replyingTo.Info.PushName || "Contact"
+      ? t("common.you")
+      : senderName || replyingTo.Info.PushName || t("chat.input.contactName")
 
     return (
       <div className="mb-2 flex items-start gap-2 rounded-md bg-black/5 dark:bg-white/10 p-2 text-xs">
@@ -432,7 +438,7 @@ export function ChatInput({
         <button
           onClick={onCancelReply}
           className="ml-2 text-light-muted dark:text-dark-muted hover:text-gray-700 dark:hover:text-gray-200"
-          title="Cancel reply"
+          title={t("chat.input.cancelReply")}
         >
           <CloseIcon />
         </button>
@@ -444,7 +450,7 @@ export function ChatInput({
     return (
       <div className="mx-3 mb-3 mt-1.5 flex items-center justify-center rounded-2xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-100/50 dark:bg-gray-800/30 px-4 py-3">
         <span className="text-sm text-light-muted dark:text-dark-muted">
-          Only admins can send messages
+          {t("chat.input.onlyAdminsCanSend")}
         </span>
       </div>
     )
@@ -454,7 +460,7 @@ export function ChatInput({
     <div className="relative z-20 mx-3 mb-3 mt-1.5">
       {showEmojiPicker && (
         <div ref={emojiPickerRef} className="absolute bottom-full left-0 z-50 mb-2">
-          <Suspense fallback={<div className="p-4 text-sm">Loading emojis...</div>}>
+          <Suspense fallback={<div className="p-4 text-sm">{t("chat.input.loadingEmojis")}</div>}>
             <EmojiPicker
               onEmojiSelect={handleEmojiSelect}
               theme="auto"
@@ -489,7 +495,7 @@ export function ChatInput({
       <div className="flex items-end gap-2">
         <div className="flex flex-1 items-center rounded-3xl border border-gray-200 dark:border-dark-border bg-white/70 px-2 py-0.5 shadow-sm backdrop-blur-md transition-all focus-within:border-[#21c063]/50 focus-within:bg-white focus-within:shadow-md dark:border-white/5 dark:bg-dark-secondary/60 dark:focus-within:border-[#21c063]/30 dark:focus-within:bg-dark-elevated">
           {/* Emoji Button */}
-          <IconButton ref={emojiButtonRef} onClick={onToggleEmojiPicker} title="Emoji">
+          <IconButton ref={emojiButtonRef} onClick={onToggleEmojiPicker} title={t("chat.input.emoji")}>
             <EmojiIcon />
           </IconButton>
 
@@ -513,7 +519,7 @@ export function ChatInput({
               onKeyDown={onKeyDown}
               onPaste={onPaste}
               onScroll={handleScroll}
-              placeholder="Message"
+              placeholder={t("chat.input.placeholder")}
               className={clsx(
                 "relative z-10 w-full p-2 bg-transparent resize-none outline-none max-h-32",
                 "text-transparent caret-green",
@@ -569,7 +575,7 @@ export function ChatInput({
 
           {/* Attach Button + WhatsApp-style attach menu */}
           <div className="relative">
-            <IconButton onClick={() => setAttachMenuOpen(v => !v)} title="Attach">
+            <IconButton onClick={() => setAttachMenuOpen(v => !v)} title={t("chat.input.attach")}>
               <AttachIcon />
             </IconButton>
             {attachMenuOpen && (
@@ -579,7 +585,7 @@ export function ChatInput({
                   {(
                     [
                       {
-                        label: "Photos & videos",
+                        label: t("chat.attach.photosVideos"),
                         icon: <PhotosIcon />,
                         color: "text-blue-500",
                         act: () => {
@@ -588,7 +594,7 @@ export function ChatInput({
                         },
                       },
                       {
-                        label: "Document",
+                        label: t("chat.attach.document"),
                         icon: <DocumentIcon />,
                         color: "text-[#21c063]",
                         act: () => {
@@ -597,19 +603,19 @@ export function ChatInput({
                         },
                       },
                       {
-                        label: "Poll",
+                        label: t("chat.attach.poll"),
                         icon: <PollIcon />,
                         color: "text-purple-500",
                         act: () => setPollOpen(true),
                       },
                       {
-                        label: "Contact",
+                        label: t("chat.attach.contact"),
                         icon: <ContactIcon />,
                         color: "text-yellow-500",
                         act: () => setContactOpen(true),
                       },
                       {
-                        label: "Location",
+                        label: t("chat.attach.location"),
                         icon: <LocationIcon />,
                         color: "text-red-500",
                         act: () => setLocationOpen(true),
@@ -672,27 +678,27 @@ export function ChatInput({
           cardClass="w-[360px] rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
         >
           <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">
-            Send location
+            {t("chat.location.title")}
           </h2>
             <p className="mb-3 text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted">
-              Share your current location or enter coordinates.
+              {t("chat.location.desc")}
             </p>
             <input
               autoFocus
               className="w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500 mb-2"
-              placeholder="Latitude (e.g. 37.7749)"
+              placeholder={t("chat.location.lat")}
               value={latInput}
               onChange={e => setLatInput(e.target.value)}
             />
             <input
               className="w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500 mb-2"
-              placeholder="Longitude (e.g. -122.4194)"
+              placeholder={t("chat.location.lon")}
               value={lngInput}
               onChange={e => setLngInput(e.target.value)}
             />
             <input
               className="w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500 mb-3"
-              placeholder="Place name (optional)"
+              placeholder={t("chat.location.name")}
               value={placeName}
               onChange={e => setPlaceName(e.target.value)}
             />
@@ -701,7 +707,7 @@ export function ChatInput({
                 onClick={() => setLocationOpen(false)}
                 className="rounded-lg px-4 py-2 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 onClick={async () => {
@@ -718,7 +724,7 @@ export function ChatInput({
                 disabled={isNaN(parseFloat(latInput)) || isNaN(parseFloat(lngInput))}
                 className="rounded-lg bg-[#21c063] px-4 py-2 text-sm font-medium text-[#0a1014] disabled:opacity-50"
               >
-                Send
+                {t("chat.location.send")}
               </button>
             </div>
         </Modal>

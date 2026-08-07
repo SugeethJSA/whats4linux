@@ -10,6 +10,7 @@ import { Lightbox } from "./components/Lightbox"
 import { CallOverlay } from "./components/chat/CallOverlay"
 
 import { useUIStore, useMessageStore } from "./store"
+import { useT } from "./lib/i18n"
 import { useAppSettingsStore } from "./store/useAppSettingsStore"
 import { useChatStore } from "./store/useChatStore"
 import { useMuteStore } from "./store/useMuteStore"
@@ -38,6 +39,7 @@ function App() {
 
   const { theme, loaded } = useAppSettingsStore()
   const { notifications, addNotification, removeNotification } = useUIStore()
+  const t = useT()
 
   useEffect(() => {
     useAppSettingsStore.getState().loadSettings()
@@ -149,19 +151,19 @@ function App() {
       } else if (status === "logged_out") {
         resetForLogout()
       } else if (status === "reconnecting") {
-        const nid = addNotification("Reconnecting to WhatsApp...")
+        const nid = addNotification(t("toast.reconnecting"), "warning")
         // The "logged_in" or "disconnected" events will remove this.
         ;(window as any).__reconnectNotifId = nid
       } else if (status === "disconnected") {
         const nid = (window as any).__reconnectNotifId
         if (nid !== undefined) removeNotification(nid)
         delete (window as any).__reconnectNotifId
-        addNotification("Disconnected from WhatsApp")
+        addNotification(t("toast.disconnected"), "error")
       }
     })
 
     const unsubDownload = EventsOn("download:complete", (fileName: string) => {
-      const notificationId = addNotification(`Downloaded: ${fileName}`)
+      const notificationId = addNotification(t("toast.downloaded", { name: fileName }), "success")
       setTimeout(() => {
         removeNotification(notificationId)
       }, 3000)
@@ -172,7 +174,7 @@ function App() {
 
     // Surface backend errors to the user as toast notifications.
     const unsubError = EventsOn("wa:error", (msg: string) => {
-      const nid = addNotification(msg)
+      const nid = addNotification(msg, "error")
       setTimeout(() => removeNotification(nid), 6000)
     })
 
@@ -211,7 +213,7 @@ function App() {
       unsubLoggedOut()
       unsubHistory()
     }
-  }, [addNotification, removeNotification])
+  }, [addNotification, removeNotification, t])
 
   // Periodically evict stale entries from transient UI caches and cap message stores
   useEffect(() => {
@@ -238,12 +240,9 @@ function App() {
         style={{ fontFamily: "Inter, system-ui, sans-serif" }}
       >
         {notifications.map(n => {
-          const msg = n.message.toLowerCase()
-          const isSuccess =
-            msg.includes("downloaded") || msg.includes("logged_in") || msg.includes("success")
-          const isError =
-            msg.includes("error") || msg.includes("failed") || msg.includes("disconnect")
-          const isWarning = msg.includes("reconnect")
+          const isSuccess = n.kind === "success"
+          const isError = n.kind === "error"
+          const isWarning = n.kind === "warning"
           const cls = isSuccess
             ? "toast-success"
             : isError
@@ -259,8 +258,8 @@ function App() {
               <button
                 className="toast-close"
                 onClick={() => removeNotification(n.id)}
-                title="Dismiss"
-                aria-label="Dismiss notification"
+                title={t("toast.dismiss")}
+                aria-label={t("toast.dismissAria")}
               >
                 ✕
               </button>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useContactStore } from "../../store/useContactStore"
 import { isMe } from "../../lib/self"
 import { htmlToPlainText } from "../../lib/utils"
+import { useT } from "../../lib/i18n"
 
 export function QuotedMessage({
   contextInfo,
@@ -10,6 +11,7 @@ export function QuotedMessage({
   contextInfo: any
   onQuotedClick?: (messageId: string) => void
 }) {
+  const t = useT()
   const [name, setName] = useState<string>("")
   const [senderColor, setSenderColor] = useState<string>("")
   const [loadingName, setLoadingName] = useState<boolean>(false)
@@ -46,12 +48,12 @@ export function QuotedMessage({
   const getText = () => {
     if (quoted.extendedTextMessage?.text) return quoted.extendedTextMessage.text
     if (quoted.conversation) return quoted.conversation
-    if (quoted.imageMessage) return quoted.imageMessage.caption || "📷 Photo"
-    if (quoted.videoMessage) return quoted.videoMessage.caption || "🎥 Video"
-    if (quoted.documentMessage) return quoted.documentMessage.fileName || "📄 Document"
-    if (quoted.audioMessage) return "🎵 Audio"
-    if (quoted.stickerMessage) return "Sticker"
-    return "Message"
+    if (quoted.imageMessage) return quoted.imageMessage.caption || t("msg.type.photo")
+    if (quoted.videoMessage) return quoted.videoMessage.caption || t("msg.type.video")
+    if (quoted.documentMessage) return quoted.documentMessage.fileName || t("msg.type.document")
+    if (quoted.audioMessage) return t("msg.type.audio")
+    if (quoted.stickerMessage) return t("msg.type.sticker")
+    return t("msg.type.message")
   }
 
   const handleClick = () => {
@@ -86,7 +88,7 @@ export function QuotedMessage({
           </div>
         ) : (
           <div className="font-medium truncate" style={{ color: accentColor }}>
-            {isSelf ? "You" : name}
+            {isSelf ? t("common.you") : name}
           </div>
         )}
       </div>

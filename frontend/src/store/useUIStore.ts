@@ -15,6 +15,8 @@ interface OnlineState {
 
 export type AppScreen = "login" | "chats" | "settings"
 
+export type NotificationKind = "success" | "error" | "warning" | "info"
+
 interface UIStore {
   screen: AppScreen
   setScreen: (screen: AppScreen) => void
@@ -22,12 +24,12 @@ interface UIStore {
   chatInfoOpen: boolean
   typingIndicators: Record<string, TypingState>
   onlineStatus: Record<string, OnlineState>
-  notifications: Array<{ id: number; message: string }>
+  notifications: Array<{ id: number; message: string; kind?: NotificationKind }>
   setShowEmojiPicker: (show: boolean) => void
   setChatInfoOpen: (open: boolean) => void
   setTypingIndicator: (chatId: string, isTyping: boolean) => void
   setOnlineStatus: (userId: string, isOnline: boolean) => void
-  addNotification: (message: string) => number
+  addNotification: (message: string, kind?: NotificationKind) => number
   removeNotification: (id: number) => void
   evictStale: () => void
   lightboxSrc: string | null
@@ -84,10 +86,10 @@ export const useUIStore = create<UIStore>(set => ({
       }
     }),
 
-  addNotification: message => {
+  addNotification: (message, kind) => {
     const id = Date.now()
     set(state => ({
-      notifications: [...state.notifications, { id, message }].slice(-50),
+      notifications: [...state.notifications, { id, message, kind }].slice(-50),
     }))
     return id
   },

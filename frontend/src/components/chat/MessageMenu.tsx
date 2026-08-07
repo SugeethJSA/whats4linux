@@ -11,6 +11,7 @@ import {
   StarIcon,
 } from "../../assets/svgs/message_menu_icons"
 import { ToggleMessageLabel, DeleteMedia, DownloadMediaToFile } from "../../../wailsjs/go/api/Api"
+import { useT } from "../../lib/i18n"
 
 interface MessageMenuProps {
   messageId: string
@@ -52,6 +53,7 @@ export function MessageMenu({
   onStar,
   isStarred = false,
 }: MessageMenuProps) {
+  const t = useT()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
   const [menuPosition, setMenuPosition] = useState<{
@@ -167,7 +169,7 @@ export function MessageMenu({
       <button
         onClick={() => setIsMenuOpen(!isMenuOpen)}
         className="opacity-0 group-hover:opacity-100 group-hover:pointer-events-auto pointer-events-none transition-all duration-200 cursor-pointer p-1"
-        aria-label="Message options"
+        aria-label={t("menu.options")}
       >
         <MenuArrowIcon />
       </button>
@@ -191,7 +193,7 @@ export function MessageMenu({
               className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
             >
               <ReplyIcon />
-              <span>Reply</span>
+              <span>{t("menu.reply")}</span>
             </button>
 
             <button
@@ -199,7 +201,7 @@ export function MessageMenu({
               className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
             >
               <CopyIcon />
-              <span>Copy</span>
+              <span>{t("menu.copy")}</span>
             </button>
 
             <button
@@ -207,7 +209,7 @@ export function MessageMenu({
               className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
             >
               <ReactIcon />
-              <span>React</span>
+              <span>{t("menu.react")}</span>
             </button>
 
             {onPin && (
@@ -216,7 +218,7 @@ export function MessageMenu({
                 className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
               >
                 <PinMenuIcon />
-                <span>{isPinned ? "Unpin" : "Pin"}</span>
+                <span>{isPinned ? t("menu.unpin") : t("menu.pin")}</span>
               </button>
             )}
             {isFromMe && onEdit && (
@@ -225,7 +227,7 @@ export function MessageMenu({
                 className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
               >
                 <EditIcon />
-                <span>Edit</span>
+                <span>{t("menu.edit")}</span>
               </button>
             )}
             {onForward && (
@@ -234,7 +236,7 @@ export function MessageMenu({
                 className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
               >
                 <ForwardIcon />
-                <span>Forward</span>
+                <span>{t("menu.forward")}</span>
               </button>
             )}
             {messageBody?.directPath && (
@@ -253,7 +255,7 @@ export function MessageMenu({
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                     <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
                   </svg>
-                  <span>Save media to disk</span>
+                  <span>{t("menu.saveMedia")}</span>
                 </button>
                 <button
                   onClick={async () => {
@@ -266,7 +268,7 @@ export function MessageMenu({
                   }}
                   className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-500 dark:text-red-400 text-sm"
                 >
-                  <span>Delete media from server</span>
+                  <span>{t("menu.deleteMedia")}</span>
                 </button>
               </>
             )}
@@ -278,7 +280,7 @@ export function MessageMenu({
               className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
             >
               {labelIcon()}
-              <span>Label</span>
+              <span>{t("menu.label")}</span>
             </button>
             {labelOpen && (
               <div className="px-4 pb-2 flex gap-2">
@@ -287,7 +289,7 @@ export function MessageMenu({
                   className="flex-1 rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-2 py-1 text-xs outline-none focus:border-[#21c063] text-light-text dark:text-dark-text"
                   value={labelId}
                   onChange={e => setLabelId(e.target.value)}
-                  placeholder="Label ID"
+                  placeholder={t("menu.labelPlaceholder")}
                   onKeyDown={e => e.key === "Enter" && handleLabel()}
                 />
                 <button
@@ -295,7 +297,7 @@ export function MessageMenu({
                   disabled={!labelId.trim()}
                   className="rounded-lg bg-[#21c063] px-2 py-1 text-xs font-medium text-[#0a1014] disabled:opacity-50"
                 >
-                  Add
+                  {t("menu.add")}
                 </button>
               </div>
             )}
@@ -304,7 +306,7 @@ export function MessageMenu({
               className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
             >
               <StarIcon />
-              <span>{isStarred ? "Unstar" : "Star"}</span>
+              <span>{isStarred ? t("menu.unstar") : t("menu.star")}</span>
             </button>
             {onDelete && (
               <button
@@ -312,7 +314,7 @@ export function MessageMenu({
                 className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-500 dark:text-red-400 text-sm"
               >
                 <DeleteIcon />
-                <span>{isFromMe ? "Delete for everyone" : "Delete for me"}</span>
+                <span>{isFromMe ? t("menu.deleteEveryone") : t("menu.deleteForMe")}</span>
               </button>
             )}
           </div>,

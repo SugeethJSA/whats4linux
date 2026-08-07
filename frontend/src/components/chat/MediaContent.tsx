@@ -272,7 +272,7 @@ export function MediaContent({
             // Same explicit box as the placeholder -> zero layout shift.
             style={type === "image" ? (reservedBox ?? undefined) : undefined}
             decoding="async"
-            alt="media"
+            alt={t("chat.media.alt")}
             onClick={
               type === "image"
                 ? () => {
@@ -311,7 +311,7 @@ export function MediaContent({
           className="block min-w-75 max-w-82.5 max-h-100 rounded-lg object-cover cursor-pointer"
           style={reservedBox ?? GIF_FALLBACK_BOX}
           decoding="async"
-          alt="GIF"
+          alt={t("chat.media.gifAlt")}
         />
       )
     }
@@ -402,7 +402,7 @@ export function MediaContent({
               onClick={seek}
               className="flex-1 h-1 bg-gray-400 dark:bg-gray-600 rounded-full overflow-hidden cursor-pointer"
               role="slider"
-              aria-label="Voice note progress"
+              aria-label={t("chat.media.voiceNote")}
               aria-valuenow={Math.round(progress)}
             >
               <div

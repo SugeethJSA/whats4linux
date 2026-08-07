@@ -11,8 +11,10 @@ import (
 	"github.com/lugvitc/whats4linux/shared/socket"
 )
 
-var conn net.Conn
-var mu sync.Mutex
+var connHolder struct {
+	mu   sync.Mutex
+	conn net.Conn
+}
 
 // quitCh is closed when the systray should shut down, signalling all
 // background goroutines to exit cleanly.
@@ -23,19 +25,43 @@ var quitCh = make(chan struct{})
 // received before the menu exists aren't lost.
 var notifStateCh = make(chan bool, 8)
 
+func getConn() net.Conn {
+	connHolder.mu.Lock()
+	defer connHolder.mu.Unlock()
+	return connHolder.conn
+}
+
+func dropConn(c net.Conn) {
+	connHolder.mu.Lock()
+	defer connHolder.mu.Unlock()
+	if connHolder.conn == c {
+		connHolder.conn = nil
+	}
+}
+
 func connectSocket() error {
 	c, err := net.Dial("unix", socket.UDSPath)
 	if err != nil {
 		return err
 	}
-	mu.Lock()
-	conn = c
-	mu.Unlock()
+	connHolder.mu.Lock()
+	connHolder.conn = c
+	connHolder.mu.Unlock()
 	return nil
 }
 
 func readCommands() error {
 	for {
+		conn := getConn()
+		if conn == nil {
+			if err := connectSocket(); err != nil {
+				return err
+			}
+			// Re-sync the checkbox after reconnecting.
+			sendCommand("get_notifications_state")
+			continue
+		}
+
 		scanner := bufio.NewScanner(conn)
 		for scanner.Scan() {
 			switch msg := scanner.Text(); msg {
@@ -47,6 +73,9 @@ func readCommands() error {
 				pushNotifState(true)
 			case "notifications_state:off":
 				pushNotifState(false)
+			case "already_running":
+				fmt.Println("Another systray instance is already running, exiting.")
+				os.Exit(0)
 			case "":
 				// ignore empty keep-alive lines
 			default:
@@ -55,15 +84,9 @@ func readCommands() error {
 		}
 		if err := scanner.Err(); err != nil {
 			fmt.Println("Error reading from Whats4Linux socket:", err)
-			systray.Quit()
-			os.Exit(0)
 		}
-		// EOF: the app closed the connection, try to reconnect.
-		if err := connectSocket(); err != nil {
-			return err
-		}
-		// Re-sync the checkbox after reconnecting.
-		sendCommand("get_notifications_state")
+		// EOF or read error: connection is dead, drop it and try to reconnect.
+		dropConn(conn)
 	}
 }
 
@@ -85,12 +108,12 @@ func pushNotifState(enabled bool) {
 }
 
 func sendCommand(cmd string) {
-	mu.Lock()
-	defer mu.Unlock()
-	if conn == nil {
+	connHolder.mu.Lock()
+	defer connHolder.mu.Unlock()
+	if connHolder.conn == nil {
 		return
 	}
-	_, err := conn.Write([]byte(cmd + "\n"))
+	_, err := connHolder.conn.Write([]byte(cmd + "\n"))
 	if err != nil {
 		fmt.Println("Error sending command to Whats4Linux:", err)
 		systray.Quit()

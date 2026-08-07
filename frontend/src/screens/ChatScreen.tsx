@@ -24,6 +24,7 @@ import { EventsOn } from "../../wailsjs/runtime/runtime"
 import { ChatDetail } from "./ChatDetail"
 import { useChatStore, useChatById, useFilteredChatIds, useArchivedCount, useUIStore } from "../store"
 import { registerShortcut } from "../lib/shortcuts"
+import { useT } from "../lib/i18n"
 import { loadAvatar, invalidateAvatar } from "../lib/avatarCache"
 import { useSelfAvatarStore } from "../store/useSelfAvatarStore"
 import { useChatMuted } from "../store/useMuteStore"
@@ -45,6 +46,7 @@ import { SearchIcon } from "../assets/svgs/settings_icons"
 import { GoBackIcon } from "../assets/svgs/header_icons"
 import { SearchPill } from "../components/common/SearchPill"
 import { Avatar } from "../components/common/Avatar"
+import { Modal } from "../components/common/Modal"
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -59,37 +61,40 @@ interface HeaderProps {
   avatar?: string
 }
 
-const Header = ({ onOpenSettings, onNewChat, onSearch, avatar }: HeaderProps) => (
-  <div className="h-16 bg-light-secondary dark:bg-dark-bg flex items-center justify-between px-4 border-b border-gray-200 dark:border-white/5">
-    <h1 className="text-xl font-bold text-light-text dark:text-white">WhatsApp</h1>
-    <div className="flex items-center gap-1 text-gray-500 dark:text-light-muted dark:text-dark-muted">
-      <button
-        title="Search Messages"
-        onClick={onSearch}
-        className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full"
-      >
-        <SearchIcon />
-      </button>
-      <button
-        title="New Chat"
-        onClick={onNewChat}
-        className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full"
-      >
-        <NewChatIcon />
-      </button>
-      <button
-        title="Menu"
-        onClick={onOpenSettings}
-        className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full"
-      >
-        <MenuIcon />
-      </button>
-      <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 overflow-hidden flex items-center justify-center ml-2">
-        {avatar ? <img src={avatar} className="w-full h-full object-cover" /> : <UserAvatar />}
+const Header = ({ onOpenSettings, onNewChat, onSearch, avatar }: HeaderProps) => {
+  const t = useT()
+  return (
+    <div className="h-16 bg-light-secondary dark:bg-dark-bg flex items-center justify-between px-4 border-b border-gray-200 dark:border-white/5">
+      <h1 className="text-xl font-bold text-light-text dark:text-white">WhatsApp</h1>
+      <div className="flex items-center gap-1 text-gray-500 dark:text-light-muted dark:text-dark-muted">
+        <button
+          title={t("chat.sidebar.searchMessages")}
+          onClick={onSearch}
+          className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full"
+        >
+          <SearchIcon />
+        </button>
+        <button
+          title={t("chat.sidebar.newChat")}
+          onClick={onNewChat}
+          className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full"
+        >
+          <NewChatIcon />
+        </button>
+        <button
+          title={t("chat.sidebar.menu")}
+          onClick={onOpenSettings}
+          className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full"
+        >
+          <MenuIcon />
+        </button>
+        <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 overflow-hidden flex items-center justify-center ml-2">
+          {avatar ? <img src={avatar} className="w-full h-full object-cover" /> : <UserAvatar />}
+        </div>
       </div>
     </div>
-  </div>
-)
+  )
+}
 
 interface SearchBarProps {
   value: string
@@ -97,15 +102,18 @@ interface SearchBarProps {
   placeholder?: string
 }
 
-const SearchBar = ({
-  value,
-  onChange,
-  placeholder = "Search or start new chat",
-}: SearchBarProps) => (
-  <div className="px-3 py-2 bg-light-bg dark:bg-dark-bg">
-    <SearchPill value={value} onChange={onChange} placeholder={placeholder} />
-  </div>
-)
+const SearchBar = ({ value, onChange, placeholder }: SearchBarProps) => {
+  const t = useT()
+  return (
+    <div className="px-3 py-2 bg-light-bg dark:bg-dark-bg">
+      <SearchPill
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder ?? t("chat.sidebar.searchPlaceholder")}
+      />
+    </div>
+  )
+}
 
 const PeopleIcon = ({
   size = 24,
@@ -204,8 +212,9 @@ const ChatListItemContent = memo(
   ({ chat, muted, isSelected, onSelect, onContextMenu }: ChatListItemContentProps) => {
     const theme = useAppSettingsStore(s => s.theme)
     const dark = theme === "dark"
+    const t = useT()
     const isCommunityChat = Boolean(chat.isCommunityGroup && chat.communityJid)
-    const communityName = isCommunityChat ? chat.communityName || "Community" : null
+    const communityName = isCommunityChat ? chat.communityName || t("chat.list.communityName") : null
 
     return (
       <div
@@ -265,13 +274,13 @@ const ChatListItemContent = memo(
                       hour: "numeric",
                       minute: "2-digit",
                     })
-                  : "yesterday"}
+                  : t("chat.list.yesterday")}
               </span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex-1 text-sm text-gray-500 dark:text-[#8696a0] truncate [&_p]:inline [&_p]:m-0 ">
-              {chat.isFromMe && <span className="mr-1 text-[#8696a0]">You: </span>}
+              {chat.isFromMe && <span className="mr-1 text-[#8696a0]">{t("chat.list.youPrefix")}</span>}
               {chat.sender && chat.type === "group" && !chat.isFromMe && (
                 <span className="mr-1">{chat.sender}: </span>
               )}
@@ -330,29 +339,33 @@ interface EmptyStateProps {
   onRefresh: () => void
 }
 
-const EmptyState = ({ hasChats, isLoading, onRefresh }: EmptyStateProps) => (
-  <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-light-muted dark:text-dark-muted p-8">
-    <div
-      className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-      style={{ background: "rgba(33,192,99,0.08)", color: "#21c063" }}
-    >
-      <SearchIcon />
+const EmptyState = ({ hasChats, isLoading, onRefresh }: EmptyStateProps) => {
+  const t = useT()
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-light-muted dark:text-dark-muted p-8">
+      <div
+        className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+        style={{ background: "rgba(33,192,99,0.08)", color: "#21c063" }}
+      >
+        <SearchIcon />
+      </div>
+      <p className="text-center font-medium">
+        {hasChats ? t("chat.sidebar.noMatches") : t("chat.sidebar.noChats")}
+      </p>
+      <button
+        onClick={onRefresh}
+        disabled={isLoading}
+        className="mt-6 px-6 py-2.5 rounded-full text-sm font-semibold transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+        style={{ background: "#21c063", color: "#0a1014" }}
+      >
+        {isLoading ? t("common.loading") : t("chat.sidebar.refresh")}
+      </button>
     </div>
-    <p className="text-center font-medium">
-      {hasChats ? "No chats match your search." : "No chats available. Start a conversation!"}
-    </p>
-    <button
-      onClick={onRefresh}
-      disabled={isLoading}
-      className="mt-6 px-6 py-2.5 rounded-full text-sm font-semibold transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-      style={{ background: "#21c063", color: "#0a1014" }}
-    >
-      {isLoading ? "Loading..." : "Refresh Chats"}
-    </button>
-  </div>
-)
+  )
+}
 
 function SubscribeChannelDialog({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
   const [success, setSuccess] = useState("")
@@ -369,24 +382,24 @@ function SubscribeChannelDialog({ onClose }: { onClose: () => void }) {
     setSuccess("")
     try {
       await SubscribeNewsletter(target)
-      setSuccess("Subscribed successfully!")
+      setSuccess(t("chat.subscribe.subscribed"))
       setTimeout(onClose, 1500)
     } catch (e: any) {
-      setError(e?.message || "Failed to subscribe")
+      setError(e?.message || t("chat.subscribe.failed"))
     } finally {
       setBusy(false)
     }
   }
 
   const handleUnsubscribe = async (jid: string) => {
-    if (!confirm("Unsubscribe from this channel?")) return
+    if (!confirm(t("chat.subscribe.unsubConfirm"))) return
     setBusy(true)
     setError("")
     try {
       await UnsubscribeNewsletter(jid)
-      setSuccess("Unsubscribed!")
+      setSuccess(t("chat.subscribe.unsubscribed"))
     } catch (e: any) {
-      setError(e?.message || "Failed to unsubscribe")
+      setError(e?.message || t("chat.subscribe.unsubFailed"))
     } finally {
       setBusy(false)
     }
@@ -413,143 +426,138 @@ function SubscribeChannelDialog({ onClose }: { onClose: () => void }) {
   }, [searchQuery])
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={e => {
-        if (e.target === e.currentTarget) onClose()
-      }}
+    <Modal
+      onClose={onClose}
+      cardClass="w-96 max-w-[90vw] max-h-[80vh] bg-white dark:bg-dark-secondary rounded-2xl flex flex-col p-6 shadow-xl"
     >
-      <div
-        className="bg-white dark:bg-dark-secondary rounded-2xl w-96 max-h-[80vh] flex flex-col p-6 shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-          Subscribe to Channel
-        </h2>
-        <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
-          Enter a newsletter JID or search for channels.
-        </p>
-        <input
-          autoFocus
-          value={input}
-          onChange={e => {
-            setInput(e.target.value)
-            setError("")
-            setSuccess("")
-          }}
-          onKeyDown={e => {
-            if (e.key === "Enter") handleSubscribe()
-            if (e.key === "Escape") onClose()
-          }}
-          placeholder="Newsletter JID or invite code"
-          className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3"
-        />
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+        {t("chat.subscribe.title")}
+      </h2>
+      <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
+        {t("chat.subscribe.desc")}
+      </p>
+      <input
+        autoFocus
+        value={input}
+        onChange={e => {
+          setInput(e.target.value)
+          setError("")
+          setSuccess("")
+        }}
+        onKeyDown={e => {
+          if (e.key === "Enter") handleSubscribe()
+        }}
+        placeholder={t("chat.subscribe.jidPlaceholder")}
+        className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3"
+      />
 
-        {/* Search newsletters */}
-        <input
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Search channels..."
-          className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3"
-        />
+      {/* Search newsletters */}
+      <input
+        value={searchQuery}
+        onChange={e => setSearchQuery(e.target.value)}
+        placeholder={t("chat.subscribe.searchPlaceholder")}
+        className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none mb-3"
+      />
 
-        {searching && <p className="text-xs text-gray-500 mb-2">Searching...</p>}
+      {searching && <p className="text-xs text-gray-500 mb-2">{t("chat.subscribe.searching")}</p>}
 
-        {searchResults.length > 0 && (
-          <div className="flex-1 overflow-y-auto max-h-40 mb-3 border border-gray-200 dark:border-dark-border rounded-lg">
-            {searchResults.map(ch => (
-              <div
-                key={ch.jid}
-                className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 dark:hover:bg-white/5"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-light-text dark:text-dark-text truncate">
-                    {ch.full_name || ch.push_name || ch.jid}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted truncate">
-                    {ch.jid}
-                  </p>
-                </div>
-                <div className="flex gap-1 shrink-0 ml-2">
-                  <button
-                    onClick={() => handleSubscribe(ch.jid)}
-                    disabled={busy}
-                    className="text-xs px-2 py-1 rounded bg-[#21c063] text-[#0a1014] hover:bg-[#1ea952] disabled:opacity-50"
-                  >
-                    Subscribe
-                  </button>
-                  <button
-                    onClick={() => handleUnsubscribe(ch.jid)}
-                    disabled={busy}
-                    className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 disabled:opacity-50"
-                  >
-                    Unsub
-                  </button>
-                </div>
+      {searchResults.length > 0 && (
+        <div className="flex-1 overflow-y-auto max-h-40 mb-3 border border-gray-200 dark:border-dark-border rounded-lg">
+          {searchResults.map(ch => (
+            <div
+              key={ch.jid}
+              className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 dark:hover:bg-white/5"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-light-text dark:text-dark-text truncate">
+                  {ch.full_name || ch.push_name || ch.jid}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted truncate">
+                  {ch.jid}
+                </p>
               </div>
-            ))}
-          </div>
-        )}
-
-        {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
-        {success && <p className="text-sm text-[#21c063] mb-3">{success}</p>}
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => handleSubscribe()}
-            disabled={busy || !input.trim()}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-[#21c063] text-[#0a1014] hover:bg-[#1ea952] disabled:opacity-50"
-          >
-            {busy ? "Subscribing..." : "Subscribe"}
-          </button>
+              <div className="flex gap-1 shrink-0 ml-2">
+                <button
+                  onClick={() => handleSubscribe(ch.jid)}
+                  disabled={busy}
+                  className="text-xs px-2 py-1 rounded bg-[#21c063] text-[#0a1014] hover:bg-[#1ea952] disabled:opacity-50"
+                >
+                  {t("chat.sidebar.subscribe")}
+                </button>
+                <button
+                  onClick={() => handleUnsubscribe(ch.jid)}
+                  disabled={busy}
+                  className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 disabled:opacity-50"
+                >
+                  {t("chat.subscribe.unsub")}
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
+      )}
+
+      {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
+      {success && <p className="text-sm text-[#21c063] mb-3">{success}</p>}
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg"
+        >
+          {t("common.cancel")}
+        </button>
+        <button
+          onClick={() => handleSubscribe()}
+          disabled={busy || !input.trim()}
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-[#21c063] text-[#0a1014] hover:bg-[#1ea952] disabled:opacity-50"
+        >
+          {busy ? t("chat.subscribe.subscribing") : t("chat.sidebar.subscribe")}
+        </button>
       </div>
-    </div>
+    </Modal>
   )
 }
 
-const WelcomeScreen = () => (
-  <div
-    className="flex-1 flex flex-col items-center justify-center z-10 text-center px-10 relative overflow-hidden"
-    style={{ borderBottom: "6px solid #21c063" }}
-  >
+const WelcomeScreen = () => {
+  const t = useT()
+  return (
     <div
-      className="absolute inset-0 pointer-events-none opacity-40 dark:opacity-20"
-      style={{
-        background: "radial-gradient(circle at center, rgba(33,192,99,0.15) 0%, transparent 60%)",
-      }}
-    />
-
-    <div className="mb-8 relative z-10">
-      <div
-        className="w-24 h-24 rounded-3xl flex items-center justify-center shadow-2xl glass-light dark:glass"
-        style={{
-          border: "1px solid rgba(255,255,255,0.1)",
-        }}
-      >
-        <EmptyStateIcon />
-      </div>
-    </div>
-
-    <h1
-      className="text-3xl font-semibold mb-4 relative z-10"
-      style={{ color: "var(--color-light-text)", letterSpacing: "-0.02em" }}
+      className="flex-1 flex flex-col items-center justify-center z-10 text-center px-10 relative overflow-hidden"
+      style={{ borderBottom: "6px solid #21c063" }}
     >
-      WhatsApp for Linux
-    </h1>
+      <div
+        className="absolute inset-0 pointer-events-none opacity-40 dark:opacity-20"
+        style={{
+          background: "radial-gradient(circle at center, rgba(33,192,99,0.15) 0%, transparent 60%)",
+        }}
+      />
 
-    <p className="relative z-10 text-sm leading-relaxed" style={{ color: "#8696a0" }}>
-      Send and receive messages without keeping your phone online.
-      <br />
-      Use WhatsApp on up to 4 linked devices and 1 phone.
-    </p>
-  </div>
-)
+      <div className="mb-8 relative z-10">
+        <div
+          className="w-24 h-24 rounded-3xl flex items-center justify-center shadow-2xl glass-light dark:glass"
+          style={{
+            border: "1px solid rgba(255,255,255,0.1)",
+          }}
+        >
+          <EmptyStateIcon />
+        </div>
+      </div>
+
+      <h1
+        className="text-3xl font-semibold mb-4 relative z-10"
+        style={{ color: "var(--color-light-text)", letterSpacing: "-0.02em" }}
+      >
+        {t("chat.welcome.brand")}
+      </h1>
+
+      <p className="relative z-10 text-sm leading-relaxed" style={{ color: "#8696a0" }}>
+        {t("chat.welcome.tagline1")}
+        <br />
+        {t("chat.welcome.tagline2")}
+      </p>
+    </div>
+  )
+}
 
 interface ChatListScreenProps {
   onOpenSettings: () => void
@@ -557,6 +565,7 @@ interface ChatListScreenProps {
 
 export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   const screen = useUIStore(state => state.screen)
+  const t = useT()
   // Use individual selectors to minimize re-renders
   const selectedChatId = useChatStore(state => state.selectedChatId)
   const selectedChat = useChatById(selectedChatId ?? "")
@@ -653,14 +662,14 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           const avatar = c.avatar_url || ""
           // Sender is already resolved to a display name by the backend
           // (contact name for group senders, "You" for own messages).
-          const senderName = c.is_from_me ? "You" : isGroup ? c.sender || "" : ""
+          const senderName = c.is_from_me ? t("common.you") : isGroup ? c.sender || "" : ""
 
           return {
             id: c.jid || "",
-            name: c.full_name || c.push_name || c.short || c.phno || "Unknown",
+            name: c.full_name || c.push_name || c.short || c.phno || t("common.unknown"),
             subtitle: (c.latest_message || "")
-              .replace(/^\[call\].*?missed.*/, "📞 Missed call")
-              .replace(/^\[call\].*/, "📞 Call")
+              .replace(/^\[call\].*?missed.*/, t("chat.list.missedCall"))
+              .replace(/^\[call\].*/, t("chat.list.call"))
               .replace(/^\[system\]/, ""),
             type: isGroup ? "group" : "contact",
             timestamp: c.LatestTS,
@@ -677,7 +686,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
         }),
       )
     },
-    [],
+    [t],
   )
 
   const loadAvatars = useCallback(
@@ -826,7 +835,8 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   const handleDeleteChat = useCallback(async () => {
     if (!chatMenu) return
     const { chat } = chatMenu
-    if (!confirm(`Delete ${chat.name || "this chat"}?`)) return
+    if (!confirm(t("chat.context.deleteConfirm", { name: chat.name || t("chat.context.thisChat") })))
+      return
     setChatMenu(null)
     const store = useChatStore.getState()
     try {
@@ -835,7 +845,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
     } catch (err) {
       console.error("Failed to delete chat:", err)
     }
-  }, [chatMenu])
+  }, [chatMenu, t])
 
   const handleMarkAsRead = useCallback(async () => {
     if (!chatMenu) return
@@ -1054,9 +1064,13 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           let previewText = data.messageText
           // Backend sends the raw push name; mirror the chat list's sender
           // resolution ("You" for own messages, name otherwise).
-          let senderForUpdate = data.isFromMe ? "You" : data.sender
+          let senderForUpdate = data.isFromMe ? t("common.you") : data.sender
           if (data.reaction) {
-            previewText = `${data.sender} reacted ${data.reaction} to: "${previewText}"`
+            previewText = t("chat.list.reacted", {
+              sender: data.sender,
+              reaction: data.reaction,
+              preview: previewText,
+            })
             senderForUpdate = ""
           }
 
@@ -1107,7 +1121,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
       unsubPictureUpdate()
       unsubRefresh()
     }
-  }, [fetchChats, getChat, loadSelfAvatar, updateChatLastMessage, updateSingleChat])
+  }, [fetchChats, getChat, loadSelfAvatar, updateChatLastMessage, updateSingleChat, t])
 
   // Returning to the chats screen (settings/login were on top) refreshes the
   // list: gated event-handler fetches were skipped while it was hidden, and
@@ -1130,27 +1144,31 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
             onClick={handleTogglePin}
             className="w-full px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-white/5"
           >
-            {chatMenu.chat.pinned ? "Unpin chat" : "Pin chat"}
+            {chatMenu.chat.pinned
+              ? t("chat.context.unpin")
+              : t("chat.context.pin")}
           </button>
           <button
             onClick={handleToggleArchive}
             className="w-full px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-white/5"
           >
-            {chatMenu.chat.archived ? "Unarchive chat" : "Archive chat"}
+            {chatMenu.chat.archived
+              ? t("chat.context.unarchive")
+              : t("chat.context.archive")}
           </button>
           {(chatMenu.chat.unreadCount ?? 0) > 0 && (
             <button
               onClick={handleMarkAsRead}
               className="w-full px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-white/5"
             >
-              Mark as read
+              {t("chat.context.markRead")}
             </button>
           )}
           <button
             onClick={handleDeleteChat}
             className="w-full px-4 py-2 text-left text-sm text-red-500 hover:bg-gray-100 dark:hover:bg-white/5"
           >
-            Delete chat
+            {t("chat.context.delete")}
           </button>
           <div className="border-t border-gray-200 dark:border-dark-border" />
           <div className="px-4 py-2">
@@ -1159,7 +1177,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
                 className="flex-1 rounded border border-gray-300 dark:border-dark-border bg-transparent px-2 py-1 text-xs outline-none focus:border-[#21c063] text-light-text dark:text-dark-text"
                 value={chatLabelId}
                 onChange={e => setChatLabelId(e.target.value)}
-                placeholder="Label ID"
+                placeholder={t("chat.context.labelPlaceholder")}
                 onClick={e => e.stopPropagation()}
               />
               <button
@@ -1175,7 +1193,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
                 }}
                 className="rounded bg-[#21c063] px-2 py-1 text-xs font-medium text-[#0a1014]"
               >
-                Label
+                {t("chat.context.label")}
               </button>
             </div>
           </div>
@@ -1210,13 +1228,19 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
                     key={v}
                     onClick={() => setView(v)}
                     className={clsx(
-                      "rounded-full border px-3 py-1 text-sm capitalize transition-colors shrink-0",
+                      "rounded-full border px-3 py-1 text-sm transition-colors shrink-0",
                       view === v
                         ? "border-transparent bg-[#d9fdd3] font-medium text-[#0a1014] dark:bg-[#e9edef] dark:text-[#0b141a]"
                         : "border-gray-300 dark:border-dark-border text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:border-white/10 dark:text-[#8696a0] dark:hover:bg-white/5",
                     )}
                   >
-                    {v}
+                    {v === "chats"
+                      ? t("chat.sidebar.tabChats")
+                      : v === "communities"
+                        ? t("chat.sidebar.tabCommunities")
+                        : v === "channels"
+                          ? t("chat.sidebar.tabChannels")
+                          : t("chat.sidebar.tabStatus")}
                   </button>
                 ))}
               </div>
@@ -1224,13 +1248,13 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
                 <SearchBar
                   value={searchTerm}
                   onChange={setSearchTerm}
-                  placeholder={
+                  placeholder={t(
                     view === "communities"
-                      ? "Search communities"
+                      ? "chat.sidebar.searchCommunities"
                       : view === "channels"
-                        ? "Search channels"
-                        : "Search or start new chat"
-                  }
+                        ? "chat.sidebar.searchChannels"
+                        : "chat.sidebar.searchPlaceholder",
+                  )}
                 />
               )}
 
@@ -1240,13 +1264,13 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
                     onClick={() => setShowSubscribeChannel(true)}
                     className="flex-1 px-4 py-2 bg-[#21c063] text-[#0a1014] rounded-lg text-sm font-medium hover:bg-[#1ea952] transition-colors"
                   >
-                    Subscribe
+                    {t("chat.sidebar.subscribe")}
                   </button>
                   <button
                     onClick={() => setShowCreateChannel(true)}
                     className="flex-1 px-4 py-2 bg-white dark:bg-dark-tertiary border border-gray-300 dark:border-dark-border text-light-text dark:text-dark-text rounded-lg text-sm font-medium hover:bg-gray-100 dark:hover:bg-dark-secondary transition-colors"
                   >
-                    Create
+                    {t("chat.sidebar.create")}
                   </button>
                 </div>
               )}
@@ -1263,7 +1287,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
                     </svg>
                   </span>
                   <span className="flex-1 font-medium text-light-text dark:text-dark-text">
-                    Archived
+                    {t("chat.sidebar.archived")}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-[#8696a0]">{archivedCount}</span>
                 </button>
@@ -1273,11 +1297,13 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
                   <button
                     onClick={() => setShowArchived(false)}
                     className="text-light-muted dark:text-dark-muted hover:text-gray-700 dark:text-light-muted dark:text-dark-muted dark:hover:text-gray-200"
-                    aria-label="Back to chats"
+                    aria-label={t("chat.sidebar.backToChats")}
                   >
                     <GoBackIcon />
                   </button>
-                  <span className="font-medium text-light-text dark:text-dark-text">Archived</span>
+                  <span className="font-medium text-light-text dark:text-dark-text">
+                    {t("chat.sidebar.archived")}
+                  </span>
                 </div>
               )}
 

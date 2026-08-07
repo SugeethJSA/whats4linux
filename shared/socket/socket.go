@@ -79,15 +79,24 @@ func (s *UnixSocket) ListenAndServe() error {
 			log.Println("accept error:", err)
 			continue
 		}
-		s.handleConn(conn)
+		go s.handleConn(conn)
 	}
 }
 
 // handleConn serves a single client (the systray) over a persistent
 // connection. Commands are newline-delimited; replies/pushes are written back
 // on the same connection via SendCommand.
+//
+// Only one client is served at a time: a second connection (e.g. a duplicate
+// systray instance) is told it is redundant and closed immediately.
 func (s *UnixSocket) handleConn(conn net.Conn) {
 	s.mu.Lock()
+	if s.conn != nil {
+		s.mu.Unlock()
+		_, _ = conn.Write([]byte("already_running\n"))
+		_ = conn.Close()
+		return
+	}
 	s.conn = conn
 	handler := s.handler
 	s.mu.Unlock()
@@ -134,6 +143,14 @@ func (s *UnixSocket) handleConn(conn net.Conn) {
 	if err := scanner.Err(); err != nil {
 		log.Println("read error:", err)
 	}
+}
+
+// currentConn returns the currently active tray connection ("" if none). It is
+// used by tests to observe the active-slot state.
+func (s *UnixSocket) currentConn() net.Conn {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.conn
 }
 
 // SendCommand writes a newline-framed message to the connected client.

@@ -30,6 +30,7 @@ import type { Message } from "../../store/types"
 import { isMe } from "../../lib/self"
 import { formatPhone, phoneFromJID, htmlToPlainText } from "../../lib/utils"
 import { cachedAvatar, loadAvatar } from "../../lib/avatarCache"
+import { useT } from "../../lib/i18n"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
 const EmojiPicker = lazy(() => import("./EmojiPickerLazy"))
@@ -104,6 +105,7 @@ export function MessageItem({
   highlightedMessageId,
   isAnnounceGroup = false,
 }: MessageItemProps) {
+  const t = useT()
   const isFromMe = message.Info.IsFromMe
   const content = message.Content
   const isSticker = !!content?.stickerMessage
@@ -126,7 +128,7 @@ export function MessageItem({
   const [senderName, setSenderName] = useState(
     cachedSender?.name ||
       (message.Info.PushName ? "~ " + message.Info.PushName : "") ||
-      "Unknown",
+      t("common.unknown"),
   )
   const [senderColor, setSenderColor] = useState<string | undefined>(cachedSender?.senderColor)
   const getSenderInfo = useContactStore(state => state.getSenderInfo)
@@ -320,7 +322,7 @@ export function MessageItem({
         floated && "float-right ml-2 mt-2",
       )}
     >
-      {message.edited && <span className="italic">Edited</span>}
+      {message.edited && <span className="italic">{t("msg.edited")}</span>}
       <span>{timeStr}</span>
       {isFromMe && (
         <span className="transition-colors duration-300">
@@ -331,7 +333,7 @@ export function MessageItem({
   )
 
   const renderContent = () => {
-    if (!content) return <span className="italic opacity-50">Empty Message</span>
+    if (!content) return <span className="italic opacity-50">{t("msg.empty")}</span>
     else if (content.conversation || content.extendedTextMessage?.text) {
       const htmlContent = content.conversation || content.extendedTextMessage?.text || ""
       const stripped = htmlContent
@@ -354,13 +356,13 @@ export function MessageItem({
                 onClick={handleEditSubmit}
                 className="text-xs text-blue-600 dark:text-green font-medium"
               >
-                Save
+                {t("common.save")}
               </button>
               <button
                 onClick={() => setEditing(false)}
                 className="text-xs text-light-muted dark:text-dark-muted"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
             </div>
           ) : (
@@ -376,7 +378,7 @@ export function MessageItem({
                 disabled={joinBusy || !!joinSuccess}
                 className="w-full rounded-lg bg-[#21c063] px-3 py-1.5 text-sm font-medium text-[#0a1014] hover:bg-[#1ea952] disabled:opacity-50 transition-colors"
               >
-                {joinBusy ? "Joining..." : joinSuccess ? "Joined ✓" : "Accept Invite"}
+                {joinBusy ? t("msg.joining") : joinSuccess ? t("msg.joined") : t("msg.acceptInvite")}
               </button>
               {joinError && <span className="text-xs text-red-500">{joinError}</span>}
             </div>
@@ -385,14 +387,14 @@ export function MessageItem({
             <>
               {votedPollKeys.has(`${chatId}:${message.Info.ID}`) ? (
                 <div className="mt-2 w-full rounded-lg border border-green-500/30 bg-green-500/5 px-3 py-1.5 text-sm text-green-600 dark:text-green-400 text-center">
-                  Voted ✓
+                  {t("msg.voted")}
                 </div>
               ) : (
                 <button
                   onClick={() => setPollVoteOpen(true)}
                   className="mt-2 w-full rounded-lg border border-[#21c063] bg-[#21c063]/10 px-3 py-1.5 text-sm font-medium text-[#21c063] hover:bg-[#21c063]/20 transition-colors"
                 >
-                  Vote
+                  {t("msg.vote")}
                 </button>
               )}
               {pollVoteOpen && (
@@ -466,7 +468,7 @@ export function MessageItem({
       return <MediaContent message={message} type="sticker" chatId={chatId} />
     else if (content.documentMessage) {
       const doc = content.documentMessage
-      const fileName = doc.fileName || "Document"
+      const fileName = doc.fileName || t("msg.documentName")
       const extension = fileName.split(".").pop()?.toUpperCase() || "FILE"
       // fileLength is not available in DecodedMessageContent, show "Unknown size"
       const fileSize = 0
@@ -483,12 +485,12 @@ export function MessageItem({
                 {fileName}
               </div>
               <div className="text-xs opacity-60 text-gray-500 dark:text-light-muted dark:text-dark-muted">
-                {fileSize > 0 ? formatSize(fileSize) : "Document"}
+                {fileSize > 0 ? formatSize(fileSize) : t("msg.documentName")}
               </div>
             </div>
             <button
               onClick={handleMediaDownload}
-              title="Download Document"
+              title={t("msg.download")}
               className="p-2 border border-gray-300 dark:border-gray-600 rounded-full"
             >
               <DownloadIcon />
@@ -500,7 +502,7 @@ export function MessageItem({
     }
     // Note: senderKeyDistributionMessage and reactionMessage are not stored in messages.db
     // Reactions are stored separately and shown via the Reactions field
-    return <span className="italic opacity-50 text-xs">Unsupported Message Type</span>
+    return <span className="italic opacity-50 text-xs">{t("msg.unsupported")}</span>
   }
 
   const hasMedia = !!(content?.imageMessage || content?.videoMessage)
@@ -534,9 +536,9 @@ export function MessageItem({
       <div className="flex justify-center my-1">
         <div className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs select-none bg-black/20 dark:bg-white/5 border border-white/5">
           <span className="text-base">{isVideo ? "📹" : "📞"}</span>
-          <span className="text-gray-300 font-medium">{isVideo ? "Video Call" : "Voice Call"}</span>
+          <span className="text-gray-300 font-medium">{isVideo ? t("msg.callVideo") : t("msg.callVoice")}</span>
           {duration && <span className="text-gray-500 font-mono">{duration}</span>}
-          {isMissed && <span className="text-red-400 font-medium">Missed</span>}
+          {isMissed && <span className="text-red-400 font-medium">{t("msg.callMissed")}</span>}
         </div>
       </div>
     )
@@ -611,7 +613,7 @@ export function MessageItem({
           {/* Hover reaction trigger just outside the bubble (WhatsApp-style). */}
           <button
             onClick={() => setShowReactionPicker(v => !v)}
-            title="React"
+            title={t("menu.react")}
             className={clsx(
               "absolute bottom-1 z-20 rounded-full bg-white p-1 text-sm leading-none opacity-0 shadow transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto pointer-events-none dark:bg-dark-tertiary",
               isFromMe ? "-left-9" : "-right-9",
@@ -644,7 +646,7 @@ export function MessageItem({
                   setShowFullEmoji(true)
                   setShowReactionPicker(false)
                 }}
-                title="More"
+                title={t("msg.more")}
                 className="ml-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/10 text-sm dark:bg-white/10"
               >
                 +
@@ -657,7 +659,7 @@ export function MessageItem({
               <Suspense
                 fallback={
                   <div className="rounded bg-white p-2 text-xs shadow dark:bg-dark-tertiary">
-                    Loading…
+                    {t("common.loadingEllipsis")}
                   </div>
                 }
               >
@@ -705,7 +707,7 @@ export function MessageItem({
           {message.forwarded && (
             <div className="text-[10px] flex gap-1 italic items-center opacity-60 mb-1">
               <ForwardedIcon />
-              Forwarded
+              {t("msg.forwarded")}
             </div>
           )}
           {contextInfo?.quotedMessage && (

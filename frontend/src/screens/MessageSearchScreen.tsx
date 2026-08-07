@@ -4,6 +4,7 @@ import { SearchMessages, GetSearchSuggestions } from "../../wailsjs/go/api/Api"
 import { useChatStore } from "../store/useChatStore"
 import { GoBackIcon } from "../assets/svgs/header_icons"
 import { SearchPill } from "../components/common/SearchPill"
+import { useT } from "../lib/i18n"
 
 interface SearchResult {
   chat_jid: string
@@ -23,19 +24,19 @@ interface MessageSearchScreenProps {
   onClose: () => void
 }
 
-const FILTERS = [
-  { label: "All", value: "" },
-  { label: "Text", value: "text" },
-  { label: "Images", value: "image" },
-  { label: "Videos", value: "video" },
-  { label: "Audio", value: "audio" },
-  { label: "Documents", value: "document" },
-  { label: "Links", value: "" },
-] as const
-
 const PAGE_SIZE = 30
 
 export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
+  const t = useT()
+  const FILTERS = [
+    { label: t("chat.search.filterAll"), value: "" },
+    { label: t("chat.search.filterText"), value: "text" },
+    { label: t("chat.search.filterImages"), value: "image" },
+    { label: t("chat.search.filterVideos"), value: "video" },
+    { label: t("chat.search.filterAudio"), value: "audio" },
+    { label: t("chat.search.filterDocuments"), value: "document" },
+    { label: t("chat.search.filterLinks"), value: "" },
+  ]
   const [query, setQuery] = useState("")
   const [mediaFilter, setMediaFilter] = useState("")
   const [senderFilter, setSenderFilter] = useState("")
@@ -78,12 +79,12 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
         setOffset(off + items.length)
       } catch (e: any) {
         if (generation !== searchGenerationRef.current) return
-        setError(e?.message || "Search failed")
+        setError(e?.message || t("chat.search.searchFailed"))
       } finally {
         if (generation === searchGenerationRef.current) setLoading(false)
       }
     },
-    [],
+    [t],
   )
 
   useEffect(() => {
@@ -140,7 +141,7 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
         <button
           onClick={onClose}
           className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full"
-          aria-label="Back"
+          aria-label={t("chat.search.back")}
         >
           <GoBackIcon />
         </button>
@@ -148,7 +149,7 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
           <SearchPill
             inputRef={inputRef}
             showIcon={false}
-            placeholder="Search messages..."
+            placeholder={t("chat.search.searchPlaceholder")}
             value={query}
             onChange={setQuery}
           />
@@ -192,7 +193,7 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
       <div className="px-3 py-2 border-b border-gray-200 dark:border-white/5">
         <input
           type="text"
-          placeholder="Filter by sender..."
+          placeholder={t("chat.search.filterPlaceholder")}
           className="w-full px-3 py-1.5 rounded-lg bg-light-tertiary dark:bg-dark-secondary text-sm text-light-text dark:text-dark-text placeholder-gray-500 outline-none"
           value={senderFilter}
           onChange={e => setSenderFilter(e.target.value)}
@@ -203,12 +204,12 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
         {error && <div className="p-4 text-center text-red-500 text-sm">{error}</div>}
         {!loading && !error && query && results.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-light-muted dark:text-dark-muted p-8">
-            <p className="text-sm">No messages found</p>
+            <p className="text-sm">{t("chat.search.noResults")}</p>
           </div>
         )}
         {!query && (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-light-muted dark:text-dark-muted p-8">
-            <p className="text-sm">Type to search messages</p>
+            <p className="text-sm">{t("chat.search.typePrompt")}</p>
           </div>
         )}
         {results.map(r => (
@@ -230,16 +231,20 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
             </div>
             <div className="flex items-center gap-2 w-full mt-0.5">
               <span className="text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted shrink-0">
-                {r.is_from_me ? "You" : r.sender_jid.split("@")[0]}
+                {r.is_from_me ? t("common.you") : r.sender_jid.split("@")[0]}
               </span>
               <span className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted truncate">
                 {r.text ||
-                  (r.media_type === 1 ? "🖼 Image" : r.media_type === 2 ? "🎵 Audio" : "[Media]")}
+                  (r.media_type === 1
+                    ? t("chat.search.mediaImage")
+                    : r.media_type === 2
+                      ? t("chat.search.mediaAudio")
+                      : t("chat.search.mediaFallback"))}
               </span>
             </div>
             {r.edited && (
               <span className="text-[10px] text-gray-400 dark:text-light-muted dark:text-dark-muted italic mt-0.5">
-                edited
+                {t("msg.edited")}
               </span>
             )}
           </button>
@@ -254,7 +259,7 @@ export function MessageSearchScreen({ onClose }: MessageSearchScreenProps) {
             onClick={handleLoadMore}
             className="w-full py-3 text-sm font-medium text-[#21c063] hover:bg-gray-50 dark:hover:bg-white/5"
           >
-            Load more
+            {t("chat.search.loadMore")}
           </button>
         )}
       </div>

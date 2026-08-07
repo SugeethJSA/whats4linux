@@ -1,10 +1,12 @@
 import { useState } from "react"
 import { SendPoll } from "../../../wailsjs/go/api/Api"
 import { Modal } from "../common/Modal"
+import { useT } from "../../lib/i18n"
 
 const MAX_OPTIONS = 12
 
 export function PollDialog({ chatId, onClose }: { chatId: string; onClose: () => void }) {
+  const t = useT()
   const [question, setQuestion] = useState("")
   const [options, setOptions] = useState<string[]>(["", ""])
   const [multiple, setMultiple] = useState(false)
@@ -50,13 +52,13 @@ export function PollDialog({ chatId, onClose }: { chatId: string; onClose: () =>
       cardClass="w-[420px] max-w-[90vw] rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
     >
       <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">
-        Create poll
+        {t("dialog.poll.title")}
       </h2>
 
         <input
           autoFocus
           className={inputCls}
-          placeholder="Ask a question"
+          placeholder={t("dialog.poll.question")}
           value={question}
           onChange={e => setQuestion(e.target.value)}
         />
@@ -66,7 +68,7 @@ export function PollDialog({ chatId, onClose }: { chatId: string; onClose: () =>
             <div key={i} className="flex items-center gap-2">
               <input
                 className={inputCls}
-                placeholder={`Option ${i + 1}`}
+                placeholder={t("dialog.poll.option", { n: i + 1 })}
                 value={opt}
                 onChange={e => setOption(i, e.target.value)}
               />
@@ -74,7 +76,7 @@ export function PollDialog({ chatId, onClose }: { chatId: string; onClose: () =>
                 <button
                   onClick={() => removeOption(i)}
                   className="shrink-0 text-light-muted dark:text-dark-muted hover:text-red-500"
-                  title="Remove option"
+                  title={t("dialog.poll.removeOption")}
                 >
                   ×
                 </button>
@@ -88,7 +90,7 @@ export function PollDialog({ chatId, onClose }: { chatId: string; onClose: () =>
             onClick={() => setOptions(prev => [...prev, ""])}
             className="mt-2 text-sm text-[#1b9a58] hover:underline dark:text-[#21c063]"
           >
-            + Add option
+            {t("dialog.poll.addOption")}
           </button>
         )}
 
@@ -99,7 +101,7 @@ export function PollDialog({ chatId, onClose }: { chatId: string; onClose: () =>
             onChange={e => setMultiple(e.target.checked)}
             className="accent-[#21c063]"
           />
-          Allow multiple answers
+          {t("dialog.poll.allowMultiple")}
         </label>
 
         {error && <div className="mt-2 text-xs text-red-500">{error}</div>}
@@ -109,14 +111,14 @@ export function PollDialog({ chatId, onClose }: { chatId: string; onClose: () =>
             onClick={onClose}
             className="rounded-lg px-4 py-2 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             onClick={send}
             disabled={!valid || sending}
             className="rounded-lg bg-[#21c063] px-4 py-2 text-sm font-medium text-[#0a1014] disabled:opacity-50"
           >
-            {sending ? "Sending…" : "Send poll"}
+            {sending ? t("dialog.poll.sending") : t("dialog.poll.send")}
           </button>
         </div>
     </Modal>

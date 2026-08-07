@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react"
 import { AcceptGroupInviteLink } from "../../../wailsjs/go/api/Api"
 import { Modal } from "../common/Modal"
+import { useT } from "../../lib/i18n"
 
 interface InviteLinkDialogProps {
   onClose: () => void
@@ -17,6 +18,7 @@ function extractInviteCode(input: string): string {
 }
 
 export function InviteLinkDialog({ onClose }: InviteLinkDialogProps) {
+  const t = useT()
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
   const [success, setSuccess] = useState("")
@@ -30,7 +32,7 @@ export function InviteLinkDialog({ onClose }: InviteLinkDialogProps) {
   const handleJoin = async () => {
     const code = extractInviteCode(input)
     if (!code) {
-      setError("Please enter a valid invite link or code")
+      setError(t("dialog.inviteLink.invalid"))
       return
     }
     setBusy(true)
@@ -38,10 +40,10 @@ export function InviteLinkDialog({ onClose }: InviteLinkDialogProps) {
     setSuccess("")
     try {
       await AcceptGroupInviteLink(code)
-      setSuccess(`Joined successfully!`)
+      setSuccess(t("dialog.inviteLink.joined"))
       setTimeout(onClose, 1500)
     } catch (e: any) {
-      setError(e?.message || "Failed to join group")
+      setError(e?.message || t("dialog.inviteLink.failed"))
     } finally {
       setBusy(false)
     }
@@ -57,10 +59,10 @@ export function InviteLinkDialog({ onClose }: InviteLinkDialogProps) {
       cardClass="bg-white dark:bg-dark-secondary rounded-2xl w-96 flex flex-col shadow-xl p-6"
     >
       <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-        Join Group by Link
+        {t("chat.info.joinByLink")}
       </h2>
       <p className="text-sm text-gray-500 dark:text-light-muted dark:text-dark-muted mb-4">
-        Paste a WhatsApp group invite link or code
+        {t("dialog.inviteLink.paste")}
       </p>
       <input
         ref={inputRef}
@@ -71,7 +73,7 @@ export function InviteLinkDialog({ onClose }: InviteLinkDialogProps) {
           setSuccess("")
         }}
         onKeyDown={handleKeyDown}
-        placeholder="https://chat.whatsapp.com/... or invite code"
+        placeholder={t("dialog.inviteLink.placeholder")}
         className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 outline-none mb-4"
       />
       {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
@@ -81,14 +83,14 @@ export function InviteLinkDialog({ onClose }: InviteLinkDialogProps) {
           onClick={onClose}
           className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg transition-colors"
         >
-          Cancel
+          {t("common.cancel")}
         </button>
         <button
           onClick={handleJoin}
           disabled={busy || !input.trim()}
           className="px-4 py-2 text-sm font-medium rounded-lg bg-[#21c063] text-[#0a1014] hover:bg-[#1ea952] disabled:opacity-50 transition-colors"
         >
-          {busy ? "Joining..." : "Join"}
+          {busy ? t("dialog.inviteLink.joining") : t("dialog.inviteLink.join")}
         </button>
       </div>
     </Modal>

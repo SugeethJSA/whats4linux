@@ -51,7 +51,9 @@ import { GetCachedAvatar } from "../../../wailsjs/go/api/Api"
 import { invalidateAvatar } from "../../lib/avatarCache"
 import { InviteLinkDialog } from "./InviteLinkDialog"
 import { ParticipantList } from "./ParticipantList"
+import { MediaGrid } from "./MediaGrid"
 import { useWailsEvent } from "../../hooks/useWailsEvent"
+import { useT } from "../../lib/i18n"
 
 interface ChatInfoProps {
   chatId: string
@@ -70,6 +72,7 @@ export function ChatInfo({
   isOpen,
   onClose,
 }: ChatInfoProps) {
+  const t = useT()
   const [contactInfo, setContactInfo] = useState<api.Contact | null>(null)
   const [groupInfo, setGroupInfo] = useState<api.Group | null>(null)
 const [businessInfo, setBusinessInfo] = useState<Record<string, any> | null>(null)
@@ -120,17 +123,17 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
   const [newsletterMuted, setNewsletterMuted] = useState(false)
 
   const DISAPPEAR_OPTIONS = [
-    { value: 0, label: "Off" },
-    { value: 86400, label: "24 hours" },
-    { value: 604800, label: "7 days" },
-    { value: 7776000, label: "90 days" },
+    { value: 0, label: t("chat.info.disappearingOff") },
+    { value: 86400, label: t("chat.info.disappearing24h") },
+    { value: 604800, label: t("chat.info.disappearing7d") },
+    { value: 7776000, label: t("chat.info.disappearing90d") },
   ]
 
   const DISAPPEAR_LABEL: Record<number, string> = {
-    0: "Off",
-    86400: "24 hours",
-    604800: "7 days",
-    7776000: "90 days",
+    0: t("chat.info.disappearingOff"),
+    86400: t("chat.info.disappearing24h"),
+    604800: t("chat.info.disappearing7d"),
+    7776000: t("chat.info.disappearing90d"),
   }
 
   useEffect(() => {
@@ -421,7 +424,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
   }
 
   const handleUnlinkCommunity = async (parentJID: string) => {
-    if (!confirm("Unlink this group from its community?")) return
+    if (!confirm(t("chat.info.unlinkGroupConfirm"))) return
     setLinkBusy(true)
     setLinkError("")
     try {
@@ -451,12 +454,12 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
         <button
           onClick={onClose}
           className="p-2 hover:bg-gray-200 dark:hover:bg-dark-tertiary rounded-full transition-colors mr-3"
-          aria-label="Close"
+          aria-label={t("common.close")}
         >
           <GoBackIcon />
         </button>
         <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-          {chatType === "group" ? "Group Info" : "Contact Info"}
+          {chatType === "group" ? t("chat.info.groupTitle") : t("chat.info.contactTitle")}
         </h2>
       </div>
 
@@ -531,7 +534,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
               )}
               {chatType === "group" && groupInfo && (
                 <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">
-                  Group · {groupInfo.participant_count} participants
+                  {t("chat.info.groupParticipants", { count: groupInfo.participant_count })}
                 </p>
               )}
             </div>
@@ -544,14 +547,20 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                     {groupInfo.group_topic}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-dark-muted mt-2">
-                    Group created by{" "}
-                    {groupInfo.group_owner.full_name ||
-                      groupInfo.group_owner.push_name ||
-                      groupInfo.group_owner.phno}
-                    , on {new Date(groupInfo.group_created_at).toLocaleDateString()} at{" "}
-                    {new Date(groupInfo.group_created_at).toLocaleString("en-US", {
-                      hour: "2-digit",
-                      minute: "2-digit",
+                    {t("chat.info.groupCreatedBy", {
+                      name:
+                        groupInfo.group_owner.full_name ||
+                        groupInfo.group_owner.push_name ||
+                        groupInfo.group_owner.phno,
+                    })}
+                    {t("chat.info.groupCreatedOn", {
+                      date: new Date(groupInfo.group_created_at).toLocaleDateString(),
+                    })}
+                    {t("chat.info.groupCreatedAt", {
+                      time: new Date(groupInfo.group_created_at).toLocaleString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }),
                     })}
                   </p>
                 </div>
@@ -563,10 +572,10 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4">
                   <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">
-                    About
+                    {t("chat.info.about")}
                   </p>
                   <p className="text-gray-900 dark:text-gray-100">
-                    {(contactInfo as { status?: string }).status || "No about info"}
+                    {(contactInfo as { status?: string }).status || t("chat.info.noAbout")}
                   </p>
                 </div>
               </div>
@@ -578,19 +587,24 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                 <div className="p-4 flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">
-                      Info
+                      {t("chat.info.info")}
                     </p>
                     {userInfo ? (
                       <p className="text-gray-900 dark:text-gray-100 text-sm">
-                        {userInfo.status ? `"${userInfo.status}"` : "No status"}
+                        {userInfo.status ? `"${userInfo.status}"` : t("chat.info.noStatus")}
                         {userInfo.devices?.length
-                          ? ` · ${userInfo.devices.length} device${userInfo.devices.length !== 1 ? "s" : ""}`
+                          ? ` · ${t(
+                              userInfo.devices.length === 1
+                                ? "chat.info.devicesOne"
+                                : "chat.info.devicesMany",
+                              { count: userInfo.devices.length },
+                            )}`
                           : ""}
                       </p>
                     ) : userInfoBusy ? (
-                      <p className="text-sm text-gray-500">Loading…</p>
+                      <p className="text-sm text-gray-500">{t("common.loadingEllipsis")}</p>
                     ) : (
-                      <p className="text-sm text-gray-500">Unknown</p>
+                      <p className="text-sm text-gray-500">{t("common.unknown")}</p>
                     )}
                   </div>
                   <button
@@ -609,7 +623,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                     disabled={userInfoBusy}
                     className="rounded-lg border border-gray-300 dark:border-dark-border px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-dark-tertiary disabled:opacity-50 text-gray-600 dark:text-dark-muted"
                   >
-                    {userInfoBusy ? "Fetching…" : "Fetch"}
+                    {userInfoBusy ? t("chat.info.fetching") : t("chat.info.fetch")}
                   </button>
                 </div>
               </div>
@@ -620,7 +634,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4">
                   <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">
-                    Phone
+                    {t("chat.info.phone")}
                   </p>
                   <p className="text-gray-900 dark:text-gray-100">{contactInfo.phno}</p>
                   <button
@@ -645,12 +659,12 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                     className="mt-2 rounded-lg border border-gray-300 dark:border-dark-border px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-dark-tertiary disabled:opacity-50 text-gray-600 dark:text-dark-muted"
                   >
                     {checkBusy
-                      ? "Checking…"
+                      ? t("chat.info.checking")
                       : waCheck
                         ? waCheck.onWhatsApp
-                          ? `On WhatsApp${waCheck.verifiedName ? " ✓" : ""}`
-                          : "Not on WhatsApp"
-                        : "Check WhatsApp"}
+                          ? `${t("chat.info.onWhatsApp")}${waCheck.verifiedName ? " ✓" : ""}`
+                          : t("chat.info.notOnWhatsApp")
+                        : t("chat.info.checkWhatsApp")}
                   </button>
                 </div>
               </div>
@@ -661,7 +675,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4">
                   <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-2">
-                    Business
+                    {t("chat.info.business")}
                   </p>
                   {businessInfo.description && (
                     <p className="text-sm text-gray-900 dark:text-gray-100 mb-1">
@@ -694,14 +708,10 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
             <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
               <div className="w-full p-4  flex items-center gap-3">
                 <Mediaicon />
-                <span className="text-gray-900 dark:text-gray-100">Media, links and docs</span>
+                <span className="text-gray-900 dark:text-gray-100">{t("chat.info.mediaLinksDocs")}</span>
               </div>
 
-              <div className="p-4">
-                <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted text-center">
-                  No media available
-                </p>
-              </div>
+              <MediaGrid chatId={chatId} />
             </div>
 
             {/* Mute notifications */}
@@ -713,7 +723,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
               >
                 <div className="flex items-center gap-3">
                   <MuteIcon />
-                  <span className="text-gray-900 dark:text-gray-100">Mute notifications</span>
+                  <span className="text-gray-900 dark:text-gray-100">{t("chat.info.mute")}</span>
                 </div>
                 <div onClick={e => e.stopPropagation()}>
                   <ToggleButton isEnabled={muted} onToggle={handleToggleMute} />
@@ -729,9 +739,9 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                   <div className="flex items-center gap-3">
                     <DisappearingMessagesIcon />
                     <div className="flex-1 text-left">
-                      <p className="text-gray-900 dark:text-gray-100">Disappearing messages</p>
+                      <p className="text-gray-900 dark:text-gray-100">{t("chat.info.disappearing")}</p>
                       <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted">
-                        {DISAPPEAR_LABEL[disappearTimer] || "Off"}
+                        {DISAPPEAR_LABEL[disappearTimer] || t("chat.info.disappearingOff")}
                       </p>
                     </div>
                   </div>
@@ -761,7 +771,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
             <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
               <button
                 onClick={async () => {
-                  if (!confirm("Clear all messages in this chat?")) return
+                  if (!confirm(t("chat.info.clearConfirm"))) return
                   try {
                     await ClearChat(chatId)
                     useMessageStore.getState().clearMessages(chatId)
@@ -771,7 +781,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                 }}
                 className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors"
               >
-                <span className="text-gray-900 dark:text-gray-100">Clear messages</span>
+                <span className="text-gray-900 dark:text-gray-100">{t("chat.info.clearMessages")}</span>
               </button>
             </div>
 
@@ -796,7 +806,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4 space-y-3">
                   <p className="text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted mb-1">
-                    Channel Info
+                    {t("chat.info.channelTitle")}
                   </p>
                   {newsletterInfo.description && (
                     <p className="text-gray-900 dark:text-gray-100 text-sm">
@@ -805,7 +815,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                   )}
                   {newsletterInfo.subscriber_count !== undefined && (
                     <p className="text-sm text-gray-500 dark:text-dark-muted">
-                      {newsletterInfo.subscriber_count} subscribers
+                      {t("chat.info.subscribers", { count: newsletterInfo.subscriber_count })}
                     </p>
                   )}
                   <button
@@ -819,7 +829,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                     }}
                     className="text-sm text-blue-600 dark:text-green hover:underline"
                   >
-                    {newsletterMuted ? "Unmute notifications" : "Mute notifications"}
+                    {newsletterMuted ? t("chat.info.unmute") : t("chat.info.mute")}
                   </button>
                 </div>
               </div>
@@ -849,13 +859,13 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                 >
                   <BlockIcon />
                   <span>
-                    {blocked ? "Unblock" : "Block"}{" "}
-                    {contactInfo?.full_name || contactInfo?.phno || "contact"}
+                    {blocked ? t("chat.info.unblock") : t("chat.info.block")}{" "}
+                    {contactInfo?.full_name || contactInfo?.phno || t("chat.info.contact")}
                   </span>
                 </button>
                 <button className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-600 dark:text-red-400">
                   <ReportIcon />
-                  <span>Report contact</span>
+                  <span>{t("chat.info.report")}</span>
                 </button>
               </div>
             )}
@@ -871,21 +881,21 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                       className="w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text"
                       value={subjectDraft}
                       onChange={e => setSubjectDraft(e.target.value)}
-                      placeholder="Group subject"
+                      placeholder={t("chat.info.groupSubject")}
                     />
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => setSubjectEdit(false)}
                         className="rounded-md px-3 py-1 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
                       >
-                        Cancel
+                        {t("common.cancel")}
                       </button>
                       <button
                         onClick={handleSaveSubject}
                         disabled={actionBusy || !subjectDraft.trim()}
                         className="rounded-md bg-[#21c063] px-3 py-1 text-sm font-medium text-[#0a1014] disabled:opacity-50"
                       >
-                        Save
+                        {t("common.save")}
                       </button>
                     </div>
                   </div>
@@ -897,7 +907,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                     }}
                     className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors"
                   >
-                    <span className="text-gray-900 dark:text-gray-100">Change subject</span>
+                    <span className="text-gray-900 dark:text-gray-100">{t("chat.info.changeSubject")}</span>
                   </button>
                 )}
 
@@ -909,16 +919,16 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                 >
                   <span className="text-gray-900 dark:text-gray-100">
                     {inviteBusy
-                      ? "Loading…"
+                      ? t("common.loadingEllipsis")
                       : inviteLink
-                        ? "Invite link copied!"
-                        : "Get invite link"}
+                        ? t("chat.info.inviteLinkCopied")
+                        : t("chat.info.getInviteLink")}
                   </span>
                 </button>
 
                 {/* Group announce toggle */}
                 <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors">
-                  <span className="text-sm text-gray-900 dark:text-gray-100">Send Messages</span>
+                  <span className="text-sm text-gray-900 dark:text-gray-100">{t("chat.info.sendMessages")}</span>
                   <ToggleButton
                     isEnabled={groupAnnounce}
                     onToggle={async () => {
@@ -936,13 +946,13 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                 </div>
                 <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
                   {groupAnnounce
-                    ? "Only admins can send messages"
-                    : "All participants can send messages"}
+                    ? t("chat.input.onlyAdminsCanSend")
+                    : t("chat.info.allCanSend")}
                 </p>
 
                 {/* Group locked toggle */}
                 <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors">
-                  <span className="text-sm text-gray-900 dark:text-gray-100">Lock Group</span>
+                  <span className="text-sm text-gray-900 dark:text-gray-100">{t("chat.info.lockGroup")}</span>
                   <ToggleButton
                     isEnabled={groupLocked}
                     onToggle={async () => {
@@ -959,7 +969,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                   />
                 </div>
                 <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
-                  {groupLocked ? "Group info locked by admins" : "Anyone can edit group info"}
+                  {groupLocked ? t("chat.info.lockedByAdmins") : t("chat.info.anyoneCanEdit")}
                 </p>
 
                 {/* Group description / topic — admin only */}
@@ -973,21 +983,21 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                           rows={3}
                           value={topicDraft}
                           onChange={e => setTopicDraft(e.target.value)}
-                          placeholder="Group description"
+                          placeholder={t("chat.info.groupDescription")}
                         />
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={() => setTopicEdit(false)}
                             className="rounded-md px-3 py-1 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-white/5"
                           >
-                            Cancel
+                            {t("common.cancel")}
                           </button>
                           <button
                             onClick={handleSaveTopic}
                             disabled={actionBusy || !topicDraft.trim()}
                             className="rounded-md bg-[#21c063] px-3 py-1 text-sm font-medium text-[#0a1014] disabled:opacity-50"
                           >
-                            Save
+                            {t("common.save")}
                           </button>
                         </div>
                       </div>
@@ -999,7 +1009,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                         }}
                         className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors border-t border-gray-200 dark:border-dark-tertiary"
                       >
-                        <span className="text-gray-900 dark:text-gray-100">Edit description</span>
+                        <span className="text-gray-900 dark:text-gray-100">{t("chat.info.editDescription")}</span>
                       </button>
                     )}
                   </>
@@ -1010,7 +1020,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                   <>
                     <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors">
                       <span className="text-sm text-gray-900 dark:text-gray-100">
-                        Member Add Mode
+                        {t("chat.info.memberAddMode")}
                       </span>
                       <ToggleButton
                         isEnabled={memberAddMode === "admin_add"}
@@ -1019,8 +1029,8 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                     </div>
                     <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
                       {memberAddMode === "admin_add"
-                        ? "Only admins can add members"
-                        : "All participants can add members"}
+                        ? t("chat.info.onlyAdminsAdd")
+                        : t("chat.info.allCanAdd")}
                     </p>
                   </>
                 )}
@@ -1030,7 +1040,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                   <>
                     <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors">
                       <span className="text-sm text-gray-900 dark:text-gray-100">
-                        Join Approval
+                        {t("chat.info.joinApproval")}
                       </span>
                       <ToggleButton
                         isEnabled={joinApproval}
@@ -1039,8 +1049,8 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                     </div>
                     <p className="px-4 pb-3 -mt-2 text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted">
                       {joinApproval
-                        ? "Join requests require admin approval"
-                        : "Anyone can join freely"}
+                        ? t("chat.info.joinApprovalAdmin")
+                        : t("chat.info.joinApprovalAnyone")}
                     </p>
                   </>
                 )}
@@ -1054,7 +1064,9 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                       className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors disabled:opacity-50"
                     >
                       <span className="text-gray-900 dark:text-gray-100">
-                        {joinReqBusy ? "Loading…" : `Join Requests (${joinRequests.length})`}
+                        {joinReqBusy
+                          ? t("common.loadingEllipsis")
+                          : t("chat.info.joinRequests", { count: joinRequests.length })}
                       </span>
                     </button>
                     {showJoinRequests && joinRequests.length > 0 && (
@@ -1072,13 +1084,13 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                                 onClick={() => handleApproveJoinRequest(req.jid)}
                                 className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400"
                               >
-                                Approve
+{t("chat.info.approve")}
                               </button>
                               <button
                                 onClick={() => handleRejectJoinRequest(req.jid)}
                                 className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
                               >
-                                Reject
+{t("chat.info.reject")}
                               </button>
                             </div>
                           </div>
@@ -1087,7 +1099,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                     )}
                     {showJoinRequests && joinRequests.length === 0 && !joinReqBusy && (
                       <p className="px-4 pb-3 text-xs text-gray-500 dark:text-dark-muted">
-                        No pending requests
+                        {t("chat.info.noPendingRequests")}
                       </p>
                     )}
                   </div>
@@ -1103,7 +1115,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                           disabled={linkBusy}
                           className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-orange-600 dark:text-orange-400 disabled:opacity-50"
                         >
-                          <span>Unlink from community</span>
+                          <span>{t("chat.info.unlinkFromCommunity")}</span>
                         </button>
                         {linkError && <p className="px-4 pb-2 text-xs text-red-500">{linkError}</p>}
                       </div>
@@ -1121,14 +1133,14 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                           className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors"
                         >
                           <span className="text-gray-900 dark:text-gray-100">
-                            Link to community
+                            {t("chat.info.linkToCommunity")}
                           </span>
                         </button>
                         {showLinkCommunity && (
                           <div className="mx-4 mb-3 rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-secondary max-h-40 overflow-y-auto">
                             {communities.length === 0 && (
                               <p className="p-3 text-sm text-gray-500 dark:text-dark-muted">
-                                No communities available
+                                {t("chat.info.noCommunities")}
                               </p>
                             )}
                             {communities.map(c => (
@@ -1138,7 +1150,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                                 disabled={linkBusy}
                                 className="w-full px-3 py-2 text-left text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-dark-tertiary disabled:opacity-50 border-b border-gray-100 dark:border-dark-tertiary last:border-0"
                               >
-                                {c.name || "Community"}
+                                {c.name || t("chat.list.communityName")}
                               </button>
                             ))}
                           </div>
@@ -1171,7 +1183,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                   className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-600 dark:text-red-400 disabled:opacity-50"
                 >
                   <ExitGroupIcon />
-                  <span>Exit group</span>
+                  <span>{t("chat.info.exitGroup")}</span>
                 </button>
               </div>
             )}
@@ -1182,7 +1194,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                 onClick={() => setShowJoinDialog(true)}
                 className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors"
               >
-                <span className="text-gray-900 dark:text-gray-100">Join Group by Link</span>
+                <span className="text-gray-900 dark:text-gray-100">{t("chat.info.joinByLink")}</span>
               </button>
             </div>
           </>

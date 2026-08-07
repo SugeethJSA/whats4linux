@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { SendPollVote } from "../../../wailsjs/go/api/Api"
 import { Modal } from "../common/Modal"
+import { useT } from "../../lib/i18n"
 
 interface PollVoteDialogProps {
   chatId: string
@@ -19,6 +20,7 @@ export function PollVoteDialog({
   onClose,
   onVote,
 }: PollVoteDialogProps) {
+  const t = useT()
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [sending, setSending] = useState(false)
   const [error, setError] = useState("")
@@ -55,10 +57,10 @@ export function PollVoteDialog({
       overlayClass="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       cardClass="w-[360px] max-w-[90vw] rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
     >
-      <h3 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">Vote</h3>
+      <h3 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">{t("dialog.pollVote.title")}</h3>
         <p className="text-sm text-gray-900 dark:text-gray-100 mb-3 font-medium">{question}</p>
         {done ? (
-          <p className="text-sm text-green-600 dark:text-green-400 mb-3">Vote submitted!</p>
+          <p className="text-sm text-green-600 dark:text-green-400 mb-3">{t("dialog.pollVote.submitted")}</p>
         ) : (
           <div className="flex flex-col gap-2 mb-3">
             {options.map((opt, i) => (
@@ -82,7 +84,7 @@ export function PollVoteDialog({
             onClick={onClose}
             className="rounded-lg px-4 py-2 text-sm text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-white/5"
           >
-            {done ? "Close" : "Cancel"}
+            {done ? t("common.close") : t("common.cancel")}
           </button>
           {!done && (
             <button
@@ -90,7 +92,7 @@ export function PollVoteDialog({
               disabled={selected.size === 0 || sending}
               className="rounded-lg bg-[#21c063] px-4 py-2 text-sm font-medium text-[#0a1014] disabled:opacity-50"
             >
-              {sending ? "Voting…" : "Vote"}
+              {sending ? t("dialog.pollVote.voting") : t("dialog.pollVote.title")}
             </button>
           )}
         </div>

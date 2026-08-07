@@ -4,6 +4,7 @@ import { useChatStore } from "../../store/useChatStore"
 import { formatPhone, phoneFromJID } from "../../lib/utils"
 import { Modal } from "../common/Modal"
 import { Avatar } from "../common/Avatar"
+import { useT } from "../../lib/i18n"
 
 interface ForwardDialogProps {
   sourceJID: string
@@ -12,6 +13,7 @@ interface ForwardDialogProps {
 }
 
 export function ForwardDialog({ sourceJID, messageID, onClose }: ForwardDialogProps) {
+  const t = useT()
   const chatsById = useChatStore(s => s.chatsById)
   const [search, setSearch] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
@@ -43,20 +45,20 @@ export function ForwardDialog({ sourceJID, messageID, onClose }: ForwardDialogPr
     >
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Forward message
+            {t("dialog.forward.title")}
           </h2>
           <input
             ref={inputRef}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search chats..."
+            placeholder={t("dialog.forward.search")}
             className="mt-2 w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 outline-none"
           />
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {chats.length === 0 && (
             <p className="text-center text-gray-400 dark:text-light-muted dark:text-dark-muted text-sm py-8">
-              No chats found
+              {t("dialog.forward.noChats")}
             </p>
           )}
           {chats.map(chat => (
@@ -71,7 +73,7 @@ export function ForwardDialog({ sourceJID, messageID, onClose }: ForwardDialogPr
                   {chat.name}
                 </div>
                 <div className="text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted truncate">
-                  {chat.type === "group" ? "Group" : formatPhone(phoneFromJID(chat.id))}
+                  {chat.type === "group" ? t("dialog.forward.group") : formatPhone(phoneFromJID(chat.id))}
                 </div>
               </div>
             </button>
@@ -82,7 +84,7 @@ export function ForwardDialog({ sourceJID, messageID, onClose }: ForwardDialogPr
             onClick={onClose}
             className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg transition-colors"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
         </div>
     </Modal>

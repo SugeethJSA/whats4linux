@@ -3,8 +3,10 @@ import { FetchContacts, SendShareContact, SearchContacts } from "../../../wailsj
 import { api } from "../../../wailsjs/go/models"
 import { Modal } from "../common/Modal"
 import { phoneFromJID } from "../../lib/utils"
+import { useT } from "../../lib/i18n"
 
 export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClose: () => void }) {
+  const t = useT()
   const [contacts, setContacts] = useState<api.Contact[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -25,13 +27,13 @@ export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClos
       })
       .catch(err => {
         console.error("Failed to load contacts:", err)
-        setError("Failed to load contacts")
+        setError(t("dialog.contactShare.failedLoad"))
       })
       .finally(() => !cancelled && setLoading(false))
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [t])
 
   // Search contacts on the backend when the user types.
   useEffect(() => {
@@ -79,13 +81,13 @@ export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClos
       cardClass="flex max-h-[70vh] w-[420px] max-w-[90vw] flex-col rounded-xl bg-white p-4 shadow-xl dark:bg-dark-secondary"
     >
       <h2 className="mb-3 text-lg font-medium text-light-text dark:text-dark-text">
-        Share contact
+        {t("dialog.contactShare.title")}
       </h2>
 
         <input
           autoFocus
           className="w-full rounded-lg border border-gray-300 dark:border-dark-border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#21c063] dark:border-white/10 dark:focus:border-[#21c063] text-light-text dark:text-dark-text placeholder-gray-500"
-          placeholder="Search contacts"
+          placeholder={t("dialog.contactShare.search")}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -99,7 +101,7 @@ export function ContactShareDialog({ chatId, onClose }: { chatId: string; onClos
             </div>
           ) : contacts.length === 0 ? (
             <div className="py-6 text-center text-sm text-gray-500 dark:text-[#8696a0]">
-              No contacts found
+              {t("dialog.contactShare.noContacts")}
             </div>
           ) : (
             contacts.map(c => (
