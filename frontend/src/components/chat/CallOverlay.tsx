@@ -7,8 +7,8 @@ import {
   GetCallStats,
   GetProfile,
 } from "../../../wailsjs/go/api/Api"
-import { GetCachedAvatar } from "../../../wailsjs/go/api/Api"
 import type { api } from "../../../wailsjs/go/models"
+import { loadAvatar } from "../../lib/avatarCache"
 
 interface CallState {
   callID: string
@@ -47,7 +47,7 @@ export function CallOverlay() {
     }
 
     try {
-      avatar = await GetCachedAvatar(jid, false)
+      avatar = await loadAvatar(jid)
     } catch {
       /* avatar fetch is best-effort */
     }

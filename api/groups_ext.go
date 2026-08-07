@@ -117,22 +117,6 @@ func (a *Api) SetGroupJoinApprovalMode(groupJID string, requireApproval bool) er
 	return nil
 }
 
-func (a *Api) SetGroupTopic(groupJID, topic string) error {
-	if a.waClient.Store.ID == nil {
-		return fmt.Errorf("not logged in")
-	}
-	jid, err := types.ParseJID(groupJID)
-	if err != nil {
-		return err
-	}
-	err = a.waClient.SetGroupTopic(a.ctx, jid, "", "", topic)
-	if err != nil {
-		return err
-	}
-	slog.Info(fmt.Sprintf("Set group %s topic", groupJID), "source", "groups")
-	return nil
-}
-
 func (a *Api) SetGroupDescription(groupJID, description string) error {
 	if a.waClient.Store.ID == nil {
 		return fmt.Errorf("not logged in")

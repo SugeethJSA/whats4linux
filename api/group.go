@@ -3,11 +3,9 @@ package api
 import (
 	"encoding/base64"
 	"fmt"
-	"log"
 	"log/slog"
 	"strings"
 
-	"github.com/lugvitc/whats4linux/internal/wa"
 	"github.com/nyaruka/phonenumbers"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
@@ -30,38 +28,6 @@ type Group struct {
 type GroupParticipant struct {
 	Contact Contact `json:"contact"`
 	IsAdmin bool    `json:"is_admin"`
-}
-
-func (a *Api) FetchGroups() ([]wa.Group, error) {
-	if a.cw != nil {
-		if err := a.cw.FetchAndStoreGroups(a.waClient); err != nil {
-			log.Println("FetchGroups: cache refresh failed:", err)
-		}
-	}
-
-	groups, err := a.waClient.GetJoinedGroups(a.ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var result []wa.Group
-	for _, g := range groups {
-		parentJID := ""
-		if !g.LinkedParentJID.IsEmpty() {
-			parentJID = g.LinkedParentJID.String()
-		}
-		result = append(result, wa.Group{
-			JID:              g.JID.String(),
-			Name:             g.Name,
-			Topic:            g.Topic,
-			OwnerJID:         g.OwnerJID.String(),
-			ParticipantCount: len(g.Participants),
-			ParentJID:        parentJID,
-			IsParent:         g.IsParent,
-			IsDefaultSub:     g.IsDefaultSubGroup,
-		})
-	}
-	return result, nil
 }
 
 func (a *Api) GetGroupInfo(jidStr string) (Group, error) {

@@ -24,6 +24,7 @@ import { EventsOn } from "../../wailsjs/runtime/runtime"
 import { ChatDetail } from "./ChatDetail"
 import { useChatStore, useChatById, useFilteredChatIds, useArchivedCount, useUIStore } from "../store"
 import { registerShortcut } from "../lib/shortcuts"
+import { loadAvatar, invalidateAvatar } from "../lib/avatarCache"
 import { useSelfAvatarStore } from "../store/useSelfAvatarStore"
 import { useChatMuted } from "../store/useMuteStore"
 import type { ChatItem } from "../store/types"
@@ -702,7 +703,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           const job = jobs[index++]
 
           try {
-            const avatarURL = await GetCachedAvatar(job.jid, false)
+            const avatarURL = await loadAvatar(job.jid)
             if (avatarURL && mountedRef.current) {
               useChatStore.getState().updateSingleChat(job.chatId, { [job.field]: avatarURL })
             }
@@ -964,7 +965,13 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   const viewRef = useRef(view)
   viewRef.current = view
 
+  // The chats screen stays mounted underneath settings; skip refreshes that
+  // would fetch/transform the whole list while it isn't visible.
+  const screenRef = useRef(screen)
+  screenRef.current = screen
+
   const fetchChats = useCallback(async () => {
+    if (screenRef.current !== "chats") return
     if (isFetchingRef.current) return
     // Communities / status load their own data.
     if (viewRef.current === "communities" || viewRef.current === "status") return
@@ -1072,6 +1079,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
       if (!jid) return
 
       try {
+        invalidateAvatar(jid)
         const avatarURL = await GetCachedAvatar(jid, true)
 
         updateSingleChat(jid, { avatar: avatarURL })
@@ -1100,6 +1108,15 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
       unsubRefresh()
     }
   }, [fetchChats, getChat, loadSelfAvatar, updateChatLastMessage, updateSingleChat])
+
+  // Returning to the chats screen (settings/login were on top) refreshes the
+  // list: gated event-handler fetches were skipped while it was hidden, and
+  // the initial fetch may have been deferred past mount.
+  useEffect(() => {
+    if (screen === "chats" && !initialFetchDoneRef.current) {
+      fetchChats()
+    }
+  }, [screen, fetchChats])
 
   return (
     <div className="flex h-screen bg-light-secondary dark:bg-dark-bg overflow-hidden">

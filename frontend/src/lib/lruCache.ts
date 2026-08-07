@@ -31,6 +31,14 @@ export class LRUCache<K, V> {
     return entry.value
   }
 
+  delete(key: K): boolean {
+    const entry = this.entries.get(key)
+    if (!entry) return false
+    this.entries.delete(key)
+    this.totalWeight -= entry.weight
+    return true
+  }
+
   set(key: K, value: V) {
     const weight = Math.max(0, this.weightOf(value))
     const previous = this.entries.get(key)

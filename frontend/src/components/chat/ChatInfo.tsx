@@ -48,6 +48,7 @@ import { useMuteStore } from "../../store/useMuteStore"
 import { useChatStore } from "../../store/useChatStore"
 import { useMessageStore } from "../../store/useMessageStore"
 import { GetCachedAvatar } from "../../../wailsjs/go/api/Api"
+import { invalidateAvatar } from "../../lib/avatarCache"
 import { InviteLinkDialog } from "./InviteLinkDialog"
 import { ParticipantList } from "./ParticipantList"
 import { useWailsEvent } from "../../hooks/useWailsEvent"
@@ -490,6 +491,7 @@ const [newsletterInfo, setNewsletterInfo] = useState<{
                           const base64 = reader.result as string
                           try {
                             await SetGroupPhoto(chatId, base64)
+                            invalidateAvatar(chatId)
                             const avatarURL = await GetCachedAvatar(chatId, true)
                             useChatStore.getState().updateSingleChat(chatId, { avatar: avatarURL })
                           } catch (err) {

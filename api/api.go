@@ -65,6 +65,8 @@ type Api struct {
 	healthCheckWg  sync.WaitGroup
 	pinFlushCtx    context.CancelFunc
 	pinFlushWg     sync.WaitGroup
+	newsletterMu   sync.Mutex
+	newsletterNames map[string]string
 }
 
 // repairGroupNames heals whats4linux_groups rows that are missing or were
@@ -787,15 +789,18 @@ func (a *Api) mainEventHandler(evt any) {
 		})
 
 	case *events.NewsletterJoin:
+		a.invalidateNewsletterName(v.ID.String())
 		runtime.EventsEmit(a.ctx, "wa:newsletter_joined", v.ID.String())
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 
 	case *events.NewsletterLeave:
+		a.invalidateNewsletterName(v.ID.String())
 		runtime.EventsEmit(a.ctx, "wa:newsletter_left", v.ID.String())
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 
 	case *events.NewsletterLiveUpdate:
 		jidStr := v.JID.String()
+		a.invalidateNewsletterName(jidStr)
 		runtime.EventsEmit(a.ctx, "wa:newsletter_update", map[string]any{
 			"jid": jidStr,
 		})

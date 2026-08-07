@@ -12,12 +12,13 @@ import {
   ContactIcon,
   LocationIcon,
 } from "../../assets/svgs/chat_icons"
-import { GetCachedAvatar, SendLocation } from "../../../wailsjs/go/api/Api"
+import { SendLocation } from "../../../wailsjs/go/api/Api"
 import type { Message } from "../../store/types"
 import { useContactStore } from "../../store/useContactStore"
 import { useUIStore } from "../../store"
 import { registerShortcut } from "../../lib/shortcuts"
 import { htmlToPlainText } from "../../lib/utils"
+import { loadAvatar } from "../../lib/avatarCache"
 import { PollDialog } from "./PollDialog"
 import { ContactShareDialog } from "./ContactShareDialog"
 import { Modal } from "../common/Modal"
@@ -359,7 +360,7 @@ export function ChatInput({
       for (const contact of contactsToLoad) {
         try {
           const userJid = contact.raw_jid
-          const avatar = await GetCachedAvatar(userJid, false)
+          const avatar = await loadAvatar(userJid)
           avatarCacheRef.current[contact.phno] = avatar || ""
         } catch (err) {
           console.error("Failed to load avatar for", contact.phno, err)

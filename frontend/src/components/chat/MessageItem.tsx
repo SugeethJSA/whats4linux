@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, lazy, Suspense } from "react"
 import {
   DownloadMediaToFile,
   EditMessage,
-  GetCachedAvatar,
   RevokeMessage,
   DeleteForMe,
   SendReaction,
@@ -30,7 +29,7 @@ import { useMessageStore } from "../../store"
 import type { Message } from "../../store/types"
 import { isMe } from "../../lib/self"
 import { formatPhone, phoneFromJID, htmlToPlainText } from "../../lib/utils"
-import { LRUCache } from "../../lib/lruCache"
+import { cachedAvatar, loadAvatar } from "../../lib/avatarCache"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
 const EmojiPicker = lazy(() => import("./EmojiPickerLazy"))
@@ -55,24 +54,22 @@ interface MessageItemProps {
   isAnnounceGroup?: boolean
 }
 
-// Module-level cache: one avatar lookup per sender per session, shared by
-// every message row (Virtuoso mounts/unmounts rows constantly).
-const senderAvatarCache = new LRUCache<string, string | null>(128, 16 * 1024 * 1024, value =>
-  value ? value.length : 1,
-)
-
+// Sender avatars come from the shared session cache: one lookup per sender
+// per session, shared by every message row and the chat list (Virtuoso mounts
+// and unmounts rows constantly).
 function SenderAvatar({ jid }: { jid: string }) {
-  const [url, setUrl] = useState<string | null>(senderAvatarCache.get(jid) ?? null)
+  const [url, setUrl] = useState<string | null>(cachedAvatar(jid) ?? null)
 
   useEffect(() => {
-    if (!jid || senderAvatarCache.has(jid)) return
+    if (!jid || cachedAvatar(jid) !== undefined) return
     let live = true
-    GetCachedAvatar(jid, false)
+    loadAvatar(jid)
       .then(u => {
-        senderAvatarCache.set(jid, u || null)
         if (live) setUrl(u || null)
       })
-      .catch(() => senderAvatarCache.set(jid, null))
+      .catch(() => {
+        if (live) setUrl(null)
+      })
     return () => {
       live = false
     }

@@ -3,13 +3,13 @@ import clsx from "clsx"
 import {
   GetCommunityList,
   GetCommunityDetails,
-  GetCachedAvatar,
   CreateCommunity,
   CreateCommunitySubGroup,
 } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
 import { getAvatarColor, AVATAR_ICON_COLOR } from "../../lib/utils"
+import { loadAvatar } from "../../lib/avatarCache"
 import { useAppSettingsStore } from "../../store/useAppSettingsStore"
 import { Modal } from "../common/Modal"
 
@@ -107,7 +107,7 @@ export function CommunityList({ searchTerm, selectedJid, onSelect }: CommunityLi
         while (next < pending.length && generation === loadGeneration.current) {
           const c = pending[next++]
           try {
-            const url = await GetCachedAvatar(c.jid, false)
+            const url = await loadAvatar(c.jid)
             if (url && generation === loadGeneration.current) {
               setCommunities(prev =>
                 prev.map(x => (x.jid === c.jid ? { ...x, avatar_url: url } : x)),
@@ -324,7 +324,7 @@ export function CommunityHome({
             while (next < targets.length && !cancelled) {
               const target = targets[next++]
               try {
-                const url = await GetCachedAvatar(target.jid, false)
+                const url = await loadAvatar(target.jid)
                 if (!url || cancelled) continue
                 setDetails(current => {
                   if (!current) return current

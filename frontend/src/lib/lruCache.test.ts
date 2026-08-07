@@ -36,4 +36,15 @@ describe("LRUCache", () => {
     expect(cache.size).toBe(1)
     expect(cache.weight).toBe(3)
   })
+
+  it("delete removes an entry and its weight", () => {
+    const cache = new LRUCache<string, string>(10, 100, value => value.length)
+    cache.set("a", "123").set("b", "45")
+
+    expect(cache.delete("a")).toBe(true)
+    expect(cache.has("a")).toBe(false)
+    expect(cache.weight).toBe(2)
+    expect(cache.get("b")).toBe("45")
+    expect(cache.delete("a")).toBe(false)
+  })
 })

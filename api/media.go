@@ -193,30 +193,6 @@ func (a *Api) GetCachedImage(messageID string) (string, error) {
 	return fmt.Sprintf("data:%s;base64,%s", mimeType, base64.StdEncoding.EncodeToString(data)), nil
 }
 
-// GetCachedImages retrieves multiple cached images by message IDs (batch operation)
-// Returns map of message IDs to data URLs
-func (a *Api) GetCachedImages(messageIDs []string) (map[string]string, error) {
-	result := make(map[string]string)
-	if a.imageCache == nil {
-		return result, fmt.Errorf("image cache is not ready")
-	}
-	metas, err := a.imageCache.GetImagesByMessageIDs(messageIDs)
-	if err != nil {
-		return nil, err
-	}
-
-	for msgID, meta := range metas {
-		if meta != nil {
-			data, mimeType, err := a.imageCache.ReadImageByMessageID(msgID)
-			if err == nil {
-				result[msgID] = fmt.Sprintf("data:%s;base64,%s", mimeType, base64.StdEncoding.EncodeToString(data))
-			}
-		}
-	}
-
-	return result, nil
-}
-
 // GetCachedAvatar retrieves or downloads and caches an avatar for a JID
 func (a *Api) GetCachedAvatar(jid string, recache bool) (string, error) {
 	if a.imageCache == nil {
@@ -366,40 +342,6 @@ func getFileExtension(mimeType string) string {
 		return "." + parts[1]
 	}
 	return ".bin"
-}
-
-// DownloadImageToFile downloads an image from cache to the Downloads folder
-func (a *Api) DownloadImageToFile(messageID string) error {
-	data, mimeType, err := a.imageCache.ReadImageByMessageID(messageID)
-	if err != nil {
-		return err
-	}
-
-	homeDir, _ := os.UserHomeDir()
-	downloadsDir := filepath.Join(homeDir, "Downloads")
-	fileName := messageID + getFileExtension(mimeType)
-	filePath := filepath.Join(downloadsDir, fileName)
-
-	// Check if file exists and prompt for new path
-	if _, err := os.Stat(filePath); err == nil {
-		if filePath, err = runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
-			DefaultDirectory: downloadsDir,
-			DefaultFilename:  fileName,
-			Title:            "File already exists. Save as...",
-			Filters:          []runtime.FileFilter{{DisplayName: "Image Files", Pattern: "*" + getFileExtension(mimeType)}},
-		}); err != nil || filePath == "" {
-			return err
-		}
-	}
-
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
-		return err
-	}
-
-	runtime.EventsEmit(a.ctx, "download:complete", filePath)
-	_ = beeep.Notify("whats4linux", "Downloaded: "+filePath, "")
-	playBeep()
-	return nil
 }
 
 func playBeep() {

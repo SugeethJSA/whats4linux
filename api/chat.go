@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lugvitc/whats4linux/internal/store"
+	"github.com/lugvitc/whats4linux/internal/wa"
 	"github.com/nyaruka/phonenumbers"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"go.mau.fi/whatsmeow/appstate"
@@ -88,6 +89,20 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 	cmList := a.messageStore.GetChatList()
 	pinnedChats := a.messageStore.GetPinnedChats()
 	archivedChats := a.messageStore.GetArchivedChats()
+
+	// Batch the per-row lookups: one contacts query and one groups query
+	// instead of O(n) individual DB reads per list render.
+	contacts, _ := a.waClient.Store.Contacts.GetAllContacts(a.ctx)
+	groups, err := a.cw.FetchGroups()
+	if err != nil {
+		log.Println("GetChatList: group fetch failed:", err)
+		groups = nil
+	}
+	groupByName := make(map[string]wa.Group, len(groups))
+	for _, g := range groups {
+		groupByName[g.JID] = g
+	}
+
 	ce := make([]ChatElement, len(cmList))
 	for i, cm := range cmList {
 		var fc Contact
@@ -98,20 +113,18 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 			// Local-only on purpose: this runs at startup before the client
 			// has connected, so it must never touch the network. Empty names
 			// are healed asynchronously by repairGroupNames after Connected.
-			name := ""
-			if groupInfo, err := a.cw.FetchGroup(cm.JID.String()); err == nil {
-				name = groupInfo.Name
-				parentJID = groupInfo.ParentJID
-				parentName = groupInfo.ParentName
+			g, ok := groupByName[cm.JID.String()]
+			if ok {
+				parentJID = g.ParentJID
+				parentName = g.ParentName
 				if parentName == "" && parentJID != "" {
 					parentName = a.cw.ParentCommunityName(parentJID)
 				}
 				isCommunityGroup = parentJID != ""
-				isCommunityParent = groupInfo.IsParent
-				isDefaultSub = groupInfo.IsDefaultSub
-			} else {
-				log.Println("GetChatList: group lookup failed, using fallback:", cm.JID.String(), err)
+				isCommunityParent = g.IsParent
+				isDefaultSub = g.IsDefaultSub
 			}
+			name := g.Name
 			if name == "" {
 				// A single unknown/left group must not blank the whole chat
 				// list. Fall back to the JID so the chat still renders.
@@ -122,11 +135,10 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 				FullName: name,
 			}
 		} else {
-			contact, err := a.waClient.Store.Contacts.GetContact(a.ctx, cm.JID.ToNonAD())
+			contact, ok := contacts[cm.JID.ToNonAD()]
 			phone := formatPhone(cm.JID.User)
-			if err != nil {
+			if !ok {
 				// Same here: degrade to the JID rather than failing everything.
-				log.Println("GetChatList: contact lookup failed, using fallback:", cm.JID.String(), err)
 				fc = Contact{
 					JID:      cm.JID.String(),
 					PushName: cm.JID.User,
@@ -148,7 +160,7 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 		ce[i] = ChatElement{
 			LatestMessage:     cm.MessageText,
 			LatestTS:          cm.MessageTime,
-			Sender:            a.chatListSenderName(cm),
+			Sender:            a.chatListSenderName(cm, contacts),
 			IsFromMe:          cm.IsFromMe,
 			Pinned:            pinned,
 			PinnedAt:          pinnedAt,
@@ -166,8 +178,9 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 
 // chatListSenderName resolves the display name for a chat list row: "You" for
 // own messages, otherwise the sender's contact name (FullName > PushName >
-// phone number) for the stored sender JID.
-func (a *Api) chatListSenderName(cm store.ChatMessage) string {
+// phone number) for the stored sender JID. The contacts map comes from the
+// batch load in GetChatList so no extra DB query happens here.
+func (a *Api) chatListSenderName(cm store.ChatMessage, contacts map[types.JID]types.ContactInfo) string {
 	if cm.IsFromMe {
 		return "You"
 	}
@@ -175,8 +188,8 @@ func (a *Api) chatListSenderName(cm store.ChatMessage) string {
 	if err != nil {
 		return cm.Sender
 	}
-	contact, err := a.waClient.Store.Contacts.GetContact(a.ctx, jid.ToNonAD())
-	if err != nil {
+	contact, ok := contacts[jid.ToNonAD()]
+	if !ok {
 		return jid.User
 	}
 	if contact.FullName != "" {
@@ -192,23 +205,52 @@ func (a *Api) chatListSenderName(cm store.ChatMessage) string {
 }
 
 // GetChannelList returns the followed Channels (newsletter feeds), named via
-// their newsletter metadata.
+// their newsletter metadata. Names are cached in-memory so repeated renders
+// don't fire one network GetNewsletterInfo per channel; the cache is
+// invalidated when the app receives newsletter join/leave/live-update events.
 func (a *Api) GetChannelList() ([]ChatElement, error) {
 	cmList := a.messageStore.GetChannelList()
 	ce := make([]ChatElement, len(cmList))
 	for i, cm := range cmList {
-		name := cm.JID.User
-		if info, err := a.waClient.GetNewsletterInfo(a.ctx, cm.JID); err == nil && info != nil && info.ThreadMeta.Name.Text != "" {
-			name = info.ThreadMeta.Name.Text
-		}
 		ce[i] = ChatElement{
 			LatestMessage: cm.MessageText,
 			LatestTS:      cm.MessageTime,
 			Sender:        cm.Sender,
-			Contact:       Contact{JID: cm.JID.String(), FullName: name},
+			Contact:       Contact{JID: cm.JID.String(), FullName: a.newsletterName(cm.JID)},
 		}
 	}
 	return ce, nil
+}
+
+func (a *Api) newsletterName(jid types.JID) string {
+	a.newsletterMu.Lock()
+	if a.newsletterNames == nil {
+		a.newsletterNames = make(map[string]string)
+	}
+	if name, ok := a.newsletterNames[jid.String()]; ok {
+		a.newsletterMu.Unlock()
+		return name
+	}
+	a.newsletterMu.Unlock()
+
+	name := jid.User
+	if a.waClient != nil {
+		if info, err := a.waClient.GetNewsletterInfo(a.ctx, jid); err == nil && info != nil && info.ThreadMeta.Name.Text != "" {
+			name = info.ThreadMeta.Name.Text
+		}
+	}
+	a.newsletterMu.Lock()
+	a.newsletterNames[jid.String()] = name
+	a.newsletterMu.Unlock()
+	return name
+}
+
+// invalidateNewsletterName drops a cached channel name so the next chat-list
+// render refetches it (channel renamed, subscribed, or unsubscribed).
+func (a *Api) invalidateNewsletterName(jidStr string) {
+	a.newsletterMu.Lock()
+	delete(a.newsletterNames, jidStr)
+	a.newsletterMu.Unlock()
 }
 
 func (a *Api) SendChatPresence(jid string, cp types.ChatPresence, cpm types.ChatPresenceMedia) error {
@@ -349,14 +391,4 @@ func (a *Api) MarkChatAsRead(chatJID string, read bool) error {
 	}
 	slog.Info(fmt.Sprintf("Marked chat %s as read=%t", chatJID, read), "source", "chats")
 	return nil
-}
-
-// MarkNotDirty marks the app state as not dirty, forcing a resync of the
-// specified clean type. This is useful after recovering from a broken
-// hash chain or after a manual state change.
-func (a *Api) MarkNotDirty(cleanType string) error {
-	if a.waClient.Store.ID == nil {
-		return fmt.Errorf("not logged in")
-	}
-	return a.waClient.MarkNotDirty(a.ctx, cleanType, time.Now())
 }
