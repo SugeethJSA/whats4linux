@@ -49,12 +49,12 @@ func (a *Api) SendPollVote(chatJID, pollMessageID string, selectedOptions []stri
 		return "", err
 	}
 	slog.Info(fmt.Sprintf("Voted in poll %s in %s (%d options selected)", pollMessageID, chatJID, len(selectedOptions)), "source", "messages")
-	runtime.EventsEmit(a.ctx, "wa:poll_vote_submitted", map[string]any{
+	a.emitEvent("wa:poll_vote_submitted", map[string]any{
 		"chatId":    chatJID,
 		"messageID": pollMessageID,
 		"options":   selectedOptions,
 	})
-	runtime.EventsEmit(a.ctx, "wa:new_message", map[string]any{
+	a.emitEvent("wa:new_message", map[string]any{
 		"chatId":    chatJID,
 		"pollVote":  true,
 		"messageID": resp.ID,
@@ -89,7 +89,7 @@ func (a *Api) handlePollVoteEvent(v *events.Message) {
 		}{ID: msgID}}
 	}
 
-	runtime.EventsEmit(a.ctx, "wa:new_message", map[string]any{
+	a.emitEvent("wa:new_message", map[string]any{
 		"chatId":      chat,
 		"message":     msg,
 		"messageText": text,
@@ -97,5 +97,5 @@ func (a *Api) handlePollVoteEvent(v *events.Message) {
 		"sender":      senderName,
 		"pollVote":    true,
 	})
-	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	a.emitEvent("wa:chat_list_refresh")
 }

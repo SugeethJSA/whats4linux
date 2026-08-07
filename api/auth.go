@@ -48,6 +48,6 @@ func (a *Api) Logout() error {
 		slog.Error(fmt.Sprintf("Logout request failed: %v", err), "source", "auth")
 	}
 	slog.Info("Logged out successfully", "source", "auth")
-	runtime.EventsEmit(a.ctx, "wa:status", "logged_out")
+	a.emitEvent("wa:status", "logged_out")
 	return nil
 }

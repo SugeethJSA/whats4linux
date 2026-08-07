@@ -391,7 +391,7 @@ func (a *Api) DownloadMediaToFile(messageID string) error {
 		if total > 0 {
 			pct = int(float64(done) / float64(total) * 100)
 		}
-		runtime.EventsEmit(a.ctx, "media:download_progress", map[string]any{
+		a.emitEvent("media:download_progress", map[string]any{
 			"messageId":   messageID,
 			"downloaded":  done,
 			"total":       total,
@@ -443,7 +443,7 @@ func (a *Api) DownloadMediaToFile(messageID string) error {
 		return fmt.Errorf("failed to write destination file: %w", err)
 	}
 
-	runtime.EventsEmit(a.ctx, "download:complete", filePath)
+	a.emitEvent("download:complete", filePath)
 	_ = beeep.Notify("whats4linux", "Downloaded: "+filePath, "")
 	playBeep()
 	return nil

@@ -67,7 +67,7 @@ func (a *Api) initMeowcaller() {
 		callsMu.Unlock()
 
 		if a.ctx != nil {
-			runtime.EventsEmit(a.ctx, "call:incoming", map[string]any{
+			a.emitEvent("call:incoming", map[string]any{
 				"callID":  call.ID(),
 				"peerJID": call.Peer().String(),
 				"isVideo": call.IsVideo(),
@@ -85,7 +85,7 @@ func (a *Api) initMeowcaller() {
 			callsMu.Unlock()
 
 			if a.ctx != nil {
-				runtime.EventsEmit(a.ctx, "call:ended", map[string]any{
+				a.emitEvent("call:ended", map[string]any{
 					"callID": call.ID(),
 					"reason": reason,
 				})
@@ -176,7 +176,7 @@ func (a *Api) MakeCall(targetJID string) error {
 		}
 		callsMu.Unlock()
 		if a.ctx != nil {
-			runtime.EventsEmit(a.ctx, "call:accepted", map[string]any{
+			a.emitEvent("call:accepted", map[string]any{
 				"callID": call.ID(),
 			})
 		}
@@ -195,7 +195,7 @@ func (a *Api) MakeCall(targetJID string) error {
 		}
 		callsMu.Unlock()
 		if a.ctx != nil {
-			runtime.EventsEmit(a.ctx, "call:ended", map[string]any{
+			a.emitEvent("call:ended", map[string]any{
 				"callID": call.ID(),
 				"reason": reason,
 			})
@@ -203,7 +203,7 @@ func (a *Api) MakeCall(targetJID string) error {
 	})
 
 	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, "call:outgoing", map[string]any{
+		a.emitEvent("call:outgoing", map[string]any{
 			"callID":  call.ID(),
 			"peerJID": targetJID,
 			"isVideo": false,
@@ -289,7 +289,7 @@ func (a *Api) insertCallLog(ac *ActiveCall) {
 	if err := a.messageStore.InsertSystemMessage(chatJID, msgID, text, ac.StartTime.Unix()); err != nil {
 		slog.Warn(fmt.Sprintf("Failed to store call log: %v", err), "source", "calls")
 	}
-	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	a.emitEvent("wa:chat_list_refresh")
 }
 
 // GetCallStats returns diagnostic information about an active call.

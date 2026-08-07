@@ -572,7 +572,7 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 		}
 	}
 
-	runtime.EventsEmit(a.ctx, "wa:new_message", map[string]any{
+	a.emitEvent("wa:new_message", map[string]any{
 		"chatId":       parsedJID.String(),
 		"message":      msg,
 		"clientTempId": content.ClientTempID,
@@ -785,7 +785,7 @@ func (a *Api) SetMessagePinned(chatJID, senderJID, messageID string, fromMe, pin
 	if err := a.messageStore.ApplyMessagePin(chatJID, sender, messageID, pin, PinExpirySeconds); err != nil {
 		log.Println("SetMessagePinned: failed to persist:", err)
 	}
-	runtime.EventsEmit(a.ctx, "wa:pinned_update", map[string]any{"chatId": chatJID})
+	a.emitEvent("wa:pinned_update", map[string]any{"chatId": chatJID})
 	return nil
 }
 
@@ -816,7 +816,7 @@ func (a *Api) sendAndStoreLocal(chat types.JID, msgContent *waE2E.Message, previ
 			msg = decodedMsg
 		}
 	}
-	runtime.EventsEmit(a.ctx, "wa:new_message", map[string]any{
+	a.emitEvent("wa:new_message", map[string]any{
 		"chatId":      chat.String(),
 		"message":     msg,
 		"messageText": preview,
@@ -915,7 +915,7 @@ func (a *Api) EditMessage(chatJID, messageID, newText string) (string, error) {
 	if err != nil {
 		log.Println("EditMessage: failed to persist edit locally:", err)
 	}
-	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	a.emitEvent("wa:chat_list_refresh")
 	return resp.ID, nil
 }
 
@@ -939,7 +939,7 @@ func (a *Api) RevokeMessage(chatJID, messageID string) error {
 	if err != nil {
 		log.Println("RevokeMessage: failed to mark deleted locally:", err)
 	}
-	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	a.emitEvent("wa:chat_list_refresh")
 	return nil
 }
 
@@ -978,6 +978,6 @@ func (a *Api) DeleteForMe(_ string, messageID string) error {
 	if err != nil {
 		return err
 	}
-	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	a.emitEvent("wa:chat_list_refresh")
 	return nil
 }

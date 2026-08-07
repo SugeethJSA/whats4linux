@@ -67,6 +67,19 @@ type Api struct {
 	pinFlushWg     sync.WaitGroup
 	newsletterMu   sync.Mutex
 	newsletterNames map[string]string
+	// emit is the Wails event publisher. Tests override it to capture
+	// emitted names/payloads; nil falls through to the Wails runtime.
+	emit func(name string, data ...any)
+}
+
+// emitEvent publishes a Wails event, or hands it to a.emit when a test
+// installed a capture function.
+func (a *Api) emitEvent(name string, data ...any) {
+	if a.emit != nil {
+		a.emit(name, data...)
+		return
+	}
+	a.emitEvent(name, data...)
 }
 
 // repairGroupNames heals whats4linux_groups rows that are missing or were
@@ -115,7 +128,7 @@ func (a *Api) repairGroupNames() {
 
 	if repaired > 0 {
 		log.Printf("repairGroupNames: repaired %d group name(s)", repaired)
-		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+		a.emitEvent("wa:chat_list_refresh")
 	}
 }
 
@@ -173,7 +186,7 @@ func (a *Api) resyncAppState() {
 		slog.Warn("Sync has never completed (version 0)", "source", "contacts")
 	}
 	slog.Info("Resync complete", "source", "appstate")
-	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	a.emitEvent("wa:chat_list_refresh")
 	if a.sessionDB != nil {
 		res, err := a.sessionDB.ExecContext(a.ctx,
 			`DELETE FROM whatsmeow_contacts
@@ -196,7 +209,7 @@ func (a *Api) resyncAppState() {
 // Stops when the app shuts down (isShuttingDown returns true) or after
 // maxAttempts failed tries.
 func (a *Api) reconnectLoop() {
-	runtime.EventsEmit(a.ctx, "wa:status", "reconnecting")
+	a.emitEvent("wa:status", "reconnecting")
 	backoff := 2 * time.Second
 	maxBackoff := 30 * time.Second
 	for i := range 8 {
@@ -228,13 +241,13 @@ func (a *Api) reconnectLoop() {
 		return
 	}
 	slog.Error("All attempts exhausted — staying disconnected", "source", "reconnect")
-	runtime.EventsEmit(a.ctx, "wa:status", "disconnected")
-	runtime.EventsEmit(a.ctx, "wa:error", "Could not reconnect to WhatsApp after 8 attempts.")
+	a.emitEvent("wa:status", "disconnected")
+	a.emitEvent("wa:error", "Could not reconnect to WhatsApp after 8 attempts.")
 }
 
 func (a *Api) emitError(msg string) {
 	slog.Error(msg, "source", "app")
-	runtime.EventsEmit(a.ctx, "wa:error", msg)
+	a.emitEvent("wa:error", msg)
 }
 
 // htmlTagRE strips HTML tags from message previews so desktop notifications
@@ -660,9 +673,9 @@ func (a *Api) Login() error {
 					return nil
 				}
 				if evt.Event == "code" {
-					runtime.EventsEmit(a.ctx, "wa:qr", evt.Code)
+					a.emitEvent("wa:qr", evt.Code)
 				} else {
-					runtime.EventsEmit(a.ctx, "wa:status", evt.Event)
+					a.emitEvent("wa:status", evt.Event)
 				}
 			}
 		}
@@ -675,7 +688,7 @@ func (a *Api) Login() error {
 		if a.isShuttingDown() {
 			return context.Canceled
 		}
-		runtime.EventsEmit(a.ctx, "wa:status", "logged_in")
+		a.emitEvent("wa:status", "logged_in")
 	}
 	return nil
 }
@@ -710,7 +723,7 @@ func (a *Api) mainEventHandler(evt any) {
 		if messageID != "" {
 			updatedMsg, err := a.messageStore.GetDecodedMessage(v.Info.Chat.String(), messageID)
 			if err == nil {
-				runtime.EventsEmit(a.ctx, "wa:new_message", map[string]any{
+				a.emitEvent("wa:new_message", map[string]any{
 					"chatId":      v.Info.Chat.String(),
 					"message":     updatedMsg,
 					"messageText": parsedHTML, // Text field contains HTML now, but better than nothing or we can use updatedMsg.Text
@@ -751,7 +764,7 @@ func (a *Api) mainEventHandler(evt any) {
 					senderName = "You"
 				}
 
-				runtime.EventsEmit(a.ctx, "wa:new_message", map[string]any{
+				a.emitEvent("wa:new_message", map[string]any{
 					"chatId":      v.Info.Chat.String(),
 					"message":     nil,
 					"messageText": targetText,
@@ -765,7 +778,7 @@ func (a *Api) mainEventHandler(evt any) {
 	case *events.Picture:
 		a.startBackground(func() { _, _ = a.GetCachedAvatar(v.JID.String(), true) })
 
-		runtime.EventsEmit(a.ctx, "wa:picture_update", v.JID.String())
+		a.emitEvent("wa:picture_update", v.JID.String())
 
 	case *events.Blocklist:
 		a.handleBlocklistEvent(v)
@@ -775,14 +788,14 @@ func (a *Api) mainEventHandler(evt any) {
 
 	case *events.JoinedGroup:
 		slog.Info(fmt.Sprintf("Joined group %s (%s)", v.GroupInfo.Name, v.JID), "source", "groups")
-		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+		a.emitEvent("wa:chat_list_refresh")
 
 	case *events.LabelAssociationChat:
 		labeled := false
 		if v.Action != nil {
 			labeled = v.Action.GetLabeled()
 		}
-		runtime.EventsEmit(a.ctx, "wa:label_chat", map[string]any{
+		a.emitEvent("wa:label_chat", map[string]any{
 			"jid":     v.JID.String(),
 			"labelId": v.LabelID,
 			"labeled": labeled,
@@ -790,25 +803,25 @@ func (a *Api) mainEventHandler(evt any) {
 
 	case *events.NewsletterJoin:
 		a.invalidateNewsletterName(v.ID.String())
-		runtime.EventsEmit(a.ctx, "wa:newsletter_joined", v.ID.String())
-		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+		a.emitEvent("wa:newsletter_joined", v.ID.String())
+		a.emitEvent("wa:chat_list_refresh")
 
 	case *events.NewsletterLeave:
 		a.invalidateNewsletterName(v.ID.String())
-		runtime.EventsEmit(a.ctx, "wa:newsletter_left", v.ID.String())
-		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+		a.emitEvent("wa:newsletter_left", v.ID.String())
+		a.emitEvent("wa:chat_list_refresh")
 
 	case *events.NewsletterLiveUpdate:
 		jidStr := v.JID.String()
 		a.invalidateNewsletterName(jidStr)
-		runtime.EventsEmit(a.ctx, "wa:newsletter_update", map[string]any{
+		a.emitEvent("wa:newsletter_update", map[string]any{
 			"jid": jidStr,
 		})
 		// Fetch the updated name in the background so the listener can
 		// refresh the chat row without blocking the event loop.
 		a.startBackground(func() {
 			if info, err := a.GetNewsletterInfo(jidStr); err == nil && info != nil {
-				runtime.EventsEmit(a.ctx, "wa:newsletter_update", map[string]any{
+				a.emitEvent("wa:newsletter_update", map[string]any{
 					"jid":  jidStr,
 					"name": info.Name,
 				})
@@ -848,7 +861,7 @@ func (a *Api) mainEventHandler(evt any) {
 			a.emitError(fmt.Sprintf("LID migration failed: %v", err))
 		} else {
 			slog.Info("LID migration completed", "source", "migration")
-			runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+			a.emitEvent("wa:chat_list_refresh")
 		}
 		// Start connection health monitoring
 		a.startConnectionHealthCheck()
@@ -864,20 +877,20 @@ func (a *Api) mainEventHandler(evt any) {
 		if err := a.messageStore.SetChatArchived(v.JID.String(), v.Action.GetArchived(), v.Timestamp.Unix()); err != nil {
 			log.Println("Failed to store chat archive state:", err)
 		}
-		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+		a.emitEvent("wa:chat_list_refresh")
 	case *events.Pin:
 		// Chat pinned/unpinned from another device (or during app state sync).
 		if err := a.messageStore.SetChatPinned(v.JID.String(), v.Action.GetPinned(), v.Timestamp.Unix()); err != nil {
 			log.Println("Failed to store chat pin:", err)
 		}
-		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+		a.emitEvent("wa:chat_list_refresh")
 	case *events.Disconnected:
 		if !a.isShuttingDown() {
 			a.emitError("Disconnected from WhatsApp — reconnecting...")
 			a.startBackground(a.reconnectLoop)
 		}
 	case *events.Receipt:
-		runtime.EventsEmit(a.ctx, "wa:message_receipt", map[string]any{
+		a.emitEvent("wa:message_receipt", map[string]any{
 			"chatId":     v.Chat.String(),
 			"messageIDs": v.MessageIDs,
 			"status":     v.Type.GoString(),
@@ -889,11 +902,11 @@ func (a *Api) mainEventHandler(evt any) {
 			fullName = action.GetFullName()
 		}
 		slog.Info(fmt.Sprintf("Contact event for %s: fullName=%q", v.JID, fullName), "source", "contacts")
-		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+		a.emitEvent("wa:chat_list_refresh")
 	case *events.PushName, *events.BusinessName:
-		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+		a.emitEvent("wa:chat_list_refresh")
 	case *events.ChatPresence:
-		runtime.EventsEmit(a.ctx, "wa:chat_presence", map[string]any{
+		a.emitEvent("wa:chat_presence", map[string]any{
 			"chatId": v.Chat.String(),
 			"state":  string(v.State),
 			"media":  string(v.Media),
@@ -901,7 +914,7 @@ func (a *Api) mainEventHandler(evt any) {
 	case *events.IdentityChange:
 		slog.Info(fmt.Sprintf("Identity change for %s", v.JID), "source", "security")
 	case *events.Presence:
-		runtime.EventsEmit(a.ctx, "wa:presence", map[string]any{
+		a.emitEvent("wa:presence", map[string]any{
 			"jid":         v.From.String(),
 			"unavailable": v.Unavailable,
 			"lastSeen":    v.LastSeen.UnixMilli(),
@@ -912,7 +925,7 @@ func (a *Api) mainEventHandler(evt any) {
 
 	case *events.AppStateSyncComplete:
 		slog.Info(fmt.Sprintf("App state sync complete: %s", v.Name), "source", "appstate")
-		runtime.EventsEmit(a.ctx, "wa:appstate_sync_complete", map[string]any{
+		a.emitEvent("wa:appstate_sync_complete", map[string]any{
 			"name": string(v.Name),
 		})
 
@@ -936,7 +949,7 @@ func (a *Api) mainEventHandler(evt any) {
 
 	case *events.LoggedOut:
 		slog.Warn("Logged out from another device", "source", "connection")
-		runtime.EventsEmit(a.ctx, "wa:logged_out")
+		a.emitEvent("wa:logged_out")
 
 	case *events.ConnectFailure:
 		slog.Error(fmt.Sprintf("Connection attempt failed: %s", v.Reason), "source", "connection")
@@ -1096,7 +1109,7 @@ func (a *Api) handleGroupInfoEvent(v *events.GroupInfo) {
 	}
 
 	if changed {
-		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+		a.emitEvent("wa:chat_list_refresh")
 	}
 }
 
@@ -1120,7 +1133,7 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 	processedConvs := 0
 	processedMsgs := 0
 	progress := func(done bool) {
-		runtime.EventsEmit(a.ctx, "wa:history_progress", map[string]any{
+		a.emitEvent("wa:history_progress", map[string]any{
 			"type":                   v.Data.GetSyncType().String(),
 			"totalConversations":     totalConvs,
 			"processedConversations": processedConvs,
@@ -1161,5 +1174,5 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 	}
 	progress(true)
 	slog.Info(fmt.Sprintf("Stored %d messages from %d conversations", stored, len(conversations)), "source", "history")
-	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	a.emitEvent("wa:chat_list_refresh")
 }

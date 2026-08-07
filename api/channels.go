@@ -70,7 +70,7 @@ func (a *Api) CreateNewsletter(name, description string) (string, error) {
 		return "", err
 	}
 	slog.Info(fmt.Sprintf("Created newsletter %s (%s)", name, meta.ID), "source", "channels")
-	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	a.emitEvent("wa:chat_list_refresh")
 	return meta.ID.String(), nil
 }
 

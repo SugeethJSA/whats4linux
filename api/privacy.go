@@ -173,5 +173,5 @@ func (a *Api) SetStatusPrivacy(value string) error {
 // handleBlocklistEvent processes a blocklist mutation from app state sync.
 func (a *Api) handleBlocklistEvent(evt *events.Blocklist) {
 	log.Printf("Blocklist changed: %+v", evt)
-	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	a.emitEvent("wa:chat_list_refresh")
 }
