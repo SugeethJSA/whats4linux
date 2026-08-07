@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 )

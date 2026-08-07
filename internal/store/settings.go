@@ -48,8 +48,12 @@ func LoadSettings() {
 	notificationsEnabled.Store(notificationsEnabledFrom(settingsInstance.data))
 }
 
+// GetSettings returns a snapshot of the persisted settings. The copy keeps
+// concurrent readers safe while writers swap the map under the mutex.
 func GetSettings() map[string]any {
-	return settingsInstance.data
+	settingsInstance.mu.Lock()
+	defer settingsInstance.mu.Unlock()
+	return maps.Clone(settingsInstance.data)
 }
 
 func SaveSettings(data map[string]any) error {

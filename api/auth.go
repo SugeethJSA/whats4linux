@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"go.mau.fi/whatsmeow"
 )
 

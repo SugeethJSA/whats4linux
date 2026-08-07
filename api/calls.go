@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/purpshell/meowcaller"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // CallStats holds diagnostic info about an active call for the frontend stats panel.

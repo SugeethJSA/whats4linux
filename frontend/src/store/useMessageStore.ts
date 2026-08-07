@@ -1,6 +1,10 @@
 import { create } from "zustand"
 import { immer } from "zustand/middleware/immer"
+import { enableMapSet } from "immer"
 import type { Message } from "./types"
+
+// starredIds is a Set; immer only tracks it once the MapSet plugin is loaded.
+enableMapSet()
 
 const MAX_MSGS_PER_CHAT = 200
 

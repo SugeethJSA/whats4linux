@@ -80,6 +80,19 @@ Frontend:
 - [x] 7.2 Toast styling — `addNotification` keeps `kind`-based styling (success/error/warning/info) so translated messages retain colors
 - [x] 7.3 Shortcut definitions + socket stability — `lib/shortcutDefs.ts` (single source of all keyboard shortcuts, shared by `useGlobalShortcuts` and KeyBoardShortCuts settings screen, previously two divergent copies); `shared/socket/` duplicate-instance guard (server refuses a second listener, removes stale socket file) + `systray/main.go` `connHolder` race fix (mutex around client replacement — `client != nil && client != old` check); `socket_test.go` covers duplicate rejection, stale-file cleanup, and reconnect handoff; MediaGrid real query (`GetChatMedia` with pagination) replacing the mock
 
+## Phase 8 — Test gap fill
+
+- [x] 8.1 Backend event-emit coverage — `api/events_test.go`: `newEventsTestAPI` (real `store.Device`, `imageCache`, fake whatsmeow `LIDStore`, injectable `emit` seam) + `emitCapture`; payload shapes verified for `wa:message_receipt`, `wa:presence`, `wa:chat_presence`, `wa:label_chat` (incl. unlabel), `wa:newsletter_joined`/`wa:newsletter_left` (+ `wa:chat_list_refresh`), `wa:picture_update` (data[0] = jid), `wa:new_message` (decoded `message` payload)
+- [x] 8.2 `api/message_test.go` — routing table (text plain/mentions/quoted, image/video/gif/audio/document/sticker), mimetype defaults + explicit override, invalid base64 per type, unsupported type, `attachUploadedMedia` per-variant field checks (`GetFileLength() uint64`), `processMessageText` table (incl. `<p>` wrappers), `buildQuotedMessage` (nil/text/media/sticker), `buildQuotedContext` (empty → nil nil, missing id → "quoted message not found"), `FetchMessagesPaged` (cursor from oldest-first page, RFC3339 timestamp parse, no cross-page duplicates), login guards
+- [x] 8.3 `internal/store/settings_test.go` — round-trip (theme/language survive CloseSettings→LoadSettings), notifications key carry-over on snapshot saves, 20-goroutine concurrency
+- [x] 8.4 `internal/query/query_test.go` — 10 tests covering messages (select/update/search), message_media (17-col insert, 11-col scan), link_previews, reactions (FK requires messages table), pinned messages/chats, muted chats (expired-mute filter), archived chats, image_index, read_receipts + migration
+- [x] 8.5 `internal/markdown/parse_inline_test.go` — 14 cases; nested emphasis intentionally unsupported (records literal behavior); URL linking incl. `www` scheme + trailing punctuation trim
+- [x] 8.6 Frontend store/hook tests — `useChatStore.test.ts` (12), `useMessageStore.test.ts` (16), `useSendMessage.test.ts` (12, jsdom + mocked `wailsjs` Api: optimistic pending bubble, ghost removal on failure, mention JID rewrite, quote contextInfo, image/video/gif/document variants), `useAppSettingsStore.test.ts` (11, jsdom: load/merge/fallback, stale `#000000` toggle knob rewrite, theme caching, fire-and-forget SaveSettings). Added `@testing-library/react` + `jsdom` devDeps (regenerated `package.json.md5`)
+- [x] 8.7 Real bugs found & fixed by the new tests —
+  - `api.go` `emitEvent` fallback recursed into itself; now falls through to `runtime.EventsEmit(a.ctx, name, data...)`
+  - `useMessageStore.ts` never enabled immer's MapSet plugin, so `toggleStarred` threw `[Immer] The plugin for 'MapSet' has not been loaded`; now calls `enableMapSet()` at module top
+  - `internal/store/settings.go` `GetSettings()` read `data` without the mutex (data race); now `maps.Clone` under `mu.Lock()`
+
 ## Verification (run after each phase)
 
 - `npx tsc -b --noEmit` · `npx vitest run` · `go test ./...` · `wails build` (manual)

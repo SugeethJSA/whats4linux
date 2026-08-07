@@ -79,7 +79,7 @@ func (a *Api) emitEvent(name string, data ...any) {
 		a.emit(name, data...)
 		return
 	}
-	a.emitEvent(name, data...)
+	runtime.EventsEmit(a.ctx, name, data...)
 }
 
 // repairGroupNames heals whats4linux_groups rows that are missing or were

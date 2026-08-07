@@ -3,8 +3,6 @@ package api
 import (
 	"fmt"
 	"log/slog"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
 )
