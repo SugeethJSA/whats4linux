@@ -67,28 +67,28 @@ export function CallOverlay() {
     [position],
   )
 
-  const onDragMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!dragRef.current) return
-      const dx = e.clientX - dragRef.current.startX
-      const dy = e.clientY - dragRef.current.startY
-      setPosition({
-        x: dragRef.current.offsetX + dx,
-        y: dragRef.current.offsetY + dy,
-      })
-    },
-    [],
-  )
+  const onDragMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return
+    const dx = e.clientX - dragRef.current.startX
+    const dy = e.clientY - dragRef.current.startY
+    setPosition({
+      x: dragRef.current.offsetX + dx,
+      y: dragRef.current.offsetY + dy,
+    })
+  }, [])
 
   const onDragEnd = useCallback(() => {
     dragRef.current = null
   }, [])
 
-  const resolveContact = async (state: {
-    peerJID: string
-    isGroup: boolean
-    groupJID: string
-  }, cb: (name: string, avatar: string, participants: number) => void) => {
+  const resolveContact = async (
+    state: {
+      peerJID: string
+      isGroup: boolean
+      groupJID: string
+    },
+    cb: (name: string, avatar: string, participants: number) => void,
+  ) => {
     const u = parseJID(state.peerJID).user
     let name = u
     let avatar = ""
@@ -265,9 +265,7 @@ export function CallOverlay() {
     <div
       className="fixed z-[9999] animate-in fade-in duration-300"
       style={
-        position
-          ? { left: position.x, top: position.y }
-          : { right: "1.5rem", bottom: "1.5rem" }
+        position ? { left: position.x, top: position.y } : { right: "1.5rem", bottom: "1.5rem" }
       }
     >
       <div
@@ -334,9 +332,7 @@ export function CallOverlay() {
           {activeCall.contactName}
         </h3>
         {activeCall.isGroup && activeCall.participants > 0 && (
-          <p className="text-[11px] text-gray-400 mb-0.5">
-            {activeCall.participants} participants
-          </p>
+          <p className="text-[11px] text-gray-400 mb-0.5">{activeCall.participants} participants</p>
         )}
         <p className="text-xs text-emerald-400 font-mono mb-6">
           {activeCall.status === "ringing"
@@ -496,7 +492,11 @@ export function CallOverlay() {
                 >
                   <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-sm font-semibold text-gray-700 dark:text-gray-200 shrink-0">
                     {chat.avatar ? (
-                      <img src={chat.avatar} className="w-10 h-10 rounded-full object-cover" alt="" />
+                      <img
+                        src={chat.avatar}
+                        className="w-10 h-10 rounded-full object-cover"
+                        alt=""
+                      />
                     ) : (
                       (chat.name || "?").charAt(0).toUpperCase()
                     )}

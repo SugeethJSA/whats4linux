@@ -200,7 +200,7 @@ describe("sanitizeHtml", () => {
     const original = globalThis.DOMParser
     try {
       delete (globalThis as Record<string, unknown>).DOMParser
-      const out = sanitizeHtml('<img src=x onerror=alert(1)><b>hi</b>')
+      const out = sanitizeHtml("<img src=x onerror=alert(1)><b>hi</b>")
       expect(out).not.toContain("<img")
       expect(out).not.toContain("<b>")
       expect(out).not.toContain("<")

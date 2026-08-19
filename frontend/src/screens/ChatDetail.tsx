@@ -848,7 +848,9 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
             <span
               className="flex-1 truncate text-gray-700 dark:text-gray-200 [&_*]:inline"
               dangerouslySetInnerHTML={{
-                __html: sanitizeHtml(pinnedMessages[pinnedMessages.length - 1].text || "Pinned message"),
+                __html: sanitizeHtml(
+                  pinnedMessages[pinnedMessages.length - 1].text || "Pinned message",
+                ),
               }}
             />
             {pinnedMessages.length > 1 && (
