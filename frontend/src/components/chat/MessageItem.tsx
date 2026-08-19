@@ -3,6 +3,7 @@ import {
   DownloadMediaToFile,
   EditMessage,
   GetCachedAvatar,
+  GetPollVotes,
   RevokeMessage,
   DeleteForMe,
   SendReaction,
@@ -29,8 +30,9 @@ import {
 import { useContactStore } from "../../store/useContactStore"
 import { useMessageStore } from "../../store"
 import type { Message } from "../../store/types"
+import type { PollVotesResult } from "../../../wailsjs/go/models"
 import { isMe } from "../../lib/self"
-import { formatPhone, phoneFromJID, htmlToPlainText } from "../../lib/utils"
+import { formatPhone, phoneFromJID, htmlToPlainText, sanitizeHtml } from "../../lib/utils"
 import { LRUCache } from "../../lib/lruCache"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
@@ -137,7 +139,7 @@ export function MessageItem({
   // Helper function to render caption with markdown
   const renderCaption = (caption: string | undefined) => {
     if (!caption) return null
-    return <div className="mt-1" dangerouslySetInnerHTML={{ __html: caption }} />
+    return <div className="mt-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(caption) }} />
   }
 
   const handleMediaDownload = async () => {
@@ -232,6 +234,33 @@ export function MessageItem({
   const [forwardTarget, setForwardTarget] = useState<string | null>(null)
   const handleForward = () => setForwardTarget(message.Info.ID)
   const [pollVoteOpen, setPollVoteOpen] = useState(false)
+
+  // Restore the "Voted ✓" state for poll cards across restarts: the backend
+  // stores votes in messages.db, so ask it once per poll message. The
+  // in-memory Set above still provides instant feedback while the RPC is in
+  // flight. Counts are also kept here so poll cards created before vote
+  // tracking existed can show tallies even though their stored HTML predates
+  // the results block.
+  const isPollCard =
+    content?.conversation?.includes('class="msg-poll"') ||
+    content?.extendedTextMessage?.text?.includes('class="msg-poll"') ||
+    false
+  const [pollVotes, setPollVotes] = useState<PollVotesResult | null>(null)
+  useEffect(() => {
+    if (!isPollCard || !message?.Info?.ID || !chatId) return
+    let live = true
+    GetPollVotes(chatId, message.Info.ID)
+      .then(res => {
+        if (!live || !res) return
+        setPollVotes(res)
+        if (res.hasVoted) votedPollKeys.add(message.Info.ID)
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId, message?.Info?.ID, isPollCard])
 
   const INVITE_LINK_RE = /chat\.whatsapp\.com\/([A-Za-z0-9_-]+)/
   const [joinBusy, setJoinBusy] = useState(false)
@@ -349,7 +378,7 @@ export function MessageItem({
             </div>
           ) : (
             <div className={clsx("[display:flow-root]", emojiOnly && "text-[32px] leading-10")}>
-              <span dangerouslySetInnerHTML={{ __html: htmlContent }} />
+              <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(htmlContent) }} />
               {timeMeta(true)}
             </div>
           )}
@@ -367,7 +396,32 @@ export function MessageItem({
           )}
           {htmlContent.includes('class="msg-poll"') && (
             <>
-              {votedPollKeys.has(message.Info.ID) ? (
+              {pollVotes && pollVotes.totalVotes > 0 && !htmlContent.includes("poll-results") && (
+                <div className="mt-2 w-full space-y-1">
+                  {pollVotes.options.map((opt, i) => {
+                    const pct = Math.round((opt.votes / pollVotes.totalVotes) * 100)
+                    const mine = pollVotes.myVoteIndices.includes(i)
+                    return (
+                      <div
+                        key={opt.name}
+                        className="flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-sm bg-black/5 dark:bg-white/5"
+                      >
+                        <span className="truncate">
+                          {mine && <span className="text-green-500 dark:text-green-400">✓ </span>}
+                          {opt.name}
+                        </span>
+                        <span className="shrink-0 opacity-70">
+                          {opt.votes} · {pct}%
+                        </span>
+                      </div>
+                    )
+                  })}
+                  <div className="text-xs opacity-55">
+                    {pollVotes.totalVotes} vote{pollVotes.totalVotes === 1 ? "" : "s"}
+                  </div>
+                </div>
+              )}
+              {votedPollKeys.has(message.Info.ID) || htmlContent.includes("poll-mine") ? (
                 <div className="mt-2 w-full rounded-lg border border-green-500/30 bg-green-500/5 px-3 py-1.5 text-sm text-green-600 dark:text-green-400 text-center">
                   Voted ✓
                 </div>

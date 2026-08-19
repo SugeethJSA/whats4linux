@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lugvitc/whats4linux/internal/markdown"
 	"github.com/lugvitc/whats4linux/internal/misc"
 	"github.com/lugvitc/whats4linux/internal/query"
 	mtypes "github.com/lugvitc/whats4linux/internal/types"
@@ -215,6 +216,14 @@ func NewMessageStore() (*MessageStore, error) {
 			return err
 		}
 		_, err = tx.Exec(query.CreateReadReceiptsTable)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(query.CreatePollsTable)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(query.CreatePollVotesTable)
 		if err != nil {
 			return err
 		}
@@ -782,7 +791,7 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 		}
 	}
 
-	return ms.runSync(func(tx *sql.Tx) error {
+	err := ms.runSync(func(tx *sql.Tx) error {
 		_, err := tx.Stmt(ms.stmtInsertMessage).Exec(
 			info.ID,
 			info.Chat.String(),
@@ -834,12 +843,31 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 		ms.CachePTT(info.ID, ptt, seconds, waveform)
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	// Remember poll question + options so incoming votes (which carry only
+	// SHA-256 hashes of option names) can be mapped back to option indices.
+	if poll := PollCreation(msg); poll != nil {
+		opts := make([]string, 0, len(poll.GetOptions()))
+		for _, o := range poll.GetOptions() {
+			opts = append(opts, o.GetOptionName())
+		}
+		if perr := ms.SavePollMetadata(info.Chat.String(), info.ID, poll.GetName(), opts); perr != nil {
+			log.Println("Failed to save poll metadata:", perr)
+		}
+	}
+	return nil
 }
 
 // InsertSystemMessage inserts a system-generated status message (e.g. "X joined
 // the group") into the messages table so it appears in the chat history as a
-// user‑facing line item.
+// user‑facing line item. The text is passed through StripHTML so remote-
+// controlled values that flow into these messages (contact names, push names)
+// can never smuggle HTML/script into the UI.
 func (ms *MessageStore) InsertSystemMessage(chatJID, messageID, text string, timestamp int64) error {
+	text = markdown.StripHTML(text)
 	return ms.runSync(func(tx *sql.Tx) error {
 		_, err := tx.Stmt(ms.stmtInsertMessage).Exec(
 			messageID,

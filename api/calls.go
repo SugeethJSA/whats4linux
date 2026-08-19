@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/purpshell/meowcaller"
+	"github.com/rs/zerolog"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"go.mau.fi/whatsmeow/types/events"
 )
 
 // CallStats holds diagnostic info about an active call for the frontend stats panel.
@@ -26,12 +29,17 @@ type CallStats struct {
 	RelayEnabled     bool   `json:"relay_enabled"` // always true for WhatsApp calls
 	BridgeActive     bool   `json:"bridge_active"` // audio bridge live
 	Duration         int64  `json:"duration"`      // call duration in seconds (0 while ringing)
+	IsGroup          bool   `json:"is_group"`
+	GroupJID         string `json:"group_jid"`
+	Participants     int    `json:"participants"` // roster size for group calls
 }
 
 type ActiveCall struct {
 	Call       *meowcaller.Call
 	Bridge     *LiveAudioBridge
 	PeerJID    string
+	GroupJID   string
+	IsGroup    bool
 	Direction  string // "incoming" or "outgoing"
 	IsVideo    bool
 	StartTime  time.Time
@@ -50,27 +58,65 @@ func (a *Api) initMeowcaller() {
 		return
 	}
 
-	a.callClient = meowcaller.NewClient(a.waClient)
+	a.callClient = meowcaller.NewClient(a.waClient, meowcaller.WithLogger(
+		zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
+	))
+
+	// For group calls, whatsmeow populates GroupJID on the CallOffer. This
+	// handler runs after meowcaller's own handler has registered the call and
+	// fired OnIncomingCall, so we patch the group JID onto the active call and
+	// emit the incoming event here (the OnIncomingCall callback defers group
+	// emits until the group JID is known).
+	a.waClient.AddEventHandler(func(evt any) {
+		offer, ok := evt.(*events.CallOffer)
+		if !ok || offer.GroupJID.IsEmpty() {
+			return
+		}
+		callsMu.Lock()
+		ac := activeCalls[offer.CallID]
+		if ac != nil {
+			ac.GroupJID = offer.GroupJID.String()
+			ac.IsGroup = true
+		}
+		callsMu.Unlock()
+		if ac != nil && a.ctx != nil {
+			runtime.EventsEmit(a.ctx, "call:incoming", map[string]any{
+				"callID":   offer.CallID,
+				"peerJID":  offer.From.String(),
+				"isVideo":  ac.IsVideo,
+				"isGroup":  true,
+				"groupJID": ac.GroupJID,
+			})
+		}
+	})
 
 	// Handle incoming calls
 	a.callClient.OnIncomingCall(func(call *meowcaller.Call) {
 		log.Printf("[Calls] Incoming call from %s (CallID: %s)", call.Peer().String(), call.ID())
 		now := time.Now()
+		_, isGroup := call.GroupState()
 		callsMu.Lock()
-		activeCalls[call.ID()] = &ActiveCall{
+		ac := &ActiveCall{
 			Call:      call,
 			PeerJID:   call.Peer().String(),
 			Direction: "incoming",
 			IsVideo:   call.IsVideo(),
 			StartTime: now,
 		}
+		if isGroup {
+			ac.IsGroup = true
+		}
+		activeCalls[call.ID()] = ac
 		callsMu.Unlock()
 
-		if a.ctx != nil {
+		// Group calls emit call:incoming from the CallOffer handler above,
+		// once the group JID is known. 1:1 calls emit here.
+		if a.ctx != nil && !ac.IsGroup {
 			runtime.EventsEmit(a.ctx, "call:incoming", map[string]any{
 				"callID":  call.ID(),
 				"peerJID": call.Peer().String(),
 				"isVideo": call.IsVideo(),
+				"isGroup": false,
 			})
 		}
 
@@ -141,12 +187,36 @@ func (a *Api) MakeCall(targetJID string) error {
 		return fmt.Errorf("failed to make call: %v", err)
 	}
 
-	log.Printf("[Calls] Outbound call placed to %s (CallID: %s)", targetJID, call.ID())
+	return a.trackOutgoingCall(call, targetJID, "", false)
+}
+
+// MakeGroupCall initiates an outbound voice call to every member of a group
+func (a *Api) MakeGroupCall(groupJID string) error {
+	if a.callClient == nil {
+		return fmt.Errorf("call client not initialized")
+	}
+
+	ctx := context.Background()
+	call, err := a.callClient.GroupCallByID(ctx, groupJID)
+	if err != nil {
+		log.Printf("[Calls] Failed to initiate group call to %s: %v", groupJID, err)
+		return fmt.Errorf("failed to make group call: %v", err)
+	}
+
+	return a.trackOutgoingCall(call, groupJID, groupJID, true)
+}
+
+// trackOutgoingCall registers an outbound call with meowcaller's callbacks and
+// wires the audio bridge, shared by MakeCall and MakeGroupCall.
+func (a *Api) trackOutgoingCall(call *meowcaller.Call, peerJID, groupJID string, isGroup bool) error {
+	log.Printf("[Calls] Outbound call placed to %s (CallID: %s)", peerJID, call.ID())
 	now := time.Now()
 	callsMu.Lock()
 	activeCalls[call.ID()] = &ActiveCall{
 		Call:      call,
-		PeerJID:   targetJID,
+		PeerJID:   peerJID,
+		GroupJID:  groupJID,
+		IsGroup:   isGroup,
 		Direction: "outgoing",
 		IsVideo:   call.IsVideo(),
 		StartTime: now,
@@ -205,11 +275,36 @@ func (a *Api) MakeCall(targetJID string) error {
 	if a.ctx != nil {
 		runtime.EventsEmit(a.ctx, "call:outgoing", map[string]any{
 			"callID":  call.ID(),
-			"peerJID": targetJID,
+			"peerJID": peerJID,
 			"isVideo": false,
+			"isGroup": isGroup,
+			"groupJID": groupJID,
 		})
 	}
 
+	return nil
+}
+
+// AddCallParticipant invites a user into an established call. The call must be
+// active (connected); the invite is sent via the group invite signaling flow.
+func (a *Api) AddCallParticipant(callID, targetJID string) error {
+	callsMu.Lock()
+	ac, ok := activeCalls[callID]
+	callsMu.Unlock()
+	if !ok {
+		return fmt.Errorf("call %s not found", callID)
+	}
+	if err := ac.Call.AddParticipant(context.Background(), targetJID); err != nil {
+		log.Printf("[Calls] Failed to add %s to call %s: %v", targetJID, callID, err)
+		return fmt.Errorf("failed to add participant: %v", err)
+	}
+	log.Printf("[Calls] Invited %s to call %s", targetJID, callID)
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "call:participant_added", map[string]any{
+			"callID":   callID,
+			"targetJID": targetJID,
+		})
+	}
 	return nil
 }
 
@@ -285,6 +380,13 @@ func (a *Api) insertCallLog(ac *ActiveCall) {
 	text := fmt.Sprintf("%s📞%s %s call%s", prefix, status, mediaType, durStr)
 	msgID := fmt.Sprintf("call_%s_%d", ac.PeerJID, ac.StartTime.UnixMilli())
 	chatJID := ac.PeerJID
+	if ac.IsGroup {
+		chatJID = ac.GroupJID
+		if chatJID == "" {
+			chatJID = ac.PeerJID
+		}
+		text = fmt.Sprintf("%s📞%s group %s call%s", prefix, status, mediaType, durStr)
+	}
 
 	if err := a.messageStore.InsertSystemMessage(chatJID, msgID, text, ac.StartTime.Unix()); err != nil {
 		slog.Warn(fmt.Sprintf("Failed to store call log: %v", err), "source", "calls")
@@ -321,6 +423,12 @@ func (a *Api) GetCallStats(callID string) (*CallStats, error) {
 		phase = "unknown"
 	}
 
+	// Group call roster size, if this is a group call
+	var participantCount int
+	if gs, ok := call.GroupState(); ok {
+		participantCount = len(gs.Participants)
+	}
+
 	// Rough call duration: if active, measure from bridge start; else 0
 	var dur int64
 	if state == meowcaller.CallPhaseActive && callData.Bridge != nil {
@@ -341,6 +449,9 @@ func (a *Api) GetCallStats(callID string) (*CallStats, error) {
 		RelayEnabled:     true,
 		BridgeActive:     callData.Bridge != nil,
 		Duration:         dur,
+		IsGroup:          callData.IsGroup,
+		GroupJID:         callData.GroupJID,
+		Participants:     participantCount,
 	}, nil
 }
 

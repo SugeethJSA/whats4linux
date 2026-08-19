@@ -12,11 +12,12 @@ import {
   ContactIcon,
   LocationIcon,
 } from "../../assets/svgs/chat_icons"
-import { GetCachedAvatar, SendLocation } from "../../../wailsjs/go/api/Api"
+import { GetCachedAvatar, SendLocation, PickAttachmentFile } from "../../../wailsjs/go/api/Api"
 import type { Message } from "../../store/types"
 import { useContactStore } from "../../store/useContactStore"
 import { useUIStore } from "../../store"
 import { registerShortcut } from "../../lib/shortcuts"
+import { sanitizeHtml } from "../../lib/utils"
 import { PollDialog } from "./PollDialog"
 import { ContactShareDialog } from "./ContactShareDialog"
 
@@ -416,7 +417,7 @@ export function ChatInput({
           </div>
           <div
             className="line-clamp-2 opacity-80"
-            dangerouslySetInnerHTML={{ __html: previewText }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(previewText) }}
           />
         </div>
         <button
@@ -571,9 +572,27 @@ export function ChatInput({
                         label: "Document",
                         icon: <DocumentIcon />,
                         color: "text-[#21c063]",
-                        act: () => {
-                          setFileAccept("*/*")
-                          setTimeout(() => fileInputRef.current?.click(), 0)
+                        act: async () => {
+                          // Use the native GTK picker (no MIME filter) — the
+                          // webview input with accept="*/*" offers no
+                          // selectable files on some desktops.
+                          try {
+                            const picked = await PickAttachmentFile()
+                            if (!picked?.base64) return
+                            const binary = atob(picked.base64)
+                            const bytes = new Uint8Array(binary.length)
+                            for (let i = 0; i < binary.length; i++) {
+                              bytes[i] = binary.charCodeAt(i)
+                            }
+                            const file = new File([bytes], picked.name, {
+                              type: picked.mimetype || "application/octet-stream",
+                            })
+                            onFileSelect({
+                              target: { files: [file] },
+                            } as unknown as React.ChangeEvent<HTMLInputElement>)
+                          } catch (err) {
+                            console.error("Failed to pick file:", err)
+                          }
                         },
                       },
                       {

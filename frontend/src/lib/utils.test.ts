@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from "vitest"
 import {
   cn,
@@ -5,6 +6,8 @@ import {
   phoneFromJID,
   getProfileColor,
   getAvatarColor,
+  sanitizeHtml,
+  isSafeHref,
   PROFILE_COLORS,
   AVATAR_COLORS_LIGHT,
   AVATAR_COLORS_DARK,
@@ -108,5 +111,102 @@ describe("getAvatarColor", () => {
   it("getProfileColor aliases light palette", () => {
     expect(getProfileColor("hello@g.us")).toBe(getAvatarColor("hello@g.us", false))
     expect(PROFILE_COLORS).toBe(AVATAR_COLORS_LIGHT)
+  })
+})
+
+describe("isSafeHref", () => {
+  it("accepts http and https URLs", () => {
+    expect(isSafeHref("https://example.com")).toBe(true)
+    expect(isSafeHref("http://example.com")).toBe(true)
+  })
+
+  it("rejects javascript:, data:, vbscript:, and empty hrefs", () => {
+    expect(isSafeHref("javascript:alert(1)")).toBe(false)
+    expect(isSafeHref("data:text/html,<script>alert(1)</script>")).toBe(false)
+    expect(isSafeHref("vbscript:msgbox(1)")).toBe(false)
+    expect(isSafeHref("")).toBe(false)
+    expect(isSafeHref("  ")).toBe(false)
+  })
+})
+
+describe("sanitizeHtml", () => {
+  it("passes plain text through unchanged", () => {
+    expect(sanitizeHtml("hello world")).toBe("hello world")
+    expect(sanitizeHtml("")).toBe("")
+  })
+
+  it("removes script tags entirely (no text survivors)", () => {
+    const out = sanitizeHtml('<p>hi</p><script>alert("x")</script>')
+    expect(out).not.toContain("script")
+    expect(out).not.toContain("alert")
+    expect(out).toContain("hi")
+  })
+
+  it("strips event handler attributes from allowed tags", () => {
+    const out = sanitizeHtml('<b onclick="alert(1)" style="color:red">bold</b>')
+    expect(out).not.toContain("onclick")
+    expect(out).not.toContain("style")
+    expect(out).toContain("<b>bold</b>")
+  })
+
+  it("strips javascript: hrefs and drops the href attribute", () => {
+    const out = sanitizeHtml('<a href="javascript:alert(1)" class="msg-link">x</a>')
+    expect(out).toContain("<a")
+    expect(out).not.toContain("javascript:")
+    expect(out).not.toContain('href="')
+  })
+
+  it("keeps safe https hrefs with whitelisted class and rel", () => {
+    const out = sanitizeHtml(
+      '<a href="https://example.com" class="msg-link" rel="noreferrer noopener">link</a>',
+    )
+    expect(out).toContain('href="https://example.com"')
+    expect(out).toContain('class="msg-link"')
+    expect(out).toContain('rel="noreferrer noopener"')
+    expect(out).toContain(">link</a>")
+  })
+
+  it("keeps only whitelisted classes", () => {
+    expect(sanitizeHtml('<span class="inline-code">c</span>')).toContain('class="inline-code"')
+    expect(sanitizeHtml('<span class="evil">c</span>')).not.toContain("class=")
+  })
+
+  it("removes unknown/active elements (img, iframe, svg, form)", () => {
+    for (const tag of ["img", "iframe", "svg", "form", "video", "embed", "object"]) {
+      const out = sanitizeHtml(`<p>x</p><${tag} src="https://evil.example/x">`)
+      expect(out).not.toContain(`<${tag}`)
+      expect(out).toContain("x")
+    }
+  })
+
+  it("drops HTML comments", () => {
+    expect(sanitizeHtml("<!-- hidden --><p>ok</p>")).not.toContain("hidden")
+  })
+
+  it("keeps backend markdown output intact", () => {
+    const html =
+      '<p>hello <b>bold</b> <a href="https://example.com" class="msg-link" rel="noreferrer noopener">url</a></p>'
+    expect(sanitizeHtml(html)).toBe(html)
+  })
+
+  it("keeps escaped entities as text, never as markup", () => {
+    const out = sanitizeHtml("&lt;img src=x onerror=alert(1)&gt;")
+    expect(out).not.toContain("<img")
+    expect(out).not.toContain("<")
+    expect(out).toContain("&lt;img")
+  })
+
+  it("escapes everything when no DOM is available (fallback)", () => {
+    const original = globalThis.DOMParser
+    try {
+      delete (globalThis as Record<string, unknown>).DOMParser
+      const out = sanitizeHtml('<img src=x onerror=alert(1)><b>hi</b>')
+      expect(out).not.toContain("<img")
+      expect(out).not.toContain("<b>")
+      expect(out).not.toContain("<")
+      expect(out).toContain("hi")
+    } finally {
+      ;(globalThis as Record<string, unknown>).DOMParser = original
+    }
   })
 })

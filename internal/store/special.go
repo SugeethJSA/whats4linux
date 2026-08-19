@@ -35,6 +35,95 @@ func contactCard(displayName, vcard string) string {
 	return b.String()
 }
 
+// PollCreation returns the poll creation payload from any of its three
+// protobuf variants (V1/V2/V3), or nil when msg is not a poll creation.
+func PollCreation(msg *waE2E.Message) *waE2E.PollCreationMessage {
+	if msg == nil {
+		return nil
+	}
+	if poll := msg.GetPollCreationMessage(); poll != nil {
+		return poll
+	}
+	if poll := msg.GetPollCreationMessageV2(); poll != nil {
+		return poll
+	}
+	return msg.GetPollCreationMessageV3()
+}
+
+// RenderPollCard renders a poll card with per-option vote counts. The option
+// lines keep their original `○ Name` shape so the frontend's existing option
+// parser keeps working; vote totals are appended in a separate results block.
+// myIndices marks the current user's selections, which are rendered with a
+// "✓" prefix and the poll-mine class.
+func RenderPollCard(question string, options []string, counts []int, myIndices []int) string {
+	total := 0
+	for _, c := range counts {
+		total += c
+	}
+	mine := make(map[int]bool, len(myIndices))
+	for _, i := range myIndices {
+		mine[i] = true
+	}
+
+	var b strings.Builder
+	b.WriteString(`<div class="msg-card msg-poll">📊 <b>` + esc(question) + `</b>`)
+	for _, opt := range options {
+		b.WriteString(`<div class="poll-opt">○ ` + esc(opt) + `</div>`)
+	}
+	if total > 0 {
+		b.WriteString(`<div class="poll-results">`)
+		for i, opt := range options {
+			prefix := ""
+			cls := "poll-result"
+			if mine[i] {
+				prefix = "✓ "
+				cls = "poll-result poll-mine"
+			}
+			pct := 0
+			if total > 0 {
+				pct = counts[i] * 100 / total
+			}
+			b.WriteString(fmt.Sprintf(`<div class="%s">%s%s · %d vote%s (%d%%)</div>`,
+				cls, prefix, esc(opt), counts[i], plural(counts[i]), pct))
+		}
+		b.WriteString(`</div>`)
+	}
+	note := "No votes yet"
+	if total > 0 {
+		note = fmt.Sprintf("%d vote%s", total, plural(total))
+	}
+	b.WriteString(`<div class="msg-card-note">` + note + `</div></div>`)
+	return b.String()
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
+}
+
+// pollOptRE matches the option lines of a rendered poll card.
+var pollOptRE = regexp.MustCompile(`<div class="poll-opt">○ ([^<]+)</div>`)
+
+// pollNameRE matches the question line of a rendered poll card.
+var pollNameRE = regexp.MustCompile(`📊 <b>([^<]+)</b>`)
+
+// ParsePollCardHTML extracts the question and option names from a previously
+// rendered poll card (used as a fallback for polls that predate the polls
+// metadata table).
+func ParsePollCardHTML(s string) (string, []string) {
+	question := ""
+	if m := pollNameRE.FindStringSubmatch(s); m != nil {
+		question = html.UnescapeString(m[1])
+	}
+	var options []string
+	for _, m := range pollOptRE.FindAllStringSubmatch(s, -1) {
+		options = append(options, html.UnescapeString(m[1]))
+	}
+	return question, options
+}
+
 // DescribeSpecialMessage renders message types that have no plain-text body
 // (polls, locations, contacts, invites, events, business templates) as HTML
 // for the message bubble. ok=false means the type isn't special-cased.
@@ -43,23 +132,15 @@ func DescribeSpecialMessage(msg *waE2E.Message) (string, bool) {
 		return "", false
 	}
 
-	poll := msg.GetPollCreationMessage()
-	if poll == nil {
-		poll = msg.GetPollCreationMessageV2()
-	}
-	if poll == nil {
-		poll = msg.GetPollCreationMessageV3()
-	}
+	poll := PollCreation(msg)
 
 	switch {
 	case poll != nil:
-		var b strings.Builder
-		b.WriteString(`<div class="msg-card msg-poll">📊 <b>` + esc(poll.GetName()) + `</b>`)
+		options := make([]string, 0, len(poll.GetOptions()))
 		for _, opt := range poll.GetOptions() {
-			b.WriteString(`<div class="poll-opt">○ ` + esc(opt.GetOptionName()) + `</div>`)
+			options = append(options, opt.GetOptionName())
 		}
-		b.WriteString(`<div class="msg-card-note">Poll · vote on your phone</div></div>`)
-		return b.String(), true
+		return RenderPollCard(poll.GetName(), options, make([]int, len(options)), nil), true
 
 	case msg.GetLocationMessage() != nil:
 		loc := msg.GetLocationMessage()

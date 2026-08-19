@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { FetchMessagesPaged, GetCachedImage, DownloadMedia } from "../../../wailsjs/go/api/Api"
 import { store } from "../../../wailsjs/go/models"
 import { useContactStore } from "../../store/useContactStore"
+import { sanitizeHtml } from "../../lib/utils"
 
 const STATUS_JID = "status@broadcast"
 const STORY_MS = 5000
@@ -198,7 +199,7 @@ export function StoryViewer({ group, onClose }: { group: StatusGroup; onClose: (
         {kind === "text" && (
           <div
             className="max-w-lg px-8 text-center text-2xl leading-relaxed text-white [&_a]:underline"
-            dangerouslySetInnerHTML={{ __html: caption }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(caption) }}
           />
         )}
         {kind === "image" &&
@@ -222,7 +223,7 @@ export function StoryViewer({ group, onClose }: { group: StatusGroup; onClose: (
         {kind !== "text" && caption && (
           <div
             className="pointer-events-none absolute bottom-6 left-0 right-0 px-8 text-center text-white [&_a]:underline"
-            dangerouslySetInnerHTML={{ __html: caption }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(caption) }}
           />
         )}
       </div>

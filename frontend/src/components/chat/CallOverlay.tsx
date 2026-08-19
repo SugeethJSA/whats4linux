@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { EventsOn, EventsOff } from "../../../wailsjs/runtime/runtime"
 import {
   AcceptCall,
@@ -6,17 +6,25 @@ import {
   EndCall,
   GetCallStats,
   GetProfile,
+  GetGroupInfo,
+  AddCallParticipant,
 } from "../../../wailsjs/go/api/Api"
 import { GetCachedAvatar } from "../../../wailsjs/go/api/Api"
 import type { api } from "../../../wailsjs/go/models"
+import { useChatStore } from "../../store/useChatStore"
+import { formatPhone, phoneFromJID } from "../../lib/utils"
+import { createPortal } from "react-dom"
 
 interface CallState {
   callID: string
   peerJID: string
   isVideo: boolean
+  isGroup: boolean
+  groupJID: string
   status: "calling" | "ringing" | "active"
   contactName: string
   avatarUrl: string
+  participants: number
 }
 
 function parseJID(jid: string): { user: string; server: string } {
@@ -31,36 +39,102 @@ export function CallOverlay() {
   const [isMuted, setIsMuted] = useState(false)
   const [showStats, setShowStats] = useState(false)
   const [stats, setStats] = useState<api.CallStats | null>(null)
+  const [showAddParticipant, setShowAddParticipant] = useState(false)
+  const [addSearch, setAddSearch] = useState("")
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null)
+  const dragRef = useRef<{
+    startX: number
+    startY: number
+    offsetX: number
+    offsetY: number
+  } | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const statsRef = useRef<NodeJS.Timeout | null>(null)
+  const chatsById = useChatStore(s => s.chatsById)
 
-  const resolveContact = async (jid: string, cb: (name: string, avatar: string) => void) => {
-    const u = parseJID(jid).user
+  const onDragStart = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const el = e.currentTarget.parentElement as HTMLElement | null
+      if (!el) return
+      dragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        offsetX: position?.x ?? el.offsetLeft,
+        offsetY: position?.y ?? el.offsetTop,
+      }
+      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    },
+    [position],
+  )
+
+  const onDragMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!dragRef.current) return
+      const dx = e.clientX - dragRef.current.startX
+      const dy = e.clientY - dragRef.current.startY
+      setPosition({
+        x: dragRef.current.offsetX + dx,
+        y: dragRef.current.offsetY + dy,
+      })
+    },
+    [],
+  )
+
+  const onDragEnd = useCallback(() => {
+    dragRef.current = null
+  }, [])
+
+  const resolveContact = async (state: {
+    peerJID: string
+    isGroup: boolean
+    groupJID: string
+  }, cb: (name: string, avatar: string, participants: number) => void) => {
+    const u = parseJID(state.peerJID).user
     let name = u
     let avatar = ""
+    let participants = 0
+
+    if (state.isGroup) {
+      const groupJID = state.groupJID || state.peerJID
+      try {
+        const info = await GetGroupInfo(groupJID)
+        name = info.group_name || u
+        participants = info.participant_count
+      } catch {}
+      try {
+        avatar = await GetCachedAvatar(groupJID, false)
+      } catch {}
+      cb(name, avatar, participants)
+      return
+    }
 
     try {
-      const profile = await GetProfile(jid)
+      const profile = await GetProfile(state.peerJID)
       name = profile.full_name || profile.push_name || u
     } catch {}
 
     try {
-      avatar = await GetCachedAvatar(jid, false)
+      avatar = await GetCachedAvatar(state.peerJID, false)
     } catch {}
 
-    cb(name, avatar)
+    cb(name, avatar, participants)
   }
 
   useEffect(() => {
     const onCallEvent = (data: any, status: CallState["status"]) => {
-      resolveContact(data.peerJID, (name, avatar) => {
+      const isGroup = !!data.isGroup
+      const groupJID = data.groupJID || ""
+      resolveContact({ peerJID: data.peerJID, isGroup, groupJID }, (name, avatar, participants) => {
         setActiveCall({
           callID: data.callID,
           peerJID: data.peerJID,
           isVideo: data.isVideo,
+          isGroup,
+          groupJID,
           status,
           contactName: name,
           avatarUrl: avatar,
+          participants,
         })
       })
     }
@@ -170,8 +244,32 @@ export function CallOverlay() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
 
+  const candidateContacts = [...chatsById.values()]
+    .filter(c => !c.id.endsWith("@g.us"))
+    .filter(c => c.id !== activeCall?.peerJID)
+    .filter(c => !addSearch || c.name.toLowerCase().includes(addSearch.toLowerCase()))
+    .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))
+
+  const handleAddParticipant = async (targetJID: string) => {
+    if (!activeCall) return
+    try {
+      await AddCallParticipant(activeCall.callID, targetJID)
+      setShowAddParticipant(false)
+    } catch (err) {
+      console.error("AddCallParticipant failed:", err)
+      setShowAddParticipant(false)
+    }
+  }
+
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] animate-in fade-in slide-in-from-bottom-4 duration-300">
+    <div
+      className="fixed z-[9999] animate-in fade-in duration-300"
+      style={
+        position
+          ? { left: position.x, top: position.y }
+          : { right: "1.5rem", bottom: "1.5rem" }
+      }
+    >
       <div
         className="w-80 rounded-2xl p-5 shadow-2xl border flex flex-col items-center select-none"
         style={{
@@ -181,7 +279,14 @@ export function CallOverlay() {
           boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6), 0 0 20px rgba(33, 192, 99, 0.15)",
         }}
       >
-        <div className="w-full flex items-center justify-between pb-3 mb-4 border-b border-white/10 text-xs font-medium text-gray-400">
+        <div
+          className="w-full flex items-center justify-between pb-3 mb-4 border-b border-white/10 text-xs font-medium text-gray-400 cursor-grab active:cursor-grabbing touch-none"
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragEnd}
+          title="Drag to move"
+        >
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-[#21c063] animate-pulse" />
             <span className="tracking-wide uppercase text-[10px] font-semibold text-[#21c063]">
@@ -189,7 +294,13 @@ export function CallOverlay() {
             </span>
           </div>
           <span className="text-[11px] text-gray-400">
-            {activeCall.isVideo ? "Video Call" : "Audio Call"}
+            {activeCall.isGroup
+              ? activeCall.isVideo
+                ? "Group Video Call"
+                : "Group Audio Call"
+              : activeCall.isVideo
+                ? "Video Call"
+                : "Audio Call"}
           </span>
         </div>
 
@@ -222,9 +333,16 @@ export function CallOverlay() {
         <h3 className="text-base font-semibold text-white tracking-tight mb-0.5">
           {activeCall.contactName}
         </h3>
+        {activeCall.isGroup && activeCall.participants > 0 && (
+          <p className="text-[11px] text-gray-400 mb-0.5">
+            {activeCall.participants} participants
+          </p>
+        )}
         <p className="text-xs text-emerald-400 font-mono mb-6">
           {activeCall.status === "ringing"
-            ? "Incoming Call..."
+            ? activeCall.isGroup
+              ? "Incoming group call..."
+              : "Incoming Call..."
             : activeCall.status === "calling"
               ? "Calling..."
               : formatTimer(callDuration)}
@@ -245,6 +363,21 @@ export function CallOverlay() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
                 <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+              </svg>
+            </button>
+          )}
+
+          {activeCall.status === "active" && (
+            <button
+              onClick={() => {
+                setAddSearch("")
+                setShowAddParticipant(true)
+              }}
+              className="p-3 rounded-full bg-white/10 text-gray-300 hover:bg-white/20 transition-all duration-150"
+              title="Add participant to call"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9 12a3 3 0 100-6 3 3 0 000 6zm0-8a5 5 0 110 10 5 5 0 010-10zm0 11c-2.67 0-8 1.34-8 4v2h11v-2H3v-1c0-1.22 3.5-3 6-3 .9 0 1.74.12 2.48.32-.66-.5-1.25-1.1-1.7-1.78A10.9 10.9 0 009 15zm11 1v-3h-2v3h-3v2h3v3h2v-3h3v-2h-3z" />
               </svg>
             </button>
           )}
@@ -310,9 +443,86 @@ export function CallOverlay() {
                 {stats.peer_jid.split("@")[0]}
               </span>
             </div>
+            {stats.is_group && (
+              <div className="flex justify-between">
+                <span>Group</span>
+                <span className="text-gray-200 truncate max-w-[140px]" title={stats.group_jid}>
+                  {stats.group_jid.split("@")[0]}
+                </span>
+              </div>
+            )}
+            {stats.is_group && (
+              <div className="flex justify-between">
+                <span>Participants</span>
+                <span className="text-gray-200">{stats.participants}</span>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Add participant picker */}
+      {showAddParticipant && activeCall && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40"
+          onClick={e => {
+            if (e.target === e.currentTarget) setShowAddParticipant(false)
+          }}
+        >
+          <div className="bg-white dark:bg-dark-secondary rounded-2xl w-96 max-h-[80vh] flex flex-col shadow-xl">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Add to call
+              </h2>
+              <input
+                value={addSearch}
+                onChange={e => setAddSearch(e.target.value)}
+                placeholder="Search contacts..."
+                autoFocus
+                className="mt-2 w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-dark-tertiary text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 outline-none"
+              />
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {candidateContacts.length === 0 && (
+                <p className="text-center text-gray-400 dark:text-light-muted dark:text-dark-muted text-sm py-8">
+                  No contacts found
+                </p>
+              )}
+              {candidateContacts.map(chat => (
+                <button
+                  key={chat.id}
+                  onClick={() => handleAddParticipant(chat.id)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-left"
+                >
+                  <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-sm font-semibold text-gray-700 dark:text-gray-200 shrink-0">
+                    {chat.avatar ? (
+                      <img src={chat.avatar} className="w-10 h-10 rounded-full object-cover" alt="" />
+                    ) : (
+                      (chat.name || "?").charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                      {chat.name}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-light-muted dark:text-dark-muted truncate">
+                      {chat.type === "group" ? "Group" : formatPhone(phoneFromJID(chat.id))}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="p-3 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+              <button
+                onClick={() => setShowAddParticipant(false)}
+                className="px-4 py-2 text-sm text-gray-600 dark:text-light-muted dark:text-dark-muted hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

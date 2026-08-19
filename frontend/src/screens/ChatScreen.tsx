@@ -37,7 +37,7 @@ import { StatusList, StoryViewer, type StatusGroup } from "../components/chat/St
 import { CreateGroupDialog } from "../components/chat/CreateGroupDialog"
 import { CreateChannelDialog } from "../components/chat/CreateChannelDialog"
 import { CommunityList, CommunityHome, CommunitiesWelcome } from "../components/chat/Communities"
-import { getAvatarColor, AVATAR_ICON_COLOR, AVATAR_ICON_ON_DARK } from "../lib/utils"
+import { getAvatarColor, AVATAR_ICON_COLOR, AVATAR_ICON_ON_DARK, sanitizeHtml } from "../lib/utils"
 import { useAppSettingsStore } from "../store/useAppSettingsStore"
 import {
   UserAvatar,
@@ -335,7 +335,7 @@ const ChatListItemContent = memo(
               )}
               <span
                 className="[&_br]:hidden no-formatting"
-                dangerouslySetInnerHTML={{ __html: chat.subtitle }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(chat.subtitle) }}
               />
             </div>
             {chat.pinned && <PinIcon className="shrink-0 text-gray-400 dark:text-[#8696a0]" />}

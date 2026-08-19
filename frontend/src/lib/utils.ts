@@ -200,3 +200,81 @@ export function htmlToPlainText(html: string): string {
   temp.innerHTML = formatted
   return (temp.innerText || temp.textContent || "").trim()
 }
+
+/** Tags the backend markdown/linkify renderers are allowed to produce. */
+const SAFE_TAGS = new Set([
+  "p",
+  "br",
+  "b",
+  "i",
+  "s",
+  "em",
+  "strong",
+  "span",
+  "a",
+  "ul",
+  "ol",
+  "li",
+  "blockquote",
+  "div",
+])
+
+/** Classes the backend renderers emit; anything else is stripped. */
+const SAFE_CLASSES = new Set(["msg-link", "inline-code", "msg-card", "msg-poll", "poll-opt"])
+
+/** Only http(s) links survive sanitization; javascript:/data:/vbscript: etc. are dropped. */
+export function isSafeHref(href: string): boolean {
+  return /^https?:\/\//i.test(href.trim())
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+}
+
+/**
+ * Whitelist HTML sanitizer for rendering backend-produced message HTML via
+ * dangerouslySetInnerHTML. Defense-in-depth on top of backend escaping: any
+ * tag or attribute the backend never emits (script, img, on* handlers, style,
+ * non-http hrefs, ...) is removed so remote-controlled text can never execute.
+ *
+ * Without a DOM (e.g. node during tests) it falls back to escaping the entire
+ * string, which is always safe (worst case: formatting is lost).
+ */
+export function sanitizeHtml(html: string): string {
+  if (!html) return ""
+  if (typeof DOMParser === "undefined") return escapeHtml(html)
+
+  const doc = new DOMParser().parseFromString(html, "text/html")
+
+  const prune = (node: Node): void => {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === Node.COMMENT_NODE) {
+        child.remove()
+        continue
+      }
+      if (child.nodeType !== Node.ELEMENT_NODE) continue
+      const el = child as HTMLElement
+      const tag = el.tagName.toLowerCase()
+      if (!SAFE_TAGS.has(tag)) {
+        el.remove()
+        continue
+      }
+      for (const attr of Array.from(el.attributes)) {
+        const name = attr.name.toLowerCase()
+        if (name === "class") {
+          if (!SAFE_CLASSES.has(attr.value)) el.removeAttribute("class")
+        } else if (name === "href" && tag === "a") {
+          if (!isSafeHref(attr.value)) el.removeAttribute("href")
+        } else if (name === "rel" && tag === "a") {
+          // keep (backend emits rel="noreferrer noopener")
+        } else {
+          el.removeAttribute(name)
+        }
+      }
+      prune(el)
+    }
+  }
+
+  prune(doc.body)
+  return doc.body.innerHTML
+}

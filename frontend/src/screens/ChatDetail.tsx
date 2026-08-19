@@ -9,6 +9,7 @@ import {
   MarkRead,
   SubscribeContactPresence,
   MakeCall,
+  MakeGroupCall,
   StarMessage,
 } from "../../wailsjs/go/api/Api"
 import { store } from "../../wailsjs/go/models"
@@ -23,7 +24,7 @@ import { ForwardDialog } from "../components/chat/ForwardDialog"
 import { registerShortcut } from "../lib/shortcuts"
 import type { ChatItem, Message } from "../store/types"
 import clsx from "clsx"
-import { formatPhone, phoneFromJID } from "../lib/utils"
+import { formatPhone, phoneFromJID, sanitizeHtml } from "../lib/utils"
 import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
 import { getEase } from "../store/useEaseStore"
@@ -814,7 +815,11 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
           onInfoClick={() => setChatInfoOpen(!chatInfoOpen)}
           onCallClick={() => {
             if (chatId) {
-              MakeCall(chatId)
+              if (chatId.endsWith("@g.us")) {
+                MakeGroupCall(chatId)
+              } else {
+                MakeCall(chatId)
+              }
             }
           }}
           isTyping={typingIndicators[chatId]?.isTyping ?? false}
@@ -843,7 +848,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
             <span
               className="flex-1 truncate text-gray-700 dark:text-gray-200 [&_*]:inline"
               dangerouslySetInnerHTML={{
-                __html: pinnedMessages[pinnedMessages.length - 1].text || "Pinned message",
+                __html: sanitizeHtml(pinnedMessages[pinnedMessages.length - 1].text || "Pinned message"),
               }}
             />
             {pinnedMessages.length > 1 && (
