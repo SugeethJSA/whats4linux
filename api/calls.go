@@ -274,10 +274,10 @@ func (a *Api) trackOutgoingCall(call *meowcaller.Call, peerJID, groupJID string,
 
 	if a.ctx != nil {
 		runtime.EventsEmit(a.ctx, "call:outgoing", map[string]any{
-			"callID":  call.ID(),
-			"peerJID": peerJID,
-			"isVideo": false,
-			"isGroup": isGroup,
+			"callID":   call.ID(),
+			"peerJID":  peerJID,
+			"isVideo":  false,
+			"isGroup":  isGroup,
 			"groupJID": groupJID,
 		})
 	}
@@ -301,7 +301,7 @@ func (a *Api) AddCallParticipant(callID, targetJID string) error {
 	log.Printf("[Calls] Invited %s to call %s", targetJID, callID)
 	if a.ctx != nil {
 		runtime.EventsEmit(a.ctx, "call:participant_added", map[string]any{
-			"callID":   callID,
+			"callID":    callID,
 			"targetJID": targetJID,
 		})
 	}
